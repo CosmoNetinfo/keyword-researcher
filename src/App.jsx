@@ -1,3 +1,4 @@
+// Final deployment trigger - 2026-03-13 23:26
 import { useState } from "react";
 
 async function loadXLSX() {
