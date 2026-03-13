@@ -148,32 +148,7 @@ export default function App() {
     setPhaseIndex(0);
     setView("new");
 
-    const prompt = `Sei un esperto SEO italiano. Analizza il sito "${url}" e i competitor nella nicchia "${finalTopic}".
-
-Esegui ricerche web per:
-1. Trovare articoli già pubblicati su "${url}" cercando "site:${url} ${finalTopic}" e varianti
-2. Trovare i principali competitor italiani nella nicchia "${finalTopic}"
-3. Identificare gap: argomenti non trattati da "${url}" ma presenti nei competitor
-4. Trovare articoli esistenti su "${url}" da aggiornare
-
-Rispondi SOLO con JSON valido, nessun testo aggiuntivo, nessun markdown:
-{
-  "existing_articles": [
-    { "title": "titolo articolo", "url": "url pagina", "topic": "argomento 2-3 parole", "status": "ok|aggiornare" }
-  ],
-  "competitors": [
-    { "name": "nome sito", "url": "url sito", "strength": "punto di forza in 5 parole" }
-  ],
-  "keywords": [
-    { "keyword": "parola chiave italiana", "difficulty": "bassa|media|alta", "intent": "informazionale|navigazionale|transazionale|commerciale", "volume": "~500/mese" }
-  ],
-  "articles": [
-    { "type": "nuovo|aggiornamento", "title": "Titolo articolo SEO ottimizzato", "description": "1-2 frasi su cosa tratta", "existing_url": "url se aggiornamento altrimenti null", "update_reason": "cosa aggiungere se aggiornamento altrimenti null", "keywords": ["kw1", "kw2"], "priority": "alta|media" }
-  ],
-  "insights": "2-3 frasi riassuntive sui gap trovati"
-}
-
-Genera almeno 20 keyword, almeno 10 nuovi articoli, almeno 5 aggiornamenti.`;
+    const prompt = `Esperto SEO italiano. Sito: "${url}". Nicchia: "${finalTopic}". Cerca "site:${url} ${finalTopic}" per articoli esistenti. Trova 5 competitor italiani. Solo JSON valido, zero testo extra: {"existing_articles":[{"title":"t","url":"u","topic":"x","status":"ok"}],"competitors":[{"name":"n","url":"u","strength":"s"}],"keywords":[{"keyword":"k","difficulty":"bassa","intent":"informazionale","volume":"~100/mese"}],"articles":[{"type":"nuovo","title":"t","description":"d","existing_url":null,"update_reason":null,"keywords":["k1"],"priority":"alta"}],"insights":"frase"}. Genera 15 keyword, 8 nuovi articoli, 4 aggiornamenti.`;
 
     try {
       setPhaseIndex(0);
@@ -182,7 +157,7 @@ Genera almeno 20 keyword, almeno 10 nuovi articoli, almeno 5 aggiornamenti.`;
 
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -191,7 +166,7 @@ Genera almeno 20 keyword, almeno 10 nuovi articoli, almeno 5 aggiornamenti.`;
             tools: [{ google_search: {} }],
             generationConfig: {
               temperature: 0.3,
-              maxOutputTokens: 8192,
+              maxOutputTokens: 2048,
             },
           }),
         }
