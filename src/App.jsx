@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 const TOPICS = ["AI & ChatGPT", "Linux & Open Source", "Gaming", "WordPress", "Produttività digitale"];
 const PHASES = ["Scansione articoli esistenti...", "Analisi competitor italiani...", "Ricerca keyword e gap...", "Generazione idee articoli..."];
@@ -16,10 +16,7 @@ function Pill({ text, map }) {
 function StatusCycle({ value, map, onChange }) {
   const keys = Object.keys(map);
   const curr = map[value] || map[keys[0]];
-  function next() {
-    const idx = keys.indexOf(value);
-    onChange(keys[(idx + 1) % keys.length]);
-  }
+  function next() { const idx = keys.indexOf(value); onChange(keys[(idx + 1) % keys.length]); }
   return (
     <button onClick={next} title="Clicca per cambiare stato" style={{ background: curr.bg, color: curr.color, border: "none", borderRadius: 20, fontSize: 11, fontWeight: 500, padding: "3px 10px", cursor: "pointer", whiteSpace: "nowrap" }}>
       {curr.label}
@@ -56,35 +53,24 @@ function SectionTable({ headers, rows, colWidths }) {
 function loadAnalyses() {
   try { return JSON.parse(localStorage.getItem("kr_analyses") || "[]"); } catch { return []; }
 }
-function saveAnalyses(list) {
-  localStorage.setItem("kr_analyses", JSON.stringify(list));
-}
+function saveAnalyses(list) { localStorage.setItem("kr_analyses", JSON.stringify(list)); }
 
-function exportExcel(analysis) {
+function exportCSV(analysis) {
   const rows = [
     ["KEYWORD RESEARCHER - Analisi del " + new Date(analysis.date).toLocaleDateString("it-IT")],
     ["Sito: " + analysis.url, "Nicchia: " + analysis.topic],
     [],
     ["=== KEYWORD ==="],
     ["#", "Keyword", "Difficoltà", "Intento", "Volume", "Stato"],
-    ...(analysis.result.keywords || []).map((kw, i) => [
-      i + 1, kw.keyword, kw.difficulty, kw.intent, kw.volume || "",
-      KW_STATUS[analysis.statuses?.keywords?.[i] || "da_fare"]?.label || "da fare"
-    ]),
+    ...(analysis.result.keywords || []).map((kw, i) => [i + 1, kw.keyword, kw.difficulty, kw.intent, kw.volume || "", KW_STATUS[analysis.statuses?.keywords?.[i] || "da_fare"]?.label || "da fare"]),
     [],
     ["=== NUOVI ARTICOLI ==="],
     ["#", "Titolo", "Descrizione", "Keyword target", "Priorità", "Stato"],
-    ...(analysis.result.articles || []).filter(a => a.type === "nuovo").map((a, i) => [
-      i + 1, a.title, a.description, (a.keywords || []).join(", "), a.priority,
-      ART_STATUS[analysis.statuses?.articles_new?.[i] || "da_scrivere"]?.label || "da scrivere"
-    ]),
+    ...(analysis.result.articles || []).filter(a => a.type === "nuovo").map((a, i) => [i + 1, a.title, a.description, (a.keywords || []).join(", "), a.priority, ART_STATUS[analysis.statuses?.articles_new?.[i] || "da_scrivere"]?.label || "da scrivere"]),
     [],
     ["=== DA AGGIORNARE ==="],
     ["#", "Titolo", "Cosa aggiungere", "URL esistente", "Priorità", "Stato"],
-    ...(analysis.result.articles || []).filter(a => a.type === "aggiornamento").map((a, i) => [
-      i + 1, a.title, a.update_reason || "", a.existing_url || "", a.priority,
-      ART_STATUS[analysis.statuses?.articles_upd?.[i] || "da_scrivere"]?.label || "da scrivere"
-    ]),
+    ...(analysis.result.articles || []).filter(a => a.type === "aggiornamento").map((a, i) => [i + 1, a.title, a.update_reason || "", a.existing_url || "", a.priority, ART_STATUS[analysis.statuses?.articles_upd?.[i] || "da_scrivere"]?.label || "da scrivere"]),
     [],
     ["=== COMPETITOR ==="],
     ["#", "Sito", "URL", "Punto di forza"],
@@ -93,87 +79,40 @@ function exportExcel(analysis) {
     ["=== INSIGHTS ==="],
     [analysis.result.insights || ""],
   ];
-
-  const csvContent = rows.map(row =>
-    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")
-  ).join("\n");
-
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const a = document.createElement("a");
-  a.href = url;
+  a.href = URL.createObjectURL(blob);
   a.download = `keyword-research-${analysis.url}-${new Date(analysis.date).toISOString().slice(0, 10)}.csv`;
   a.click();
-  URL.revokeObjectURL(url);
 }
 
 function exportWord(analysis) {
   const date = new Date(analysis.date).toLocaleDateString("it-IT");
   const newArts = (analysis.result.articles || []).filter(a => a.type === "nuovo");
   const updArts = (analysis.result.articles || []).filter(a => a.type === "aggiornamento");
-
-  const tableStyle = `border-collapse:collapse;width:100%;margin-bottom:20px;font-size:13px;`;
-  const thStyle = `background:#f5f5f5;border:1px solid #ccc;padding:8px 10px;text-align:left;font-size:12px;`;
-  const tdStyle = `border:1px solid #ccc;padding:7px 10px;vertical-align:top;`;
-
-  function table(headers, rows) {
-    return `<table style="${tableStyle}">
-      <tr>${headers.map(h => `<th style="${thStyle}">${h}</th>`).join("")}</tr>
-      ${rows.map(row => `<tr>${row.map(cell => `<td style="${tdStyle}">${cell}</td>`).join("")}</tr>`).join("")}
-    </table>`;
-  }
-
-  const html = `
-    <html><head><meta charset="UTF-8">
-    <style>body{font-family:Calibri,sans-serif;margin:40px;color:#222;}h1{font-size:20px;color:#1a1a2e;}h2{font-size:15px;color:#333;margin-top:28px;border-bottom:1px solid #ddd;padding-bottom:4px;}p{font-size:13px;line-height:1.6;}</style>
-    </head><body>
-    <h1>Keyword Researcher — Analisi del ${date}</h1>
+  const ts = `border-collapse:collapse;width:100%;margin-bottom:20px;font-size:13px;`;
+  const th = `background:#f5f5f5;border:1px solid #ccc;padding:8px 10px;text-align:left;font-size:12px;`;
+  const td = `border:1px solid #ccc;padding:7px 10px;vertical-align:top;`;
+  const tbl = (headers, rows) => `<table style="${ts}"><tr>${headers.map(h => `<th style="${th}">${h}</th>`).join("")}</tr>${rows.map(r => `<tr>${r.map(c => `<td style="${td}">${c}</td>`).join("")}</tr>`).join("")}</table>`;
+  const html = `<html><head><meta charset="UTF-8"><style>body{font-family:Calibri,sans-serif;margin:40px;color:#222;}h1{font-size:20px;}h2{font-size:15px;border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:28px;}p{font-size:13px;line-height:1.6;}</style></head><body>
+    <h1>Keyword Researcher — ${date}</h1>
     <p><strong>Sito:</strong> ${analysis.url} &nbsp;|&nbsp; <strong>Nicchia:</strong> ${analysis.topic}</p>
-    ${analysis.result.insights ? `<p style="background:#e8f4fd;border-left:4px solid #3b82f6;padding:10px 14px;border-radius:0 6px 6px 0;font-size:13px;">${analysis.result.insights}</p>` : ""}
-
+    ${analysis.result.insights ? `<p style="background:#e8f4fd;border-left:4px solid #3b82f6;padding:10px 14px;">${analysis.result.insights}</p>` : ""}
     <h2>Keyword (${(analysis.result.keywords || []).length})</h2>
-    ${table(["#", "Keyword", "Difficoltà", "Intento", "Volume", "Stato"],
-      (analysis.result.keywords || []).map((kw, i) => [
-        i + 1, `<strong>${kw.keyword}</strong>`, kw.difficulty, kw.intent, kw.volume || "—",
-        KW_STATUS[analysis.statuses?.keywords?.[i] || "da_fare"]?.label || "da fare"
-      ])
-    )}
-
-    <h2>Nuovi articoli da scrivere (${newArts.length})</h2>
-    ${table(["#", "Titolo articolo", "Descrizione", "Keyword target", "Priorità", "Stato"],
-      newArts.map((a, i) => [
-        i + 1, `<strong>${a.title}</strong>`, a.description || "", (a.keywords || []).join(", "), a.priority,
-        ART_STATUS[analysis.statuses?.articles_new?.[i] || "da_scrivere"]?.label || "da scrivere"
-      ])
-    )}
-
-    <h2>Articoli da aggiornare (${updArts.length})</h2>
-    ${table(["#", "Titolo", "Cosa aggiungere", "URL esistente", "Priorità", "Stato"],
-      updArts.map((a, i) => [
-        i + 1, `<strong>${a.title}</strong>`, a.update_reason || a.description || "", a.existing_url || "—", a.priority,
-        ART_STATUS[analysis.statuses?.articles_upd?.[i] || "da_scrivere"]?.label || "da scrivere"
-      ])
-    )}
-
-    <h2>Competitor (${(analysis.result.competitors || []).length})</h2>
-    ${table(["#", "Sito", "URL", "Punto di forza"],
-      (analysis.result.competitors || []).map((c, i) => [i + 1, `<strong>${c.name}</strong>`, c.url || "—", c.strength || "—"])
-    )}
-
-    <h2>Articoli esistenti trovati (${(analysis.result.existing_articles || []).length})</h2>
-    ${table(["#", "Titolo", "Argomento", "URL", "Stato"],
-      (analysis.result.existing_articles || []).map((a, i) => [i + 1, `<strong>${a.title}</strong>`, a.topic || "—", a.url || "—", a.status === "aggiornare" ? "da aggiornare" : "ok"])
-    )}
+    ${tbl(["#","Keyword","Difficoltà","Intento","Volume","Stato"], (analysis.result.keywords||[]).map((kw,i)=>[i+1,`<strong>${kw.keyword}</strong>`,kw.difficulty,kw.intent,kw.volume||"—",KW_STATUS[analysis.statuses?.keywords?.[i]||"da_fare"]?.label||"da fare"]))}
+    <h2>Nuovi articoli (${newArts.length})</h2>
+    ${tbl(["#","Titolo","Descrizione","Keyword","Priorità","Stato"], newArts.map((a,i)=>[i+1,`<strong>${a.title}</strong>`,a.description||"",(a.keywords||[]).join(", "),a.priority,ART_STATUS[analysis.statuses?.articles_new?.[i]||"da_scrivere"]?.label||"da scrivere"]))}
+    <h2>Da aggiornare (${updArts.length})</h2>
+    ${tbl(["#","Titolo","Cosa aggiungere","URL","Priorità","Stato"], updArts.map((a,i)=>[i+1,`<strong>${a.title}</strong>`,a.update_reason||"",a.existing_url||"—",a.priority,ART_STATUS[analysis.statuses?.articles_upd?.[i]||"da_scrivere"]?.label||"da scrivere"]))}
+    <h2>Competitor (${(analysis.result.competitors||[]).length})</h2>
+    ${tbl(["#","Sito","URL","Punto di forza"], (analysis.result.competitors||[]).map((c,i)=>[i+1,`<strong>${c.name}</strong>`,c.url||"—",c.strength||"—"]))}
     </body></html>`;
-
   const blob = new Blob([html], { type: "application/msword" });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
+  a.href = URL.createObjectURL(blob);
   a.download = `keyword-research-${analysis.url}-${new Date(analysis.date).toISOString().slice(0, 10)}.doc`;
   a.click();
-  URL.revokeObjectURL(url);
 }
 
 export default function App() {
@@ -190,28 +129,17 @@ export default function App() {
 
   const finalTopic = topic === "Personalizzato" ? customTopic : topic;
   const current = analyses.find(a => a.id === currentId) || analyses[0] || null;
+  const result = current?.result;
+  const newArticles = result?.articles?.filter(a => a.type === "nuovo") || [];
+  const updateArticles = result?.articles?.filter(a => a.type === "aggiornamento") || [];
 
   function updateCurrent(updater) {
-    setAnalyses(prev => {
-      const next = prev.map(a => a.id === current.id ? updater(a) : a);
-      saveAnalyses(next);
-      return next;
-    });
+    setAnalyses(prev => { const next = prev.map(a => a.id === current.id ? updater(a) : a); saveAnalyses(next); return next; });
   }
-
-  function setKwStatus(i, val) {
-    updateCurrent(a => ({ ...a, statuses: { ...a.statuses, keywords: { ...(a.statuses?.keywords || {}), [i]: val } } }));
-  }
-  function setArtNewStatus(i, val) {
-    updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_new: { ...(a.statuses?.articles_new || {}), [i]: val } } }));
-  }
-  function setArtUpdStatus(i, val) {
-    updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_upd: { ...(a.statuses?.articles_upd || {}), [i]: val } } }));
-  }
-  function deleteAnalysis(id) {
-    setAnalyses(prev => { const next = prev.filter(a => a.id !== id); saveAnalyses(next); return next; });
-    if (currentId === id) setCurrentId(null);
-  }
+  function setKwStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, keywords: { ...(a.statuses?.keywords || {}), [i]: val } } })); }
+  function setArtNewStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_new: { ...(a.statuses?.articles_new || {}), [i]: val } } })); }
+  function setArtUpdStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_upd: { ...(a.statuses?.articles_upd || {}), [i]: val } } })); }
+  function deleteAnalysis(id) { setAnalyses(prev => { const next = prev.filter(a => a.id !== id); saveAnalyses(next); return next; }); if (currentId === id) setCurrentId(null); }
 
   async function runResearch() {
     if (!url || !finalTopic) return;
@@ -221,48 +149,68 @@ export default function App() {
     setView("new");
 
     const prompt = `Sei un esperto SEO italiano. Analizza il sito "${url}" e i competitor nella nicchia "${finalTopic}".
-Cerca "site:${url} ${finalTopic}" e varianti per trovare articoli già pubblicati.
-Trova i principali competitor italiani e le loro keyword.
-Identifica gap: argomenti mancanti e articoli da aggiornare.
 
-Rispondi SOLO con JSON valido, zero testo extra, zero markdown:
+Esegui ricerche web per:
+1. Trovare articoli già pubblicati su "${url}" cercando "site:${url} ${finalTopic}" e varianti
+2. Trovare i principali competitor italiani nella nicchia "${finalTopic}"
+3. Identificare gap: argomenti non trattati da "${url}" ma presenti nei competitor
+4. Trovare articoli esistenti su "${url}" da aggiornare
+
+Rispondi SOLO con JSON valido, nessun testo aggiuntivo, nessun markdown:
 {
-  "existing_articles": [{ "title": "titolo", "url": "url", "topic": "argomento 2-3 parole", "status": "ok|aggiornare" }],
-  "competitors": [{ "name": "nome", "url": "url", "strength": "punto di forza 5 parole" }],
-  "keywords": [{ "keyword": "kw italiana", "difficulty": "bassa|media|alta", "intent": "informazionale|navigazionale|transazionale|commerciale", "volume": "~500/mese" }],
-  "articles": [{ "type": "nuovo|aggiornamento", "title": "Titolo SEO", "description": "1-2 frasi", "existing_url": "url o null", "update_reason": "cosa aggiungere o null", "keywords": ["kw1","kw2"], "priority": "alta|media" }],
-  "insights": "2-3 frasi sui gap trovati"
+  "existing_articles": [
+    { "title": "titolo articolo", "url": "url pagina", "topic": "argomento 2-3 parole", "status": "ok|aggiornare" }
+  ],
+  "competitors": [
+    { "name": "nome sito", "url": "url sito", "strength": "punto di forza in 5 parole" }
+  ],
+  "keywords": [
+    { "keyword": "parola chiave italiana", "difficulty": "bassa|media|alta", "intent": "informazionale|navigazionale|transazionale|commerciale", "volume": "~500/mese" }
+  ],
+  "articles": [
+    { "type": "nuovo|aggiornamento", "title": "Titolo articolo SEO ottimizzato", "description": "1-2 frasi su cosa tratta", "existing_url": "url se aggiornamento altrimenti null", "update_reason": "cosa aggiungere se aggiornamento altrimenti null", "keywords": ["kw1", "kw2"], "priority": "alta|media" }
+  ],
+  "insights": "2-3 frasi riassuntive sui gap trovati"
 }
-Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
+
+Genera almeno 20 keyword, almeno 10 nuovi articoli, almeno 5 aggiornamenti.`;
 
     try {
-      setPhaseIndex(0); await new Promise(r => setTimeout(r, 400));
+      setPhaseIndex(0);
+      await new Promise(r => setTimeout(r, 400));
       setPhaseIndex(1);
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 5000,
-          tools: [{ type: "web_search_20250305", name: "web_search" }],
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
+
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            tools: [{ google_search: {} }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 8192,
+            },
+          }),
+        }
+      );
+
       setPhaseIndex(2);
       const data = await response.json();
+
       if (data.error) throw new Error(data.error.message);
-      const textBlock = data.content?.find(b => b.type === "text");
-      if (!textBlock) throw new Error("Nessuna risposta ricevuta.");
+
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+      if (!text) throw new Error("Nessuna risposta ricevuta da Gemini.");
+
       setPhaseIndex(3);
-      let jsonStr = textBlock.text.trim().replace(/```json|```/g, "").trim();
+      let jsonStr = text.trim().replace(/```json|```/g, "").trim();
       const s = jsonStr.indexOf("{"), e = jsonStr.lastIndexOf("}");
       if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e + 1);
-      const parsed = JSON.parse(jsonStr);
 
+      const parsed = JSON.parse(jsonStr);
       const newAnalysis = { id: Date.now(), date: new Date().toISOString(), url, topic: finalTopic, result: parsed, statuses: {} };
       setAnalyses(prev => { const next = [newAnalysis, ...prev]; saveAnalyses(next); return next; });
       setCurrentId(newAnalysis.id);
@@ -272,10 +220,6 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
     } finally { setLoading(false); }
   }
 
-  const result = current?.result;
-  const newArticles = result?.articles?.filter(a => a.type === "nuovo") || [];
-  const updateArticles = result?.articles?.filter(a => a.type === "aggiornamento") || [];
-
   const tabs = [
     { key: "articles", label: "Nuovi articoli", count: newArticles.length },
     { key: "updates", label: "Da aggiornare", count: updateArticles.length },
@@ -284,7 +228,7 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
     { key: "existing", label: "Esistenti", count: result?.existing_articles?.length || 0 },
   ];
 
-  const navBtnStyle = (active) => ({
+  const navBtn = (active) => ({
     padding: "7px 16px", fontSize: 13, fontWeight: active ? 500 : 400, border: "none", cursor: "pointer",
     background: active ? "var(--color-background-primary)" : "transparent",
     color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
@@ -306,24 +250,25 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
 
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "1.25rem 1rem" }}>
 
-        {/* Top nav */}
+        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem", borderBottom: "0.5px solid var(--color-border-tertiary)", paddingBottom: "0.75rem" }}>
           <div>
             <h1 style={{ margin: "0 0 2px", fontSize: 16, fontWeight: 500, color: "var(--color-text-primary)" }}>Keyword Researcher</h1>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-tertiary)" }}>cosmonet.info · {analyses.length} analisi salvate</p>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-tertiary)" }}>
+              cosmonet.info · {analyses.length} analisi salvate · powered by Gemini
+            </p>
           </div>
           <div style={{ display: "flex", gap: 4 }}>
-            <button onClick={() => setView("new")} style={navBtnStyle(view === "new")}>Nuova analisi</button>
-            <button onClick={() => setView("history")} style={navBtnStyle(view === "history")}>
+            <button onClick={() => setView("new")} style={navBtn(view === "new")}>Nuova analisi</button>
+            <button onClick={() => setView("history")} style={navBtn(view === "history")}>
               Storico {analyses.length > 0 && <span style={{ background: "var(--color-background-secondary)", borderRadius: 10, padding: "1px 6px", fontSize: 11, marginLeft: 4 }}>{analyses.length}</span>}
             </button>
           </div>
         </div>
 
-        {/* NEW ANALYSIS VIEW */}
+        {/* NEW ANALYSIS */}
         {view === "new" && (
           <>
-            {/* Form */}
             <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden", marginBottom: "1rem" }}>
               <div style={{ background: "var(--color-background-secondary)", padding: "7px 14px", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)" }}>Nuova analisi</p>
@@ -349,7 +294,6 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
               </div>
             </div>
 
-            {/* Loading */}
             {loading && (
               <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", padding: "1rem", marginBottom: "1rem" }}>
                 {PHASES.map((phase, i) => (
@@ -365,11 +309,8 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
 
             {error && <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", borderRadius: "var(--border-radius-md)", padding: "10px 14px", fontSize: 13, marginBottom: "1rem" }}>{error}</div>}
 
-            {/* Results */}
             {current && result && (
               <div style={{ animation: "fadeUp 0.3s ease" }}>
-
-                {/* Stats + export */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "1rem", flexWrap: "wrap" }}>
                   {[
                     { label: "Trovati", value: result.existing_articles?.length || 0 },
@@ -384,7 +325,7 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
                     </div>
                   ))}
                   <div style={{ flex: 1 }} />
-                  <button onClick={() => exportExcel(current)} style={{ padding: "7px 14px", fontSize: 12 }}>⬇ CSV / Excel</button>
+                  <button onClick={() => exportCSV(current)} style={{ padding: "7px 14px", fontSize: 12 }}>⬇ CSV / Excel</button>
                   <button onClick={() => exportWord(current)} style={{ padding: "7px 14px", fontSize: 12 }}>⬇ Word (.doc)</button>
                 </div>
 
@@ -394,7 +335,6 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
                   </div>
                 )}
 
-                {/* Tabs */}
                 <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
                   <div style={{ display: "flex", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
                     {tabs.map(tab => (
@@ -403,7 +343,6 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
                       </button>
                     ))}
                   </div>
-
                   <div style={{ background: "var(--color-background-primary)" }}>
 
                     {activeTab === "articles" && (
@@ -485,7 +424,7 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
           </>
         )}
 
-        {/* HISTORY VIEW */}
+        {/* HISTORY */}
         {view === "history" && (
           <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", overflow: "hidden" }}>
             <div style={{ background: "var(--color-background-secondary)", padding: "8px 14px", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
@@ -497,38 +436,25 @@ Genera almeno 20 keyword, 10 nuovi articoli, 5 aggiornamenti.`;
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--color-background-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
-                    <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)" }}>Data</th>
-                    <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)" }}>Sito</th>
-                    <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)" }}>Nicchia</th>
-                    <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)" }}>Keyword</th>
-                    <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)" }}>Articoli</th>
-                    <th style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)" }}>Azioni</th>
+                    {["Data", "Sito", "Nicchia", "Keyword", "Articoli", "Azioni"].map((h, i) => (
+                      <th key={i} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)" }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {analyses.map((a, i) => (
-                    <tr key={a.id} className="hist-row" style={{ borderBottom: "0.5px solid var(--color-border-tertiary)", background: i % 2 === 0 ? "var(--color-background-primary)" : "var(--color-background-secondary)", cursor: "pointer" }}>
-                      <td style={{ padding: "10px 12px", fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
-                        {new Date(a.date).toLocaleDateString("it-IT")}
-                      </td>
+                    <tr key={a.id} className="hist-row" style={{ borderBottom: "0.5px solid var(--color-border-tertiary)", background: i % 2 === 0 ? "var(--color-background-primary)" : "var(--color-background-secondary)" }}>
+                      <td style={{ padding: "10px 12px", fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>{new Date(a.date).toLocaleDateString("it-IT")}</td>
                       <td style={{ padding: "10px 12px", fontWeight: 500 }}>{a.url}</td>
                       <td style={{ padding: "10px 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>{a.topic}</td>
-                      <td style={{ padding: "10px 12px" }}>
-                        <span style={{ background: "#EEEDFE", color: "#534AB7", fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 20 }}>
-                          {a.result?.keywords?.length || 0}
-                        </span>
-                      </td>
-                      <td style={{ padding: "10px 12px" }}>
-                        <span style={{ background: "#E1F5EE", color: "#0F6E56", fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 20 }}>
-                          {a.result?.articles?.length || 0}
-                        </span>
-                      </td>
+                      <td style={{ padding: "10px 12px" }}><span style={{ background: "#EEEDFE", color: "#534AB7", fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 20 }}>{a.result?.keywords?.length || 0}</span></td>
+                      <td style={{ padding: "10px 12px" }}><span style={{ background: "#E1F5EE", color: "#0F6E56", fontSize: 11, fontWeight: 500, padding: "2px 8px", borderRadius: 20 }}>{a.result?.articles?.length || 0}</span></td>
                       <td style={{ padding: "10px 12px" }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button onClick={() => { setCurrentId(a.id); setActiveTab("articles"); setView("new"); }} style={{ fontSize: 11, padding: "4px 10px" }}>Apri</button>
-                          <button onClick={() => exportExcel(a)} style={{ fontSize: 11, padding: "4px 10px" }}>CSV</button>
+                          <button onClick={() => exportCSV(a)} style={{ fontSize: 11, padding: "4px 10px" }}>CSV</button>
                           <button onClick={() => exportWord(a)} style={{ fontSize: 11, padding: "4px 10px" }}>Word</button>
-                          <button onClick={() => { if (confirm("Eliminare questa analisi?")) deleteAnalysis(a.id); }} style={{ fontSize: 11, padding: "4px 10px", background: "var(--color-background-danger)", color: "var(--color-text-danger)", border: "none", borderRadius: 6, cursor: "pointer" }}>✕</button>
+                          <button onClick={() => { if (window.confirm("Eliminare questa analisi?")) deleteAnalysis(a.id); }} style={{ fontSize: 11, padding: "4px 10px", background: "var(--color-background-danger)", color: "var(--color-text-danger)", border: "none", borderRadius: 6, cursor: "pointer" }}>✕</button>
                         </div>
                       </td>
                     </tr>
