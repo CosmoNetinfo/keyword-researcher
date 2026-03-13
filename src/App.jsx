@@ -260,7 +260,7 @@ export default function App() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            tools: [{ google_search: {} }],
+            tools: [{ googleSearch: {} }],
             generationConfig: {
               temperature: 0.3,
               maxOutputTokens: 2048,
@@ -271,7 +271,6 @@ export default function App() {
 
       setPhaseIndex(2);
       const data = await response.json();
-
       if (data.error) throw new Error(data.error.message);
 
       const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
