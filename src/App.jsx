@@ -334,18 +334,28 @@ Genera almeno 20 keyword, almeno 10 nuovi articoli, almeno 5 aggiornamenti.`;
 
             {/* Competitors */}
             {result.competitors?.length > 0 && (
-              <div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-lg)", padding: "1rem 1.25rem", marginBottom: "1.25rem" }}>
-                <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Competitor ({result.competitors.length})
-                </p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 6 }}>
-                  {result.competitors.map((c, i) => (
-                    <div key={i} style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-md)", padding: "8px 12px" }}>
-                      <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 500, color: "var(--color-text-primary)" }}>{c.name}</p>
-                      {c.strength && <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-tertiary)" }}>{c.strength}</p>}
-                    </div>
-                  ))}
+              <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: "var(--border-radius-lg)", marginBottom: "1.25rem", overflow: "hidden" }}>
+                <div style={{ background: "var(--color-background-secondary)", padding: "8px 14px", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)" }}>Competitor ({result.competitors.length})</p>
                 </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "var(--color-background-secondary)" }}>
+                      <th style={{ padding: "7px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)", borderBottom: "0.5px solid var(--color-border-tertiary)", width: 32 }}>#</th>
+                      <th style={{ padding: "7px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)", borderBottom: "0.5px solid var(--color-border-tertiary)", width: "35%" }}>Sito</th>
+                      <th style={{ padding: "7px 12px", textAlign: "left", fontSize: 11, fontWeight: 500, color: "var(--color-text-tertiary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>Punto di forza</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.competitors.map((c, i) => (
+                      <tr key={i} style={{ borderBottom: "0.5px solid var(--color-border-tertiary)", background: i % 2 === 0 ? "var(--color-background-primary)" : "var(--color-background-secondary)" }}>
+                        <td style={{ padding: "9px 12px", color: "var(--color-text-tertiary)", fontSize: 11 }}>{i + 1}</td>
+                        <td style={{ padding: "9px 12px", fontWeight: 500, color: "var(--color-text-primary)" }}>{c.name}</td>
+                        <td style={{ padding: "9px 12px", color: "var(--color-text-secondary)" }}>{c.strength || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
 
