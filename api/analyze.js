@@ -1,27 +1,26 @@
-export const config = {
-  runtime: 'edge', // Vercel Edge functions - Last update: 2026-03-13 23:19
-};
-
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { url, finalTopic, provider } = await req.json();
+    const { url, finalTopic, provider } = req.body;
 
     if (!url || !finalTopic || !provider) {
-      return new Response(JSON.stringify({ error: 'Missing parameters' }), { status: 400 });
+      return res.status(400).json({ error: 'Missing parameters' });
     }
 
     // 1. Serper.dev Google Search integration
     let googleData = "Nessun risultato trovato o ricerca disabilitata.";
-    if (process.env.SERPER_API_KEY) {
+    const env = process.env;
+    const serperKey = env.SERPER_API_KEY;
+    
+    if (serperKey) {
       try {
         const serperRes = await fetch("https://google.serper.dev/search", {
           method: "POST",
           headers: {
-            "X-API-KEY": process.env.SERPER_API_KEY,
+            "X-API-KEY": serperKey,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
@@ -41,7 +40,7 @@ export default async function handler(req) {
       }
     }
 
-    // 2. Groq LLM logic with llama-3.3-70b-versatile
+    // 2. Prompt logic
     const prompt = `Sei un Esperto SEO italiano. Analizza il sito web e la nicchia forniti.
 Sito: "${url}"
 Nicchia: "${finalTopic}"
@@ -65,7 +64,7 @@ Richieste di volumi:
       const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+          "Authorization": `Bearer ${env.GROQ_API_KEY}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -80,8 +79,9 @@ Richieste di volumi:
       content = data.choices[0].message.content;
 
     } else if (provider === "gemini") {
+      const geminiApiKey = env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY;
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -99,7 +99,7 @@ Richieste di volumi:
       const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "x-api-key": env.ANTHROPIC_API_KEY,
           "anthropic-version": "2023-06-01",
           "Content-Type": "application/json"
         },
@@ -117,21 +117,14 @@ Richieste di volumi:
       throw new Error(`Provider sconosciuto: ${provider}`);
     }
 
-    // Sanitize in case model hallucinates backticks despite json_object response_format
     if (content.startsWith("```")) {
         content = content.trim().replace(/^```json|^```|```$/g, "").trim();
     }
 
-    return new Response(content, {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    res.status(200).json(JSON.parse(content));
 
   } catch (error) {
     console.error(error);
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { 'Content-Type': 'application/json' } 
-    });
+    res.status(500).json({ error: error.message });
   }
 }
