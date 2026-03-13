@@ -1,17 +1,28 @@
 # 🔍 Keyword Researcher
 
-> Analizza il tuo sito, studia i competitor italiani e trova keyword + idee articolo personalizzate — powered by Claude AI con web search in tempo reale.
+> Strumento SEO personale per analizzare il tuo sito, studiare i competitor italiani e pianificare i contenuti — powered by Claude AI con web search in tempo reale.
 
 ---
 
 ## ✨ Funzionalità
 
+### Analisi AI
 - **Scansione sito** — trova automaticamente gli articoli già pubblicati sul tuo dominio
 - **Analisi competitor** — identifica i principali blog italiani nella tua nicchia
 - **Keyword research** — 20+ keyword con difficoltà, intento di ricerca e volume stimato
-- **Idee articoli nuovi** — suggerimenti basati sui gap rispetto ai competitor
-- **Articoli da aggiornare** — indica cosa aggiungere agli articoli esistenti
+- **Nuovi articoli** — idee basate sui gap rispetto ai competitor
+- **Articoli da aggiornare** — cosa aggiungere agli articoli esistenti e perché
 - **Web search in tempo reale** — dati aggiornati, non basati su training statico
+
+### Gestione e tracking
+- **Storico analisi** — tutte le analisi salvate localmente, consultabili in qualsiasi momento
+- **Stato keyword** — da fare → in lavorazione → fatto ✓
+- **Stato articoli** — da scrivere → in lavorazione → pubblicato ✓
+- **Confronto nel tempo** — rivedi analisi passate per misurare i progressi
+
+### Export
+- **Export CSV / Excel** — tutti i dati in un file `.csv` con sezioni separate per keyword, articoli, competitor
+- **Export Word** — report formattato `.doc` con tabelle, pronto da stampare o condividere
 
 ---
 
@@ -20,7 +31,8 @@
 | Tecnologia | Uso |
 |---|---|
 | React + Vite | Frontend |
-| Anthropic Claude API | AI + web search |
+| Anthropic Claude API | AI + web search in tempo reale |
+| localStorage | Salvataggio analisi (zero database) |
 | Vercel | Deploy |
 
 ---
@@ -67,22 +79,31 @@ Ogni push su `main` aggiorna automaticamente il deploy.
 
 ## 📖 Come si usa
 
+### Nuova analisi
 1. Inserisci il tuo dominio (es. `cosmonet.info`)
-2. Scegli la nicchia o scrivi una personalizzata
+2. Scegli la nicchia o scrivine una personalizzata
 3. Clicca **Avvia analisi completa**
 4. L'AI esegue 4 fasi in sequenza:
-   - Scansione articoli esistenti
+   - Scansione articoli esistenti sul sito
    - Analisi competitor italiani
-   - Ricerca keyword e gap
-   - Generazione idee articoli
-5. Naviga tra i tab: **Nuovi articoli**, **Da aggiornare**, **Keyword**, **Articoli esistenti**
+   - Ricerca keyword e gap di contenuto
+   - Generazione idee articoli personalizzate
+5. Naviga tra i tab: **Nuovi articoli · Da aggiornare · Keyword · Competitor · Esistenti**
+
+### Tracking
+- Clicca sul badge di stato di una keyword o articolo per aggiornarlo
+- Lo stato si salva automaticamente nel browser
+
+### Storico
+- Clicca su **Storico** in alto per vedere tutte le analisi passate
+- Puoi aprire, esportare o eliminare ogni analisi
 
 ---
 
-## 🔒 Note di sicurezza
+## 💾 Dati e privacy
 
-- La API key non è mai nel codice sorgente
-- `.env.local` è escluso dal repo tramite `.gitignore`
+- Tutti i dati vengono salvati in **localStorage** — rimangono nel browser, zero server
+- La API key non è mai nel codice sorgente — gestita tramite variabili d'ambiente
 - Il repo è privato — solo uso personale
 
 ---
