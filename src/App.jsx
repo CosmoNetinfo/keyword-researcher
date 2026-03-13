@@ -223,6 +223,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("articles");
   const [analyses, setAnalyses] = useState(loadAnalyses);
   const [currentId, setCurrentId] = useState(null);
+  const [provider, setProvider] = useState("groq");
 
   const finalTopic = topic === "Personalizzato" ? customTopic : topic;
   const current = analyses.find(a => a.id === currentId) || analyses[0] || null;
@@ -253,7 +254,7 @@ export default function App() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, finalTopic }),
+        body: JSON.stringify({ url, finalTopic, provider }),
       });
 
       setPhaseIndex(2);
@@ -346,6 +347,14 @@ export default function App() {
                       <option value="Personalizzato">Personalizzato...</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>Motore AI</label>
+                  <select value={provider} onChange={e => setProvider(e.target.value)} style={{ width: "100%" }}>
+                    <option value="groq">Groq (LLaMA 3.3 - Ultra veloce)</option>
+                    <option value="gemini">Google Gemini 2.5 Flash</option>
+                    <option value="claude">Anthropic Claude 3.5 Sonnet</option>
+                  </select>
                 </div>
                 {topic === "Personalizzato" && <input value={customTopic} onChange={e => setCustomTopic(e.target.value)} placeholder="Es: fotografia digitale..." style={{ width: "100%" }} />}
                 <button onClick={runResearch} disabled={loading} style={{ width: "100%", padding: "9px 0", fontSize: 13 }}>

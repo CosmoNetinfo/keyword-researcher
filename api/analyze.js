@@ -8,9 +8,9 @@ export default async function handler(req) {
   }
 
   try {
-    const { url, finalTopic } = await req.json();
+    const { url, finalTopic, provider } = await req.json();
 
-    if (!url || !finalTopic) {
+    if (!url || !finalTopic || !provider) {
       return new Response(JSON.stringify({ error: 'Missing parameters' }), { status: 400 });
     }
 
@@ -59,25 +59,63 @@ Richieste di volumi:
 - 8 Nuovi Articoli da produrre.
 - 4 Articoli da aggiornare.`;
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2,
-        response_format: { type: "json_object" }
-      })
-    });
+    let content = "";
 
-    const data = await groqRes.json();
-    
-    if (data.error) throw new Error(data.error.message);
+    if (provider === "groq") {
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.2,
+          response_format: { type: "json_object" }
+        })
+      });
+      const data = await groqRes.json();
+      if (data.error) throw new Error(data.error.message || data.error.type);
+      content = data.choices[0].message.content;
 
-    let content = data.choices[0].message.content;
+    } else if (provider === "gemini") {
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, responseMimeType: "application/json" }
+          })
+        }
+      );
+      const data = await geminiRes.json();
+      if (data.error) throw new Error(data.error.message);
+      content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    } else if (provider === "claude") {
+      const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          max_tokens: 4000,
+          temperature: 0.2,
+          messages: [{ role: "user", content: prompt + "\n\nProvide only the raw valid JSON output." }]
+        })
+      });
+      const data = await claudeRes.json();
+      if (data.error) throw new Error(data.error.message);
+      content = data.content?.[0]?.text || "";
+    } else {
+      throw new Error(`Provider sconosciuto: ${provider}`);
+    }
 
     // Sanitize in case model hallucinates backticks despite json_object response_format
     if (content.startsWith("```")) {

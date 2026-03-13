@@ -1,110 +1,75 @@
-# 🔍 Keyword Researcher
+# 🔍 Keyword Researcher (Vercel Serverless)
 
-> Strumento SEO personale per analizzare il tuo sito, studiare i competitor italiani e pianificare i contenuti — powered by Claude AI con web search in tempo reale.
+> Strumento SEO professionale per analizzare il tuo sito, studiare i competitor italiani e pianificare i contenuti — ora multi-provider (Claude, Gemini, Groq) con web search integrata via Serper.dev.
 
 ---
 
 ## ✨ Funzionalità
 
-### Analisi AI
-- **Scansione sito** — trova automaticamente gli articoli già pubblicati sul tuo dominio
-- **Analisi competitor** — identifica i principali blog italiani nella tua nicchia
-- **Keyword research** — 20+ keyword con difficoltà, intento di ricerca e volume stimato
-- **Nuovi articoli** — idee basate sui gap rispetto ai competitor
-- **Articoli da aggiornare** — cosa aggiungere agli articoli esistenti e perché
-- **Web search in tempo reale** — dati aggiornati, non basati su training statico
+### 🤖 Multi-LLM Support
+Scegli il motore AI più adatto alle tue esigenze dall'interfaccia:
+- **Groq (LLaMA 3.3)** — Performance istantanee e completamente gratuito.
+- **Google Gemini 2.5 Flash** — Ottimo equilibrio e precisione, perfetto per la v1beta.
+- **Anthropic Claude 3.5 Sonnet** — Il gold standard per la qualità del contenuto SEO.
 
-### Gestione e tracking
-- **Storico analisi** — tutte le analisi salvate localmente, consultabili in qualsiasi momento
-- **Stato keyword** — da fare → in lavorazione → fatto ✓
-- **Stato articoli** — da scrivere → in lavorazione → pubblicato ✓
-- **Confronto nel tempo** — rivedi analisi passate per misurare i progressi
-
-### Export
-- **Export CSV / Excel** — tutti i dati in un file `.csv` con sezioni separate per keyword, articoli, competitor
-- **Export Word** — report formattato `.doc` con tabelle, pronto da stampare o condividere
+### 📡 Web Search & Analisi
+- **Serper.dev Integration** — Cerca in tempo reale i tuoi contenuti esistenti e i competitor su Google Italia.
+- **Scansione sito** — Trova automaticamente gli articoli già pubblicati sul tuo dominio.
+- **Keyword research** — 15+ keyword con difficoltà, intento e volume.
+- **Content Gap Analysis** — IDEE per nuovi articoli e suggerimenti di aggiornamento.
 
 ---
 
-## 🚀 Stack
+## 🚀 Architettura
 
-| Tecnologia | Uso |
-|---|---|
-| React + Vite | Frontend |
-| Anthropic Claude API | AI + web search in tempo reale |
-| localStorage | Salvataggio analisi (zero database) |
-| Vercel | Deploy |
+L'applicazione utilizza una **Vercel Serverless Function** (`Edge Runtime`) per gestire le chiamate API in modo sicuro. Questo approccio:
+1. **Nasconde le API Keys** — Mai esposte nel browser.
+2. **Evita problemi CORS** — Comunicazione fluida backend-to-backend.
+3. **Ottimizza le performance** — Elaborazione vicina all'utente.
 
 ---
 
-## ⚙️ Setup locale
+## ⚙️ Setup Chiavi API
 
-### 1. Clona il repo e installa le dipendenze
+Per il funzionamento completo, avrai bisogno di queste chiavi (tutte offrono piani gratuiti generosi):
 
-```bash
-git clone https://github.com/TUO-USERNAME/keyword-researcher.git
-cd keyword-researcher
-npm install
-```
-
-### 2. Crea il file `.env.local` nella root
-
-```
-VITE_ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxx
-```
-
-> Ottieni la tua API key su [console.anthropic.com](https://console.anthropic.com)
-
-### 3. Avvia in locale
-
-```bash
-npm run dev
-```
-
-Apri [http://localhost:5173](http://localhost:5173)
+1. **[Serper.dev](https://serper.dev)** (Search) → 2500 ricerche gratis al mese.
+2. **[Groq Cloud](https://console.groq.com)** (LLM) → LLaMA 3.3 ultraveloce.
+3. **[Google AI Studio](https://aistudio.google.com)** (Gemini) → Accesso a Gemini 2.5/1.5.
+4. **[Anthropic Console](https://console.anthropic.com)** (Claude) → Opzionale, per massima qualità.
 
 ---
 
 ## 🌐 Deploy su Vercel
 
-1. Importa il repo su [vercel.com/new](https://vercel.com/new)
-2. Aggiungi la variabile d'ambiente:
-   - Nome: `VITE_ANTHROPIC_API_KEY`
-   - Valore: la tua API key
+1. Importa il repo su [vercel.com](https://vercel.com)
+2. Aggiungi le seguenti **Environment Variables**:
+   - `SERPER_API_KEY`
+   - `GROQ_API_KEY`
+   - `GEMINI_API_KEY`
+   - `ANTHROPIC_API_KEY`
 3. Clicca **Deploy**
 
-Ogni push su `main` aggiorna automaticamente il deploy.
+---
+
+## 📦 Sviluppo Locale
+
+1. Clona e installa:
+   ```bash
+   npm install
+   ```
+2. Crea un file `.env` con le chiavi sopra indicate.
+3. Avvia:
+   ```bash
+   npm run dev
+   ```
 
 ---
 
-## 📖 Come si usa
+## 💾 Privacy & Dati
 
-### Nuova analisi
-1. Inserisci il tuo dominio (es. `cosmonet.info`)
-2. Scegli la nicchia o scrivine una personalizzata
-3. Clicca **Avvia analisi completa**
-4. L'AI esegue 4 fasi in sequenza:
-   - Scansione articoli esistenti sul sito
-   - Analisi competitor italiani
-   - Ricerca keyword e gap di contenuto
-   - Generazione idee articoli personalizzate
-5. Naviga tra i tab: **Nuovi articoli · Da aggiornare · Keyword · Competitor · Esistenti**
-
-### Tracking
-- Clicca sul badge di stato di una keyword o articolo per aggiornarlo
-- Lo stato si salva automaticamente nel browser
-
-### Storico
-- Clicca su **Storico** in alto per vedere tutte le analisi passate
-- Puoi aprire, esportare o eliminare ogni analisi
-
----
-
-## 💾 Dati e privacy
-
-- Tutti i dati vengono salvati in **localStorage** — rimangono nel browser, zero server
-- La API key non è mai nel codice sorgente — gestita tramite variabili d'ambiente
-- Il repo è privato — solo uso personale
+- **localStorage** — Lo storico e gli stati dei task sono salvati esclusivamente sul tuo browser.
+- **Zero Database** — L'app non conserva dati su server esterni se non durante l'invocazione delle API AI.
 
 ---
 
