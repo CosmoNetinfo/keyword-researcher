@@ -1,5 +1,16 @@
 import { useState } from "react";
 
+async function loadXLSX() {
+  if (window.XLSX) return window.XLSX;
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    s.onload = () => resolve(window.XLSX);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
 const TOPICS = ["AI & ChatGPT", "Linux & Open Source", "Gaming", "WordPress", "Produttività digitale"];
 const PHASES = ["Scansione articoli esistenti...", "Analisi competitor italiani...", "Ricerca keyword e gap...", "Generazione idee articoli..."];
 const DIFF_COLORS = { bassa: { bg: "#EAF3DE", color: "#3B6D11" }, media: { bg: "#FAEEDA", color: "#854F0B" }, alta: { bg: "#FCEBEB", color: "#A32D2D" } };
@@ -55,64 +66,150 @@ function loadAnalyses() {
 }
 function saveAnalyses(list) { localStorage.setItem("kr_analyses", JSON.stringify(list)); }
 
-function exportCSV(analysis) {
-  const rows = [
-    ["KEYWORD RESEARCHER - Analisi del " + new Date(analysis.date).toLocaleDateString("it-IT")],
-    ["Sito: " + analysis.url, "Nicchia: " + analysis.topic],
-    [],
-    ["=== KEYWORD ==="],
-    ["#", "Keyword", "Difficoltà", "Intento", "Volume", "Stato"],
-    ...(analysis.result.keywords || []).map((kw, i) => [i + 1, kw.keyword, kw.difficulty, kw.intent, kw.volume || "", KW_STATUS[analysis.statuses?.keywords?.[i] || "da_fare"]?.label || "da fare"]),
-    [],
-    ["=== NUOVI ARTICOLI ==="],
-    ["#", "Titolo", "Descrizione", "Keyword target", "Priorità", "Stato"],
-    ...(analysis.result.articles || []).filter(a => a.type === "nuovo").map((a, i) => [i + 1, a.title, a.description, (a.keywords || []).join(", "), a.priority, ART_STATUS[analysis.statuses?.articles_new?.[i] || "da_scrivere"]?.label || "da scrivere"]),
-    [],
-    ["=== DA AGGIORNARE ==="],
-    ["#", "Titolo", "Cosa aggiungere", "URL esistente", "Priorità", "Stato"],
-    ...(analysis.result.articles || []).filter(a => a.type === "aggiornamento").map((a, i) => [i + 1, a.title, a.update_reason || "", a.existing_url || "", a.priority, ART_STATUS[analysis.statuses?.articles_upd?.[i] || "da_scrivere"]?.label || "da scrivere"]),
-    [],
-    ["=== COMPETITOR ==="],
-    ["#", "Sito", "URL", "Punto di forza"],
-    ...(analysis.result.competitors || []).map((c, i) => [i + 1, c.name, c.url || "", c.strength || ""]),
-    [],
-    ["=== INSIGHTS ==="],
-    [analysis.result.insights || ""],
+async function exportCSV(analysis) {
+  const XLSX = await loadXLSX();
+  const date = new Date(analysis.date).toLocaleDateString("it-IT");
+  const newArts = (analysis.result.articles || []).filter(a => a.type === "nuovo");
+  const updArts = (analysis.result.articles || []).filter(a => a.type === "aggiornamento");
+
+  const wb = XLSX.utils.book_new();
+
+  const kwRows = [
+    ["#", "Keyword", "Difficoltà", "Intento", "Volume stimato", "Stato"],
+    ...(analysis.result.keywords || []).map((kw, i) => [
+      i + 1, kw.keyword, kw.difficulty, kw.intent, kw.volume || "—",
+      KW_STATUS[analysis.statuses?.keywords?.[i] || "da_fare"]?.label || "da fare"
+    ])
   ];
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `keyword-research-${analysis.url}-${new Date(analysis.date).toISOString().slice(0, 10)}.csv`;
-  a.click();
+  const wsKw = XLSX.utils.aoa_to_sheet(kwRows);
+  wsKw["!cols"] = [{ wch: 4 }, { wch: 35 }, { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, wsKw, "Keyword");
+
+  const artRows = [
+    ["#", "Titolo articolo", "Descrizione", "Keyword target", "Priorità", "Stato"],
+    ...newArts.map((a, i) => [
+      i + 1, a.title, a.description || "", (a.keywords || []).join(", "), a.priority,
+      ART_STATUS[analysis.statuses?.articles_new?.[i] || "da_scrivere"]?.label || "da scrivere"
+    ])
+  ];
+  const wsArt = XLSX.utils.aoa_to_sheet(artRows);
+  wsArt["!cols"] = [{ wch: 4 }, { wch: 40 }, { wch: 50 }, { wch: 30 }, { wch: 10 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, wsArt, "Nuovi articoli");
+
+  const updRows = [
+    ["#", "Titolo articolo", "Cosa aggiungere", "URL esistente", "Priorità", "Stato"],
+    ...updArts.map((a, i) => [
+      i + 1, a.title, a.update_reason || a.description || "", a.existing_url || "—", a.priority,
+      ART_STATUS[analysis.statuses?.articles_upd?.[i] || "da_scrivere"]?.label || "da scrivere"
+    ])
+  ];
+  const wsUpd = XLSX.utils.aoa_to_sheet(updRows);
+  wsUpd["!cols"] = [{ wch: 4 }, { wch: 40 }, { wch: 50 }, { wch: 35 }, { wch: 10 }, { wch: 16 }];
+  XLSX.utils.book_append_sheet(wb, wsUpd, "Da aggiornare");
+
+  const compRows = [
+    ["#", "Sito", "URL", "Punto di forza"],
+    ...(analysis.result.competitors || []).map((c, i) => [i + 1, c.name, c.url || "—", c.strength || "—"])
+  ];
+  const wsComp = XLSX.utils.aoa_to_sheet(compRows);
+  wsComp["!cols"] = [{ wch: 4 }, { wch: 25 }, { wch: 35 }, { wch: 35 }];
+  XLSX.utils.book_append_sheet(wb, wsComp, "Competitor");
+
+  const infoRows = [
+    ["Analisi del", date],
+    ["Sito", analysis.url],
+    ["Nicchia", analysis.topic],
+    [""],
+    ["Insights"],
+    [analysis.result.insights || "—"],
+  ];
+  const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
+  wsInfo["!cols"] = [{ wch: 15 }, { wch: 60 }];
+  XLSX.utils.book_append_sheet(wb, wsInfo, "Info");
+
+  XLSX.writeFile(wb, `keyword-research-${analysis.url}-${new Date(analysis.date).toISOString().slice(0, 10)}.xlsx`);
 }
 
 function exportWord(analysis) {
   const date = new Date(analysis.date).toLocaleDateString("it-IT");
   const newArts = (analysis.result.articles || []).filter(a => a.type === "nuovo");
   const updArts = (analysis.result.articles || []).filter(a => a.type === "aggiornamento");
-  const ts = `border-collapse:collapse;width:100%;margin-bottom:20px;font-size:13px;`;
-  const th = `background:#f5f5f5;border:1px solid #ccc;padding:8px 10px;text-align:left;font-size:12px;`;
-  const td = `border:1px solid #ccc;padding:7px 10px;vertical-align:top;`;
-  const tbl = (headers, rows) => `<table style="${ts}"><tr>${headers.map(h => `<th style="${th}">${h}</th>`).join("")}</tr>${rows.map(r => `<tr>${r.map(c => `<td style="${td}">${c}</td>`).join("")}</tr>`).join("")}</table>`;
-  const html = `<html><head><meta charset="UTF-8"><style>body{font-family:Calibri,sans-serif;margin:40px;color:#222;}h1{font-size:20px;}h2{font-size:15px;border-bottom:1px solid #ddd;padding-bottom:4px;margin-top:28px;}p{font-size:13px;line-height:1.6;}</style></head><body>
-    <h1>Keyword Researcher — ${date}</h1>
-    <p><strong>Sito:</strong> ${analysis.url} &nbsp;|&nbsp; <strong>Nicchia:</strong> ${analysis.topic}</p>
-    ${analysis.result.insights ? `<p style="background:#e8f4fd;border-left:4px solid #3b82f6;padding:10px 14px;">${analysis.result.insights}</p>` : ""}
-    <h2>Keyword (${(analysis.result.keywords || []).length})</h2>
-    ${tbl(["#","Keyword","Difficoltà","Intento","Volume","Stato"], (analysis.result.keywords||[]).map((kw,i)=>[i+1,`<strong>${kw.keyword}</strong>`,kw.difficulty,kw.intent,kw.volume||"—",KW_STATUS[analysis.statuses?.keywords?.[i]||"da_fare"]?.label||"da fare"]))}
-    <h2>Nuovi articoli (${newArts.length})</h2>
-    ${tbl(["#","Titolo","Descrizione","Keyword","Priorità","Stato"], newArts.map((a,i)=>[i+1,`<strong>${a.title}</strong>`,a.description||"",(a.keywords||[]).join(", "),a.priority,ART_STATUS[analysis.statuses?.articles_new?.[i]||"da_scrivere"]?.label||"da scrivere"]))}
-    <h2>Da aggiornare (${updArts.length})</h2>
-    ${tbl(["#","Titolo","Cosa aggiungere","URL","Priorità","Stato"], updArts.map((a,i)=>[i+1,`<strong>${a.title}</strong>`,a.update_reason||"",a.existing_url||"—",a.priority,ART_STATUS[analysis.statuses?.articles_upd?.[i]||"da_scrivere"]?.label||"da scrivere"]))}
-    <h2>Competitor (${(analysis.result.competitors||[]).length})</h2>
-    ${tbl(["#","Sito","URL","Punto di forza"], (analysis.result.competitors||[]).map((c,i)=>[i+1,`<strong>${c.name}</strong>`,c.url||"—",c.strength||"—"]))}
-    </body></html>`;
-  const blob = new Blob([html], { type: "application/msword" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `keyword-research-${analysis.url}-${new Date(analysis.date).toISOString().slice(0, 10)}.doc`;
-  a.click();
+
+  const thS = "background:#1a73e8;color:#fff;border:1px solid #1557b0;padding:9px 12px;text-align:left;font-size:12px;font-weight:600;";
+  const tdS = "border:1px solid #dadce0;padding:8px 12px;vertical-align:top;font-size:12px;";
+  const tdAlt = "background:#f8f9fa;border:1px solid #dadce0;padding:8px 12px;vertical-align:top;font-size:12px;";
+  const tbl = (headers, rows) => `<table style="border-collapse:collapse;width:100%;margin-bottom:24px;">
+    <tr>${headers.map(h => `<th style="${thS}">${h}</th>`).join("")}</tr>
+    ${rows.map((r, ri) => `<tr>${r.map(c => `<td style="${ri % 2 === 0 ? tdS : tdAlt}">${c}</td>`).join("")}</tr>`).join("")}
+  </table>`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 50px; color: #202124; font-size: 13px; }
+    h1 { font-size: 22px; color: #1a73e8; margin-bottom: 4px; }
+    h2 { font-size: 15px; color: #202124; margin-top: 32px; margin-bottom: 12px; border-bottom: 2px solid #1a73e8; padding-bottom: 6px; }
+    .meta { color: #5f6368; font-size: 13px; margin-bottom: 20px; }
+    .insights { background: #e8f0fe; border-left: 4px solid #1a73e8; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 24px; font-size: 13px; color: #1a73e8; line-height: 1.6; }
+    .badge-alta { background:#fce8e6;color:#c5221f;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600; }
+    .badge-media { background:#fef7e0;color:#b06000;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600; }
+    .badge-fatto { background:#e6f4ea;color:#137333;padding:2px 8px;border-radius:12px;font-size:11px; }
+    .badge-lav { background:#fef7e0;color:#b06000;padding:2px 8px;border-radius:12px;font-size:11px; }
+  </style></head><body>
+  <h1>Keyword Researcher</h1>
+  <p class="meta">Analisi del ${date} &nbsp;·&nbsp; Sito: <strong>${analysis.url}</strong> &nbsp;·&nbsp; Nicchia: <strong>${analysis.topic}</strong></p>
+  ${analysis.result.insights ? `<div class="insights">${analysis.result.insights}</div>` : ""}
+
+  <h2>Keyword (${(analysis.result.keywords || []).length})</h2>
+  ${tbl(["#","Keyword","Difficoltà","Intento","Volume","Stato"],
+    (analysis.result.keywords||[]).map((kw,i)=>[
+      i+1, `<strong>${kw.keyword}</strong>`, kw.difficulty||"—", kw.intent||"—", kw.volume||"—",
+      KW_STATUS[analysis.statuses?.keywords?.[i]||"da_fare"]?.label||"da fare"
+    ])
+  )}
+
+  <h2>Nuovi articoli da scrivere (${newArts.length})</h2>
+  ${tbl(["#","Titolo articolo","Descrizione","Keyword target","Priorità","Stato"],
+    newArts.map((a,i)=>[
+      i+1, `<strong>${a.title}</strong>`, a.description||"", (a.keywords||[]).join(", "),
+      `<span class="badge-${a.priority}">${a.priority}</span>`,
+      ART_STATUS[analysis.statuses?.articles_new?.[i]||"da_scrivere"]?.label||"da scrivere"
+    ])
+  )}
+
+  <h2>Articoli da aggiornare (${updArts.length})</h2>
+  ${tbl(["#","Titolo","Cosa aggiungere","URL esistente","Priorità","Stato"],
+    updArts.map((a,i)=>[
+      i+1, `<strong>${a.title}</strong>`, a.update_reason||a.description||"",
+      a.existing_url ? `<a href="${a.existing_url}">${a.existing_url}</a>` : "—",
+      `<span class="badge-${a.priority}">${a.priority}</span>`,
+      ART_STATUS[analysis.statuses?.articles_upd?.[i]||"da_scrivere"]?.label||"da scrivere"
+    ])
+  )}
+
+  <h2>Competitor (${(analysis.result.competitors||[]).length})</h2>
+  ${tbl(["#","Sito","URL","Punto di forza"],
+    (analysis.result.competitors||[]).map((c,i)=>[
+      i+1, `<strong>${c.name}</strong>`,
+      c.url ? `<a href="${c.url}">${c.url}</a>` : "—",
+      c.strength||"—"
+    ])
+  )}
+
+  <h2>Articoli esistenti trovati (${(analysis.result.existing_articles||[]).length})</h2>
+  ${tbl(["#","Titolo","Argomento","URL","Stato"],
+    (analysis.result.existing_articles||[]).map((a,i)=>[
+      i+1, `<strong>${a.title}</strong>`, a.topic||"—",
+      a.url ? `<a href="${a.url}">${a.url}</a>` : "—",
+      a.status==="aggiornare" ? "da aggiornare" : "ok"
+    ])
+  )}
+  </body></html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `keyword-research-${analysis.url}-${new Date(analysis.date).toISOString().slice(0,10)}.html`;
+  link.click();
 }
 
 export default function App() {
@@ -300,8 +397,8 @@ export default function App() {
                     </div>
                   ))}
                   <div style={{ flex: 1 }} />
-                  <button onClick={() => exportCSV(current)} style={{ padding: "7px 14px", fontSize: 12 }}>⬇ CSV / Excel</button>
-                  <button onClick={() => exportWord(current)} style={{ padding: "7px 14px", fontSize: 12 }}>⬇ Word (.doc)</button>
+                  <button onClick={() => exportCSV(current)} style={{ padding: "7px 14px", fontSize: 12 }}>⬇ Excel (.xlsx)</button>
+                  <button onClick={() => exportWord(current)} style={{ padding: "7px 14px", fontSize: 12 }}>⬇ Google Docs (.html)</button>
                 </div>
 
                 {result.insights && (
@@ -427,8 +524,8 @@ export default function App() {
                       <td style={{ padding: "10px 12px" }}>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button onClick={() => { setCurrentId(a.id); setActiveTab("articles"); setView("new"); }} style={{ fontSize: 11, padding: "4px 10px" }}>Apri</button>
-                          <button onClick={() => exportCSV(a)} style={{ fontSize: 11, padding: "4px 10px" }}>CSV</button>
-                          <button onClick={() => exportWord(a)} style={{ fontSize: 11, padding: "4px 10px" }}>Word</button>
+                          <button onClick={() => exportCSV(a)} style={{ fontSize: 11, padding: "4px 10px" }}>Excel</button>
+                          <button onClick={() => exportWord(a)} style={{ fontSize: 11, padding: "4px 10px" }}>Google Docs</button>
                           <button onClick={() => { if (window.confirm("Eliminare questa analisi?")) deleteAnalysis(a.id); }} style={{ fontSize: 11, padding: "4px 10px", background: "var(--color-background-danger)", color: "var(--color-text-danger)", border: "none", borderRadius: 6, cursor: "pointer" }}>✕</button>
                         </div>
                       </td>
