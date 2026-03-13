@@ -245,36 +245,25 @@ export default function App() {
     setPhaseIndex(0);
     setView("new");
 
-    const prompt = `Esperto SEO italiano. Sito: "${url}". Nicchia: "${finalTopic}". Cerca "site:${url} ${finalTopic}" per articoli esistenti. Trova 5 competitor italiani. Solo JSON valido, zero testo extra: {"existing_articles":[{"title":"t","url":"u","topic":"x","status":"ok"}],"competitors":[{"name":"n","url":"u","strength":"s"}],"keywords":[{"keyword":"k","difficulty":"bassa","intent":"informazionale","volume":"~100/mese"}],"articles":[{"type":"nuovo","title":"t","description":"d","existing_url":null,"update_reason":null,"keywords":["k1"],"priority":"alta"}],"insights":"frase"}. Genera 15 keyword, 8 nuovi articoli, 4 aggiornamenti.`;
-
     try {
       setPhaseIndex(0);
       await new Promise(r => setTimeout(r, 400));
       setPhaseIndex(1);
 
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            tools: [{ googleSearch: {} }],
-            generationConfig: {
-              temperature: 0.3,
-              maxOutputTokens: 2048,
-            },
-          }),
-        }
-      );
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, finalTopic }),
+      });
 
       setPhaseIndex(2);
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
+      if (!response.ok) {
+        let errData = {};
+        try { errData = await response.json(); } catch { /* ignore */ }
+        throw new Error(errData.error || `Errore backend: ${response.status}`);
+      }
 
-      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
-      if (!text) throw new Error("Nessuna risposta ricevuta da Gemini.");
+      const text = await response.text();
 
       setPhaseIndex(3);
       let jsonStr = text.trim().replace(/```json|```/g, "").trim();
