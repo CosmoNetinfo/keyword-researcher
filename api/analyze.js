@@ -1,5 +1,5 @@
 export const config = {
-  runtime: 'edge', // Vercel Edge functions
+  runtime: 'edge', // Vercel Edge functions - Last update: 2026-03-13 23:19
 };
 
 export default async function handler(req) {
