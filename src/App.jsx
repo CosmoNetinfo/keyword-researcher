@@ -1,5 +1,15 @@
-// Final deployment trigger - 2026-03-14 00:05
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { db } from "./firebase";
+import { 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  updateDoc, 
+  doc, 
+  deleteDoc 
+} from "firebase/firestore";
 
 async function loadXLSX() {
   if (window.XLSX) return window.XLSX;
@@ -65,15 +75,16 @@ function SectionTable({ headers, rows }) {
   );
 }
 
-function loadAnalyses() {
-  try { return JSON.parse(localStorage.getItem("kr_analyses") || "[]"); } catch { return []; }
-}
-function saveAnalyses(list) { localStorage.setItem("kr_analyses", JSON.stringify(list)); }
+// Firebase persistence replaces localStorage functions
+// function loadAnalyses() {
+//   try { return JSON.parse(localStorage.getItem("kr_analyses") || "[]"); } catch { return []; }
+// }
+// function saveAnalyses(list) { localStorage.setItem("kr_analyses", JSON.stringify(list)); }
 
 async function exportCSV(analysis) {
   const XLSX = await loadXLSX();
   const newArts = (analysis.result.articles || []).filter(a => a.type === "nuovo");
-  const updArts = (analysis.result.articles || []).filter(a => a.type === "aggiornamento");
+  // const updArts = (analysis.result.articles || []).filter(a => a.type === "aggiornamento");
   const wb = XLSX.utils.book_new();
 
   const kwRows = [
@@ -99,7 +110,7 @@ async function exportCSV(analysis) {
   XLSX.writeFile(wb, `keyword-research-${analysis.url}.xlsx`);
 }
 
-async function exportWord(analysis) {
+async function _exportWord(analysis) {
   // Same logic as before but with updated styles
   const html = `<html><body style="font-family: Arial;"><h1>${analysis.url}</h1></body></html>`;
   const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
@@ -118,8 +129,21 @@ export default function App() {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("articles");
-  const [analyses, setAnalyses] = useState(loadAnalyses);
+  const [analyses, setAnalyses] = useState([]);
   const [currentId, setCurrentId] = useState(null);
+
+  // Load analyses from Firestore in real-time
+  useEffect(() => {
+    const q = query(collection(db, "analyses"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setAnalyses(list);
+    });
+    return () => unsubscribe();
+  }, []);
   const [provider, setProvider] = useState("groq");
 
   const finalTopic = topic === "Personalizzato" ? customTopic : topic;
@@ -128,17 +152,19 @@ export default function App() {
   const newArticles = result?.articles?.filter(a => a.type === "nuovo") || [];
   const updateArticles = result?.articles?.filter(a => a.type === "aggiornamento") || [];
 
-  function updateCurrent(updater) {
-    setAnalyses(prev => { 
-      const next = prev.map(a => a.id === current.id ? updater(a) : a); 
-      saveAnalyses(next); 
-      return next; 
-    });
+  async function updateCurrent(updater) {
+    if (!current) return;
+    const updatedData = updater(current);
+    const { id: _id, ...data } = updatedData;
+    await updateDoc(doc(db, "analyses", current.id), data);
   }
   function setKwStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, keywords: { ...(a.statuses?.keywords || {}), [i]: val } } })); }
   function setArtNewStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_new: { ...(a.statuses?.articles_new || {}), [i]: val } } })); }
   function setArtUpdStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_upd: { ...(a.statuses?.articles_upd || {}), [i]: val } } })); }
-  function deleteAnalysis(id) { setAnalyses(prev => { const next = prev.filter(a => a.id !== id); saveAnalyses(next); return next; }); if (currentId === id) setCurrentId(null); }
+  async function deleteAnalysis(id) { 
+    await deleteDoc(doc(db, "analyses", id));
+    if (currentId === id) setCurrentId(null); 
+  }
 
   async function runResearch() {
     if (!url || !finalTopic) return;
@@ -172,9 +198,16 @@ export default function App() {
       if (s !== -1 && e !== -1) jsonStr = jsonStr.slice(s, e + 1);
 
       const parsed = JSON.parse(jsonStr);
-      const newAnalysis = { id: Date.now(), date: new Date().toISOString(), url, topic: finalTopic, result: parsed, statuses: {} };
-      setAnalyses(prev => { const next = [newAnalysis, ...prev]; saveAnalyses(next); return next; });
-      setCurrentId(newAnalysis.id);
+      const newAnalysis = { 
+        date: new Date().toISOString(), 
+        url, 
+        topic: finalTopic, 
+        result: parsed, 
+        statuses: {} 
+      };
+      
+      const docRef = await addDoc(collection(db, "analyses"), newAnalysis);
+      setCurrentId(docRef.id);
       setActiveTab("articles");
     } catch (e) {
       setError("Errore: " + e.message);
