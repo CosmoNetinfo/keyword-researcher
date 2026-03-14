@@ -49,7 +49,10 @@ Ho già i risultati di ricerca Google per gli articoli esistenti su questo sito.
 ${googleData}
 
 Obiettivo:
-Cerca 5 competitor italiani rilevanti.
+Cerca 20 competitor rilevanti (di cui almeno 10 italiani). 
+Prendi spunto da questi competitor se pertinenti:
+- IT: aranzulla.it, intelligenzaartificialeitalia.net, html.it, punto-informatico.it, hdblog.it, wired.it, tomshw.it, pcpercaso.it, miamammausalinux.org, linux-magazine.it, trovalost.it, openlinux.it, digitalic.it.
+- International: itsfoss.com, linuxhint.com, makeuseof.com, howtogeek.com, techradar.com, venturebeat.com, 9to5linux.com, omgubuntu.co.uk, linuxinsider.com, phoronix.com, unixmen.com, tech2geek.net, desdelinux.net.
 Restituisci l'analisi in ESCLUSIVAMENTE formato JSON valido, senza introdurre testo, markdown backticks o descrizioni umane. Il JSON deve rispettare questa esatta struttura:
 {"existing_articles":[{"title":"TITOLO","url":"URL","topic":"TOPIC DEDOTTO","status":"ok_o_aggiornare"}],"competitors":[{"name":"NOME","url":"URL","strength":"PUNTO DI FORZA"}],"keywords":[{"keyword":"KEYWORD","difficulty":"bassa_media_alta","intent":"informazionale_transazionale","volume":"~VOLUME/mese"}],"articles":[{"type":"nuovo_oppure_aggiornamento","title":"TITOLO","description":"DESCRIZIONE_E_STRUTTURA","existing_url":null_O_URL_SU_CUI_AGGIORNARE,"update_reason":"MOTIVAZIONE","keywords":["KEYWORD_PRINCIPALE"],"priority":"bassa_media_alta"}],"insights":"FRASE_DI_COACHING_SEO"}
 
