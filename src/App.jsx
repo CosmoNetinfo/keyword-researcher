@@ -191,14 +191,14 @@ export default function App() {
 
   return (
     <div id="root">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40, borderBottom: '1px solid var(--color-border)', paddingBottom: 20 }}>
+      <header className="header-main" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40, borderBottom: '1px solid var(--color-border)', paddingBottom: 20 }}>
         <div>
           <h1>Keyword Researcher</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, margin: '4px 0 0' }}>
             Sito: <strong>{url}</strong> · Nicchia: <strong>{finalTopic}</strong>
           </p>
         </div>
-        <nav style={{ display: 'flex', gap: 24 }}>
+        <nav className="header-nav" style={{ display: 'flex', gap: 24 }}>
           <button onClick={() => setView("new")} style={{ background: 'none', border: 'none', color: view === 'new' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'new' ? 600 : 400 }}>Nuova analisi</button>
           <button onClick={() => setView("history")} style={{ background: 'none', border: 'none', color: view === 'history' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'history' ? 600 : 400 }}>Storico ({analyses.length})</button>
         </nav>
@@ -207,7 +207,7 @@ export default function App() {
       {view === "new" && (
         <main>
           <section className="card">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Sito Web</label>
                 <input value={url} onChange={e => setUrl(e.target.value)} placeholder="esempio.it" />
@@ -253,8 +253,8 @@ export default function App() {
           {current && result && (
             <div style={{ marginTop: 40, animation: "fadeUp 0.3s ease" }}>
               {result.insights && <div className="insights-box">{result.insights}</div>}
-
-              <div style={{ display: 'flex', gap: 32, borderBottom: '1px solid var(--color-border)', marginBottom: 24 }}>
+              
+              <div className="tabs-container" style={{ display: 'flex', gap: 32, borderBottom: '1px solid var(--color-border)', marginBottom: 24 }}>
                 {tabs.map(t => (
                   <button key={t.key} onClick={() => setActiveTab(t.key)} style={{ background: 'none', border: 'none', padding: '12px 0', fontSize: 14, fontWeight: activeTab === t.key ? 600 : 400, color: activeTab === t.key ? 'var(--color-primary)' : 'var(--color-text-secondary)', borderBottom: activeTab === t.key ? '3px solid var(--color-primary)' : '3px solid transparent', cursor: 'pointer' }}>
                     {t.label} ({t.count})

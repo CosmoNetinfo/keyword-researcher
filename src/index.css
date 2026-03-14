@@ -135,3 +135,53 @@ tr:hover {
 .badge-alta { background: #fce8e6; color: #c5221f; }
 .badge-media { background: #fef7e0; color: #b06000; }
 .badge-bassa { background: #e6f4ea; color: #137333; }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  #root {
+    padding: 20px 16px;
+  }
+
+  .header-main {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-nav {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+
+  .grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tabs-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    gap: 20px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 24px;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .tabs-container::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
+
+  .tabs-container button {
+    white-space: nowrap;
+    padding: 12px 0;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  .insights-box {
+    font-size: 13px;
+    padding: 12px 16px;
+  }
+}
