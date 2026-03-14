@@ -221,6 +221,40 @@ export default function App() {
     }
     alert(`✅ ${count} articoli aggiunti al Piano!`);
   }
+
+  async function addExistingToPiano(articles) {
+    if (!articles?.length) return;
+
+    // Recupera i titoli già presenti nel piano per evitare duplicati
+    const { getDocs, query: fsQuery, where } = await import("firebase/firestore");
+    const existing = await getDocs(
+      fsQuery(collection(db, "piano_editoriale"), where("source", "==", "cosmonet-esistente"))
+    );
+    const existingTitles = new Set(existing.docs.map(d => d.data().title?.toLowerCase()));
+
+    let added = 0;
+    for (const art of articles) {
+      if (!art.title || existingTitles.has(art.title.toLowerCase())) continue;
+
+      await addDoc(collection(db, "piano_editoriale"), {
+        title:       art.title,
+        kw:          art.topic || "",
+        cat:         topicToCat(art.topic || finalTopic),
+        diff:        "bassa",
+        tipo:        "Esistente",
+        month:       0,               // 0 = già pubblicato, fuori dai mesi
+        status:      "pubblicato",
+        source:      "cosmonet-esistente",
+        sourceUrl:   art.url || "",
+        topic:       art.topic || finalTopic,
+        description: "",
+        existingUrl: art.url || "",
+        createdAt:   serverTimestamp(),
+      });
+      added++;
+    }
+    return added;
+  }
   
   async function deleteAnalysis(id) { 
     await deleteDoc(doc(db, "analyses", id));
@@ -280,6 +314,11 @@ export default function App() {
 
       setView("new");
       setActiveTab("articles");
+
+      // Importa automaticamente gli articoli esistenti nel Piano come "pubblicato"
+      if (parsed.existing_articles?.length) {
+        addExistingToPiano(parsed.existing_articles);
+      }
     } catch (e) {
       setError("Errore: " + e.message);
     } finally { setLoading(false); }

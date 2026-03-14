@@ -139,12 +139,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const pageItems  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
+  const articoliNuovi    = articles.filter(a => a.source !== "cosmonet-esistente");
+  const articoliOnline   = articles.filter(a => a.source === "cosmonet-esistente");
+
   const stats = {
-    total:       articles.length,
-    pubblicati:  articles.filter(a => a.status === "pubblicato").length,
-    lavorazione: articles.filter(a => a.status === "in_lavorazione").length,
-    daFare:      articles.filter(a => a.status === "da_scrivere" || !a.status).length,
+    total:       articoliNuovi.length,
+    pubblicati:  articoliNuovi.filter(a => a.status === "pubblicato").length,
+    lavorazione: articoliNuovi.filter(a => a.status === "in_lavorazione").length,
+    daFare:      articoliNuovi.filter(a => a.status === "da_scrivere" || !a.status).length,
+    online:      articoliOnline.length,
   };
+
+  // Progress solo sui nuovi (non include gli esistenti)
   const pct = stats.total ? Math.round(stats.pubblicati / stats.total * 100) : 0;
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -154,10 +160,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       {/* Header stats */}
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         {[
-          { label: "Totale articoli", val: stats.total,       accent: "#6366f1" },
+          { label: "Da pianificare", val: stats.total,       accent: "#6366f1" },
           { label: "Pubblicati",      val: stats.pubblicati,  accent: "#16a34a" },
           { label: "In lavorazione",  val: stats.lavorazione, accent: "#2563eb" },
           { label: "Da scrivere",     val: stats.daFare,      accent: "#9ca3af" },
+          { label: "Già online",      val: stats.online,      accent: "#0284c7" },
           { label: "Completamento",   val: pct + "%",         accent: "#7c3aed" },
         ].map(s => (
           <div key={s.label} style={{
@@ -183,7 +190,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       {/* Filtri + Cerca */}
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         {/* Mese */}
-        {["all", "1", "2", "3"].map(m => (
+        {["all", "0", "1", "2", "3"].map(m => (
           <button key={m} onClick={() => { setFilter(f=>({...f,month:m})); setPage(1); }}
             style={{
               padding: "5px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer",
@@ -192,7 +199,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               color: filter.month === m ? "var(--color-background-primary,#fff)" : "var(--color-text-secondary)",
               fontWeight: filter.month === m ? 600 : 400,
             }}>
-            {m === "all" ? "Tutti" : `Mese ${m}`}
+            {m === "all" ? "Tutti" : m === "0" ? "✓ Online" : `Mese ${m}`}
           </button>
         ))}
 
@@ -341,6 +348,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                     <div style={{ fontWeight: 500, color: "var(--color-text-primary)", textDecoration: isDone ? "line-through" : "none" }}>
                       {a.title}
                     </div>
+                    {a.source === "keyword-researcher" && (
+                      <span style={{ fontSize: 10, color: "#7c3aed", fontWeight: 600 }}>🔍 da KR</span>
+                    )}
+                    {a.source === "cosmonet-esistente" && (
+                      <a href={a.existingUrl || a.sourceUrl} target="_blank" rel="noreferrer"
+                        style={{ fontSize: 10, color: "#0284c7", fontWeight: 600, textDecoration: "none" }}>
+                        🌐 online
+                      </a>
+                    )}
+                    {a.source === "manuale" && (
+                      <span style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600 }}>✏️ manuale</span>
+                    )}
                   </td>
                   {/* Categoria */}
                   <td style={{ padding: "8px 12px" }}>
@@ -360,7 +379,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                   </td>
                   {/* Mese */}
                   <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
-                    {a.month ? `Mese ${a.month}` : "—"}
+                    {a.month === 0 ? "✓ Online" : a.month ? `Mese ${a.month}` : "—"}
                   </td>
                   {/* Status */}
                   <td style={{ padding: "8px 12px" }}>
