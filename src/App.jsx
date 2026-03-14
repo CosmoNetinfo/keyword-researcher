@@ -30,6 +30,25 @@ const INTENT_COLORS = { informazionale: "badge-bassa", transazionale: "badge-med
 const KW_STATUS = { da_fare: { label: "da fare" }, in_lavorazione: { label: "in lavorazione" }, fatto: { label: "fatto ✓" } };
 const ART_STATUS = { da_scrivere: { label: "da scrivere" }, in_lavorazione: { label: "in lavorazione" }, pubblicato: { label: "pubblicato ✓" } };
 
+// Editorial Plan Seeding Data
+const INITIAL_PIANO = [
+  { month: "1", title: "Claude vs ChatGPT vs Gemini: confronto completo 2025", category: "AI", keyword: "claude vs chatgpt italiano", difficulty: "alta", type: "Confronto" },
+  { month: "1", title: "Come usare Ollama per far girare LLM in locale su Linux", category: "AI", keyword: "ollama linux guida", difficulty: "bassa", type: "Tutorial" },
+  { month: "1", title: "DeepSeek R2: tutto quello che devi sapere", category: "AI", keyword: "deepseek r2 recensione", difficulty: "media", type: "Recensione" },
+  { month: "1", title: "I migliori modelli AI open source del 2025", category: "AI", keyword: "modelli AI open source 2025", difficulty: "media", type: "Listicle" },
+  { month: "1", title: "Come installare e usare LM Studio su Ubuntu", category: "AI", keyword: "lm studio ubuntu", difficulty: "bassa", type: "Tutorial" },
+  { month: "1", title: "Stable Diffusion su Linux: guida all'installazione", category: "AI", keyword: "stable diffusion linux guida", difficulty: "bassa", type: "Tutorial" },
+  { month: "1", title: "Cos'è RAG (Retrieval Augmented Generation) spiegato semplicemente", category: "AI", keyword: "rag intelligenza artificiale spiegato", difficulty: "media", type: "Guida" },
+  { month: "1", title: "Mistral AI: il modello europeo che sfida OpenAI", category: "AI", keyword: "mistral AI italiano", difficulty: "media", type: "Approfondimento" },
+  { month: "1", title: "Come creare un chatbot AI gratis con Flowise", category: "AI", keyword: "flowise chatbot open source", difficulty: "bassa", type: "Tutorial" },
+  { month: "1", title: "Llama 3 vs Mistral: quale scegliere per uso locale", category: "AI", keyword: "llama 3 vs mistral confronto", difficulty: "media", type: "Confronto" },
+  { month: "1", title: "ComfyUI: guida completa per generare immagini AI su Linux", category: "AI", keyword: "comfyui linux tutorial", difficulty: "bassa", type: "Tutorial" },
+  { month: "1", title: "Open WebUI: interfaccia grafica per Ollama, guida setup", category: "AI", keyword: "open webui ollama setup", difficulty: "bassa", type: "Tutorial" },
+  { month: "1", title: "Agenti AI: cosa sono e come funzionano nel 2025", category: "AI", keyword: "agenti AI spiegazione 2025", difficulty: "media", type: "Guida" },
+  { month: "1", title: "I migliori strumenti AI gratuiti per la produttività", category: "AI", keyword: "strumenti AI gratuiti produttività", difficulty: "alta", type: "Listicle" },
+  { month: "1", title: "Come usare l'AI per scrivere codice: guida pratica", category: "AI", keyword: "AI scrivere codice guida", difficulty: "media", type: "Guida" }
+];
+
 function Pill({ text, map }) {
   if (!text) return null;
   const className = map?.[text] || "badge-neutral";
@@ -124,7 +143,7 @@ async function _exportWord(analysis) {
 }
 
 export default function App() {
-  const [view, setView] = useState("new");
+  const [view, setView] = useState("piano"); // Default to piano editoriale
   const [url, setUrl] = useState("cosmonet.info");
   const [topic, setTopic] = useState(TOPICS[0]);
   const [customTopic, setCustomTopic] = useState("");
@@ -133,7 +152,13 @@ export default function App() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("articles");
   const [analyses, setAnalyses] = useState([]);
+  const [pianoArticles, setPianoArticles] = useState([]);
   const [currentId, setCurrentId] = useState(null);
+  
+  // Piano Filters
+  const [pianoMonth, setPianoMonth] = useState("1");
+  const [pianoCategory, setPianoCategory] = useState("Tutti");
+  const [pianoSearch, setPianoSearch] = useState("");
 
   // Load analyses from Firestore in real-time
   useEffect(() => {
@@ -147,6 +172,40 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Load piano editoriale from Firestore in real-time
+  useEffect(() => {
+    const q = query(collection(db, "piano_editoriale"), orderBy("month", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setPianoArticles(list);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Seed logic if empty
+  async function seedInitialPiano() {
+    setLoading(true);
+    try {
+      for (const item of INITIAL_PIANO) {
+        await addDoc(collection(db, "piano_editoriale"), {
+          ...item,
+          status: "da_scrivere",
+          analysisId: null,
+          completed: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+    } catch (e) {
+      console.error("Error seeding piano:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const [provider, setProvider] = useState("groq");
 
   const finalTopic = topic === "Personalizzato" ? customTopic : topic;
@@ -155,26 +214,37 @@ export default function App() {
   const newArticles = result?.articles?.filter(a => a.type === "nuovo") || [];
   const updateArticles = result?.articles?.filter(a => a.type === "aggiornamento") || [];
 
+  async function togglePianoCompleted(id, val) {
+    await updateDoc(doc(db, "piano_editoriale", id), { completed: val });
+  }
+
+  async function setPianoStatus(id, val) {
+    await updateDoc(doc(db, "piano_editoriale", id), { status: val });
+  }
+
   async function updateCurrent(updater) {
     if (!current) return;
     const updatedData = updater(current);
     const { id: _id, ...data } = updatedData;
     await updateDoc(doc(db, "analyses", current.id), data);
   }
+
   function setKwStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, keywords: { ...(a.statuses?.keywords || {}), [i]: val } } })); }
   function setArtNewStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_new: { ...(a.statuses?.articles_new || {}), [i]: val } } })); }
   function setArtUpdStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_upd: { ...(a.statuses?.articles_upd || {}), [i]: val } } })); }
+  
   async function deleteAnalysis(id) { 
     await deleteDoc(doc(db, "analyses", id));
     if (currentId === id) setCurrentId(null); 
   }
 
-  async function runResearch() {
-    if (!url || !finalTopic) return;
+  async function runResearch(overrideTopic, pianoId) {
+    const targetTopic = overrideTopic || finalTopic;
+    if (!url || !targetTopic) return;
     setLoading(true);
     setError("");
     setPhaseIndex(0);
-    setView("new");
+    if (!pianoId) setView("new");
 
     try {
       setPhaseIndex(0);
@@ -184,7 +254,7 @@ export default function App() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, finalTopic, provider }),
+        body: JSON.stringify({ url, finalTopic: targetTopic, provider }),
       });
 
       setPhaseIndex(2);
@@ -204,13 +274,22 @@ export default function App() {
       const newAnalysis = { 
         date: new Date().toISOString(), 
         url, 
-        topic: finalTopic, 
+        topic: targetTopic, 
         result: parsed, 
         statuses: {} 
       };
       
       const docRef = await addDoc(collection(db, "analyses"), newAnalysis);
       setCurrentId(docRef.id);
+      
+      if (pianoId) {
+        await updateDoc(doc(db, "piano_editoriale", pianoId), {
+          analysisId: docRef.id,
+          status: "in_lavorazione"
+        });
+      }
+
+      setView("new");
       setActiveTab("articles");
     } catch (e) {
       setError("Errore: " + e.message);
@@ -225,20 +304,112 @@ export default function App() {
     { key: "existing", label: "Esistenti", count: result?.existing_articles?.length || 0 },
   ];
 
+  const filteredPiano = pianoArticles.filter(a => {
+    const matchMonth = pianoMonth === "Tutti" || a.month === pianoMonth;
+    const matchCategory = pianoCategory === "Tutti" || a.category === pianoCategory;
+    const matchSearch = !pianoSearch || a.title.toLowerCase().includes(pianoSearch.toLowerCase()) || a.keyword.toLowerCase().includes(pianoSearch.toLowerCase());
+    return matchMonth && matchCategory && matchSearch;
+  });
+
+  const categories = ["Tutti", ...new Set(pianoArticles.map(a => a.category))];
+
   return (
     <div id="root">
       <header className="header-main" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40, borderBottom: '1px solid var(--color-border)', paddingBottom: 20 }}>
         <div>
           <h1>Keyword Researcher</h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, margin: '4px 0 0' }}>
-            Sito: <strong>{url}</strong> · Nicchia: <strong>{finalTopic}</strong>
+            Sito: <strong>{url}</strong> {view !== "piano" && <>· Nicchia: <strong>{finalTopic}</strong></>}
           </p>
         </div>
         <nav className="header-nav" style={{ display: 'flex', gap: 24 }}>
-          <button onClick={() => setView("new")} style={{ background: 'none', border: 'none', color: view === 'new' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'new' ? 600 : 400 }}>Nuova analisi</button>
+          <button onClick={() => setView("piano")} style={{ background: 'none', border: 'none', color: view === 'piano' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'piano' ? 600 : 400 }}>Piano Editoriale</button>
+          <button onClick={() => setView("new")} style={{ background: 'none', border: 'none', color: view === 'new' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'new' ? 600 : 400 }}>Analisi</button>
           <button onClick={() => setView("history")} style={{ background: 'none', border: 'none', color: view === 'history' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'history' ? 600 : 400 }}>Storico ({analyses.length})</button>
         </nav>
       </header>
+
+      {view === "piano" && (
+        <main>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 32 }}>
+             <div className="card" style={{ padding: '20px', background: '#202124', color: 'white' }}>
+                <div style={{ fontSize: 32, fontWeight: 700 }}>{pianoArticles.length || 210}</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Articoli totali</div>
+             </div>
+             <div className="card" style={{ padding: '20px', background: '#3c4043', color: 'white' }}>
+                <div style={{ fontSize: 32, fontWeight: 700 }}>{pianoArticles.filter(a => a.category === "AI").length || 60}</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>AI</div>
+             </div>
+             <div className="card" style={{ padding: '20px', background: '#3c4043', color: 'white' }}>
+                <div style={{ fontSize: 32, fontWeight: 700 }}>{pianoArticles.filter(a => a.category === "Linux").length || 60}</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Linux</div>
+             </div>
+             <div className="card" style={{ padding: '20px', background: '#3c4043', color: 'white' }}>
+                <div style={{ fontSize: 32, fontWeight: 700 }}>63%</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>KW difficoltà bassa</div>
+             </div>
+          </div>
+
+          <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+             <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20 }}>
+                <div>
+                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Mese</label>
+                   <select value={pianoMonth} onChange={e => setPianoMonth(e.target.value)} style={{ width: '100%' }}>
+                      <option value="Tutti">Tutti i mesi</option>
+                      <option value="1">Mese 1</option>
+                      <option value="2">Mese 2</option>
+                      <option value="3">Mese 3</option>
+                   </select>
+                </div>
+                <div>
+                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Categoria</label>
+                   <select value={pianoCategory} onChange={e => setPianoCategory(e.target.value)} style={{ width: '100%' }}>
+                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                   </select>
+                </div>
+                <div>
+                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Cerca</label>
+                   <input value={pianoSearch} onChange={e => setPianoSearch(e.target.value)} placeholder="Titolo o keyword..." style={{ width: '100%' }} />
+                </div>
+             </div>
+          </div>
+
+          <SectionTable 
+            headers={["#", "Titolo Articolo", "Categoria", "Keyword Principale", "Difficoltà", "Tipo", "Azioni"]}
+            rows={filteredPiano.map((a, i) => [
+              i + 1,
+              <div style={{ maxWidth: 300 }}>
+                <strong>{a.title}</strong>
+              </div>,
+              <Pill text={a.category} />,
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{a.keyword}</div>,
+              <Pill text={a.difficulty} map={DIFF_COLORS} />,
+              <span style={{ fontSize: 12 }}>{a.type}</span>,
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                 <input 
+                   type="checkbox" 
+                   checked={a.completed} 
+                   onChange={(e) => togglePianoCompleted(a.id, e.target.checked)}
+                   style={{ width: 18, height: 18 }}
+                 />
+                 {a.analysisId ? (
+                   <button onClick={() => { setCurrentId(a.analysisId); setView("new"); }} className="btn-primary" style={{ padding: '4px 12px', fontSize: 11 }}>Risultati</button>
+                 ) : (
+                   <button onClick={() => runResearch(a.title, a.id)} disabled={loading} style={{ background: 'none', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', padding: '4px 12px', borderRadius: 4, fontSize: 11 }}>
+                     {loading ? '...' : '🔍 Analizza'}
+                   </button>
+                 )}
+              </div>
+            ])}
+          />
+          
+          {pianoArticles.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 40 }}>
+              <button onClick={seedInitialPiano} className="btn-primary">Inizializza Piano Editoriale (210 Articoli)</button>
+            </div>
+          )}
+        </main>
+      )}
 
       {view === "new" && (
         <main>
