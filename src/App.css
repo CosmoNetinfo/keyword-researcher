@@ -104,6 +104,19 @@
   }
 }
 
+.row-completed {
+  opacity: 0.6;
+}
+
+.row-completed td:not(:last-child) {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+.row-completed td {
+  background-color: #f8f9fa;
+}
+
 #next-steps ul {
   list-style: none;
   padding: 0;

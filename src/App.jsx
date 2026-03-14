@@ -61,13 +61,16 @@ function SectionTable({ headers, rows }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, i) => (
-              <tr key={i}>
-                {row.map((cell, j) => (
-                  <td key={j}>{cell}</td>
-                ))}
-              </tr>
-            ))}
+            {rows.map((row, i) => {
+              const isChecked = row[0]?.props?.checked;
+              return (
+                <tr key={i} className={isChecked ? "row-completed" : ""}>
+                  {row.map((cell, j) => (
+                    <td key={j}>{cell}</td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -304,7 +307,15 @@ export default function App() {
                     <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.description}</span>,
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#e8f0fe', color: '#1a73e8' }}>{k}</span>)}</div>,
                     <Pill text={a.priority} map={DIFF_COLORS} />,
-                    <StatusCycle value={current.statuses?.articles_new?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => setArtNewStatus(i, v)} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={current.statuses?.articles_new?.[i] === "pubblicato"} 
+                        onChange={(e) => setArtNewStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
+                        style={{ width: 18, height: 18, cursor: 'pointer' }}
+                      />
+                      <StatusCycle value={current.statuses?.articles_new?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => setArtNewStatus(i, v)} />
+                    </div>
                   ])}
                 />
               )}
@@ -318,7 +329,15 @@ export default function App() {
                     <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.update_reason || a.description}</span>,
                     <a href={a.existing_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.existing_url}</a>,
                     <Pill text={a.priority} map={DIFF_COLORS} />,
-                    <StatusCycle value={current.statuses?.articles_upd?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => setArtUpdStatus(i, v)} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={current.statuses?.articles_upd?.[i] === "pubblicato"} 
+                        onChange={(e) => setArtUpdStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
+                        style={{ width: 18, height: 18, cursor: 'pointer' }}
+                      />
+                      <StatusCycle value={current.statuses?.articles_upd?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => setArtUpdStatus(i, v)} />
+                    </div>
                   ])}
                 />
               )}
@@ -332,7 +351,15 @@ export default function App() {
                     <Pill text={kw.difficulty} map={DIFF_COLORS} />,
                     <Pill text={kw.intent} map={INTENT_COLORS} />,
                     <span style={{ color: 'var(--color-text-secondary)' }}>{kw.volume || '~100/mese'}</span>,
-                    <StatusCycle value={current.statuses?.keywords?.[i] || "da_fare"} map={KW_STATUS} onChange={v => setKwStatus(i, v)} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={current.statuses?.keywords?.[i] === "fatto"} 
+                        onChange={(e) => setKwStatus(i, e.target.checked ? "fatto" : "da_fare")}
+                        style={{ width: 18, height: 18, cursor: 'pointer' }}
+                      />
+                      <StatusCycle value={current.statuses?.keywords?.[i] || "da_fare"} map={KW_STATUS} onChange={v => setKwStatus(i, v)} />
+                    </div>
                   ])}
                 />
               )}
