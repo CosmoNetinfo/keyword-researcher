@@ -182,36 +182,49 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         }
       }
 
-      let count = 0;
-      for (const art of articles) {
-        if (art.status === "pubblicato") continue;
-        
-        // Confronto fuzzy: titiolo simile
-        const found = allFound.find(p => 
-          p.title.toLowerCase().trim().includes(art.title.toLowerCase().trim()) ||
-          art.title.toLowerCase().trim().includes(p.title.toLowerCase().trim())
+      let countSynced = 0;
+      let countImported = 0;
+      
+      // 3. Processiamo gli articoli trovati su WP/Sitemap
+      for (const found of allFound) {
+        // Cerchiamo se esiste già nel piano
+        const existing = articles.find(art => 
+          found.title.toLowerCase().trim().includes(art.title.toLowerCase().trim()) ||
+          art.title.toLowerCase().trim().includes(found.title.toLowerCase().trim())
         );
 
-        if (found) {
-          const updateData = {
-            existingUrl: found.url,
-            source: art.source === "manuale" ? "manuale" : "keyword-researcher"
-          };
+        const isFuture = found.status === "future";
+        const updateData = {
+          title: found.title,
+          existingUrl: found.url,
+          status: isFuture ? "in_lavorazione" : "pubblicato",
+          wpStatus: isFuture ? "programmato" : "online",
+          scheduledDate: isFuture ? found.date : null
+        };
 
-          if (found.status === "future") {
-             updateData.scheduledDate = found.date;
-             updateData.wpStatus = "programmato";
-             // Se è programmato lo mettiamo "in lavorazione" se non lo era già
-             if (art.status !== "pubblicato") updateData.status = "in_lavorazione";
-          } else {
-             updateData.status = "pubblicato";
+        if (existing) {
+          // Sincronizziamo l'esistente se non è già pubblicato
+          if (existing.status !== "pubblicato") {
+            await updateDoc(doc(db, "piano_editoriale", existing.id), updateData);
+            countSynced++;
           }
-
-          await updateDoc(doc(db, "piano_editoriale", art.id), updateData);
-          count++;
+        } else {
+          // IMPORTIAMO come nuovo articolo
+          await addDoc(collection(db, "piano_editoriale"), {
+            ...updateData,
+            kw: "", // Non abbiamo la keyword da WP
+            cat: "news", // Default per import
+            diff: "bassa",
+            tipo: "News/Review",
+            month: isFuture ? 1 : 0, // 0 per indicare che è già online/storico
+            source: "wp-import",
+            createdAt: serverTimestamp(),
+          });
+          countImported++;
         }
       }
-      alert(`✅ Aggiornamento completato: ${count} articoli sincronizzati.${isWPActive ? " (Dati recuperati da WP API)" : ""}`);
+
+      alert(`✅ Aggiornamento completato!\n- ${countSynced} articoli sincronizzati\n- ${countImported} nuovi articoli importati da WordPress.`);
     } catch (e) {
       console.error(e);
       alert("Errore durante il refresh: " + e.message);
@@ -569,6 +582,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                       </div>
                       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                         {a.source === "keyword-researcher" && <span style={{ fontSize: 9, color: "#7c3aed", fontWeight: 600 }}>🔍 KR</span>}
+                        {a.source === "wp-import" && <span style={{ fontSize: 9, color: "#10b981", fontWeight: 600 }}>📥 WP</span>}
                         {a.existingUrl && (
                           <a href={a.existingUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: "#0284c7", fontWeight: 600, textDecoration: "none" }}>{a.wpStatus === "programmato" ? "📅 PROGRAMMATO" : "🌐 ONLINE"}</a>
                         )}
