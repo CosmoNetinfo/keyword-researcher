@@ -185,13 +185,25 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       let countSynced = 0;
       let countImported = 0;
       
+      // Funzione per pulire i titoli (rimuove entità HTML comuni e spazi extra)
+      const cleanTitle = (t) => (t || "")
+        .toLowerCase()
+        .replace(/&#8211;|&#8212;/g, "-")
+        .replace(/&#8216;|&#8217;|&#8220;|&#8221;/g, "'")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/[^\w\s]/g, "") // Rimuove punteggiatura per confronto più robusto
+        .trim();
+
       // 3. Processiamo gli articoli trovati su WP/Sitemap
       for (const found of allFound) {
+        const cleanFoundTitle = cleanTitle(found.title);
+        
         // Cerchiamo se esiste già nel piano
-        const existing = articles.find(art => 
-          found.title.toLowerCase().trim().includes(art.title.toLowerCase().trim()) ||
-          art.title.toLowerCase().trim().includes(found.title.toLowerCase().trim())
-        );
+        const existing = articles.find(art => {
+          const cleanArtTitle = cleanTitle(art.title);
+          return (cleanFoundTitle && cleanArtTitle) && (cleanFoundTitle.includes(cleanArtTitle) || cleanArtTitle.includes(cleanFoundTitle));
+        });
 
         const isFuture = found.status === "future";
         const updateData = {
@@ -203,20 +215,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         };
 
         if (existing) {
-          // Sincronizziamo l'esistente se non è già pubblicato
           if (existing.status !== "pubblicato") {
             await updateDoc(doc(db, "piano_editoriale", existing.id), updateData);
             countSynced++;
           }
         } else {
-          // IMPORTIAMO come nuovo articolo
           await addDoc(collection(db, "piano_editoriale"), {
             ...updateData,
-            kw: "", // Non abbiamo la keyword da WP
-            cat: "news", // Default per import
+            kw: "",
+            cat: "news",
             diff: "bassa",
             tipo: "News/Review",
-            month: isFuture ? 1 : 0, // 0 per indicare che è già online/storico
+            month: isFuture ? (new Date(found.date).getMonth() % 3) + 1 : 0, 
             source: "wp-import",
             createdAt: serverTimestamp(),
           });
@@ -224,7 +234,8 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         }
       }
 
-      alert(`✅ Aggiornamento completato!\n- ${countSynced} articoli sincronizzati\n- ${countImported} nuovi articoli importati da WordPress.`);
+      const wpInfo = isWPActive ? `\n(Dati recuperati via API WP: trovati ${publishedFromWP.length} post)` : "\n(⚠️ API WordPress non configurata)";
+      alert(`✅ Aggiornamento completato!\n- ${countSynced} articoli sincronizzati\n- ${countImported} nuovi articoli importati.${wpInfo}`);
     } catch (e) {
       console.error(e);
       alert("Errore durante il refresh: " + e.message);
@@ -324,13 +335,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const stats = {
     total:       articoliNuovi.length,
     pubblicati:  articoliNuovi.filter(a => a.status === "pubblicato").length,
+    programmato:  articoliNuovi.filter(a => a.status === "programmato").length,
     lavorazione: articoliNuovi.filter(a => a.status === "in_lavorazione").length,
     daFare:      articoliNuovi.filter(a => a.status === "da_scrivere" || !a.status).length,
     online:      articoliOnline.length,
   };
 
   // Progress solo sui nuovi (non include gli esistenti)
-  const pct = stats.total ? Math.round(stats.pubblicati / stats.total * 100) : 0;
+  const pct = stats.total ? Math.round((stats.pubblicati + stats.programmato) / stats.total * 100) : 0;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -341,6 +353,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         {[
           { label: "Da pianificare", val: stats.total,       accent: "#6366f1" },
           { label: "Pubblicati",      val: stats.pubblicati,  accent: "#16a34a" },
+          { label: "Programmati",    val: stats.programmato, accent: "#d97706" },
           { label: "In lavorazione",  val: stats.lavorazione, accent: "#2563eb" },
           { label: "Da scrivere",     val: stats.daFare,      accent: "#9ca3af" },
           { label: "Già online",      val: stats.online,      accent: "#0284c7" },
