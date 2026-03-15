@@ -338,7 +338,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       });
       const data = await res.json();
       if (res.ok) {
-        alert("✅ Connessione riuscita! Trovati " + (data.posts?.length || 0) + " post.");
+        let msg = "✅ Connessione riuscita! Trovati " + (data.posts?.length || 0) + " post.";
+        if (data.warning) msg += "\n\n⚠️ NOTA: " + data.warning;
+        alert(msg);
       } else {
         alert("❌ Errore: " + (data.error || "Impossibile connettersi"));
       }
