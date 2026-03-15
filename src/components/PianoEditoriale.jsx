@@ -81,6 +81,20 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [form, setForm]         = useState({ title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", month: 1 });
   const [saving, setSaving]     = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState("table"); // "table" | "calendar"
+  const [showWPSettings, setShowWPSettings] = useState(false);
+  const [wpSettings, setWPSettings] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("kr_wp_settings") || '{"url":"","user":"","pass":""}');
+    } catch {
+      return { url: "", user: "", pass: "" };
+    }
+  });
+
+  const [seoResult, setSEOResult] = useState(null);
+  const [checkingSEO, setCheckingSEO] = useState(null); // article id
+  const [suggestions, setSuggestions] = useState(null);
+
   const PER_PAGE = 20;
 
   // ── Carica articoli da Firestore in real-time ────────────────────────────
@@ -160,6 +174,77 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     } finally {
       setRefreshing(false);
     }
+  }
+
+  // ── SEO Check ─────────────────────────────────────────────────────────────
+  async function runSEOCheck(article) {
+    if (!article.existingUrl) return;
+    setCheckingSEO(article.id);
+    try {
+      const res = await fetch("/api/check-published", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: article.existingUrl, keyword: article.kw })
+      });
+      const data = await res.json();
+      setSEOResult({ id: article.id, ...data });
+    } catch (e) {
+      alert("Errore SEO Check: " + e.message);
+    } finally {
+      setCheckingSEO(null);
+    }
+  }
+
+  // ── WordPress Draft ───────────────────────────────────────────────────────
+  async function createWPDraft(article) {
+    if (!wpSettings.url || !wpSettings.user || !wpSettings.pass) {
+      setShowWPSettings(true);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/wp-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wpUrl: wpSettings.url,
+          username: wpSettings.user,
+          appPassword: wpSettings.pass,
+          title: article.title,
+          content: article.description || `Bozza creata per keyword: ${article.kw}`
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Bozza creata con successo!");
+        window.open(data.editLink, "_blank");
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e) {
+      alert("Errore WordPress: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── Suggerimenti Link Interni ─────────────────────────────────────────────
+  function showLinkSuggestions(article) {
+    const published = articles.filter(a => a.status === "pubblicato" && a.id !== article.id);
+    const kwWords = (article.kw || "").toLowerCase().split(/[\s,]+/).filter(w => w.length > 3);
+    
+    const suggested = published.filter(p => {
+      const pText = (p.title + " " + p.kw).toLowerCase();
+      return kwWords.some(w => pText.includes(w));
+    }).slice(0, 5);
+
+    setSuggestions({ article, items: suggested });
+  }
+
+  function saveWPSettings() {
+    localStorage.setItem("kr_wp_settings", JSON.stringify(wpSettings));
+    setShowWPSettings(false);
+    alert("Impostazioni salvate localmente.");
   }
 
   // ── Filtraggio ────────────────────────────────────────────────────────────
@@ -307,6 +392,20 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           }}>
           {refreshing ? "⏳ Aggiornamento..." : "🔄 Aggiorna da Sito"}
         </button>
+        <button onClick={() => setViewMode(v => v === "table" ? "calendar" : "table")}
+          style={{
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: "none", color: "#0284c7", border: "1.5px solid #0284c7", cursor: "pointer"
+          }}>
+          {viewMode === "table" ? "📅 Vista Calendario" : "📋 Vista Tabella"}
+        </button>
+        <button onClick={() => setShowWPSettings(true)}
+          style={{
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: "none", color: "#9ca3af", border: "1.5px solid #9ca3af", cursor: "pointer"
+          }}>
+          ⚙️ WP
+        </button>
       </div>
 
       {/* Form aggiunta manuale */}
@@ -352,110 +451,198 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       )}
 
       {/* Tabella articoli */}
-      <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--color-border-tertiary,#e5e7eb)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: "var(--color-background-secondary,#f9fafb)", borderBottom: "1.5px solid var(--color-border-secondary,#e5e7eb)" }}>
-              {["✓","#","Titolo","Categoria","Keyword","Difficoltà","Tipo","Mese","Status","Azioni"].map((h,i) => (
-                <th key={i} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600,
-                  color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: ".4px",
-                  whiteSpace: "nowrap" }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {pageItems.length === 0 && (
-              <tr><td colSpan={10} style={{ textAlign: "center", padding: 40, color: "var(--color-text-secondary)" }}>
-                Nessun articolo trovato. {articles.length === 0 ? "Importa analisi dal Keyword Researcher o aggiungi manualmente." : "Prova a cambiare i filtri."}
-              </td></tr>
-            )}
-            {pageItems.map((a, idx) => {
-              const isDone = a.status === "pubblicato";
-              return (
-                <tr key={a.id} style={{
-                  borderBottom: "1px solid var(--color-border-tertiary,#f3f4f6)",
-                  background: isDone ? "var(--color-background-success,#f0fdf4)" : "transparent",
-                  opacity: isDone ? 0.8 : 1,
-                }}>
-                  {/* Checkbox */}
-                  <td style={{ padding: "8px 12px" }}>
-                    <input type="checkbox" checked={isDone} onChange={() => toggleDone(a)}
-                      style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#16a34a" }} />
-                  </td>
-                  {/* # */}
-                  <td style={{ padding: "8px 12px", color: "var(--color-text-secondary)", fontSize: 11 }}>
-                    {(page-1)*PER_PAGE + idx + 1}
-                  </td>
-                  {/* Titolo */}
-                  <td style={{ padding: "8px 12px", maxWidth: 320 }}>
-                    <div style={{ fontWeight: 500, color: "var(--color-text-primary)", textDecoration: isDone ? "line-through" : "none" }}>
-                      {a.title}
+
+      {/* Vista Calendario Multipagina */}
+      {viewMode === "calendar" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+          {[1, 2, 3].map(m => (
+            <div key={m} style={{ background: "var(--color-background-secondary,#f9fafb)", border: "1px solid var(--color-border-secondary,#e5e7eb)", borderRadius: 12, padding: 12, minHeight: 400 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, borderBottom: "1px solid #e5e7eb", paddingBottom: 6 }}>
+                Mese {m}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {articles.filter(a => a.month === m).map(a => (
+                  <div key={a.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8, fontSize: 11, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{a.title}</div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <Badge text={a.cat} meta={CAT_META} />
+                      <span style={{ opacity: 0.6 }}>{a.diff}</span>
                     </div>
-                    {a.source === "keyword-researcher" && (
-                      <span style={{ fontSize: 10, color: "#7c3aed", fontWeight: 600 }}>🔍 da KR</span>
-                    )}
-                    {a.source === "cosmonet-esistente" && (
-                      <a href={a.existingUrl || a.sourceUrl} target="_blank" rel="noreferrer"
-                        style={{ fontSize: 10, color: "#0284c7", fontWeight: 600, textDecoration: "none" }}>
-                        🌐 online
-                      </a>
-                    )}
-                    {a.source === "manuale" && (
-                      <span style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600 }}>✏️ manuale</span>
-                    )}
-                  </td>
-                  {/* Categoria */}
-                  <td style={{ padding: "8px 12px" }}>
-                    <Badge text={a.cat} meta={CAT_META} />
-                  </td>
-                  {/* Keyword */}
-                  <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)", maxWidth: 200 }}>
-                    {a.kw || "—"}
-                  </td>
-                  {/* Difficoltà */}
-                  <td style={{ padding: "8px 12px" }}>
-                    <Badge text={a.diff} meta={DIFF_META} />
-                  </td>
-                  {/* Tipo */}
-                  <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
-                    {a.tipo || "—"}
-                  </td>
-                  {/* Mese */}
-                  <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
-                    {a.month === 0 ? "✓ Online" : a.month ? `Mese ${a.month}` : "—"}
-                  </td>
-                  {/* Status */}
-                  <td style={{ padding: "8px 12px" }}>
-                    <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} />
-                  </td>
-                  {/* Azioni */}
-                  <td style={{ padding: "8px 12px" }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        {a.analysisId ? (
-                             <button onClick={() => onViewResults(a.analysisId)} 
-                                     style={{ border: "1px solid #7c3aed", color: "#7c3aed", background: "none", fontSize: 10, padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>
-                                 Risultati
-                             </button>
-                        ) : (
-                             <button onClick={() => onAnalyze(a.title, a.id)} 
-                                     disabled={globalLoading}
-                                     style={{ border: "1px solid #6366f1", color: "#6366f1", background: "none", fontSize: 10, padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>
-                                 {globalLoading ? "..." : "🔍 Analizza"}
-                             </button>
+                  </div>
+                ))}
+                {articles.filter(a => a.month === m).length === 0 && <div style={{ opacity: 0.4, fontSize: 11, textAlign: "center", marginTop: 20 }}>Nessun articolo per questo mese</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tabella articoli */}
+      {viewMode === "table" && (
+        <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--color-border-tertiary,#e5e7eb)" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--color-background-secondary,#f9fafb)", borderBottom: "1.5px solid var(--color-border-secondary,#e5e7eb)" }}>
+                {["✓","#","Titolo","Categoria/SEO","Keyword","Difficoltà","Tipo","Mese","Status","Azioni"].map((h,i) => (
+                  <th key={i} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600,
+                    color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: ".4px",
+                    whiteSpace: "nowrap" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.length === 0 && (
+                <tr><td colSpan={10} style={{ textAlign: "center", padding: 40, color: "var(--color-text-secondary)" }}>
+                  Nessun articolo trovato. {articles.length === 0 ? "Importa analisi dal Keyword Researcher o aggiungi manualmente." : "Prova a cambiare i filtri."}
+                </td></tr>
+              )}
+              {pageItems.map((a, idx) => {
+                const isDone = a.status === "pubblicato";
+                const isCheckingSEO = checkingSEO === a.id;
+                const seo = seoResult?.id === a.id ? seoResult : null;
+
+                return (
+                  <tr key={a.id} style={{
+                    borderBottom: "1px solid var(--color-border-tertiary,#f3f4f6)",
+                    background: isDone ? "var(--color-background-success,#f0fdf4)" : "transparent",
+                    opacity: isDone ? 0.9 : 1,
+                  }}>
+                    {/* Checkbox */}
+                    <td style={{ padding: "8px 12px" }}>
+                      <input type="checkbox" checked={isDone} onChange={() => toggleDone(a)}
+                        style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#16a34a" }} />
+                    </td>
+                    {/* # */}
+                    <td style={{ padding: "8px 12px", color: "var(--color-text-secondary)", fontSize: 11 }}>
+                      {(page-1)*PER_PAGE + idx + 1}
+                    </td>
+                    {/* Titolo */}
+                    <td style={{ padding: "8px 12px", maxWidth: 320 }}>
+                      <div style={{ fontWeight: 500, color: "var(--color-text-primary)", textDecoration: isDone ? "none" : "none" }}>
+                        {a.title}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                        {a.source === "keyword-researcher" && <span style={{ fontSize: 9, color: "#7c3aed", fontWeight: 600 }}>🔍 KR</span>}
+                        {a.existingUrl && (
+                          <a href={a.existingUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: "#0284c7", fontWeight: 600, textDecoration: "none" }}>🌐 ONLINE</a>
                         )}
-                        <button onClick={() => deleteArticle(a.id)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 14, padding: 0 }}
-                          title="Elimina">✕</button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                        <button onClick={() => showLinkSuggestions(a)} style={{ fontSize: 9, color: "#6366f1", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}>🔗 LINK</button>
+                      </div>
+                    </td>
+                    {/* Categoria/SEO */}
+                    <td style={{ padding: "8px 12px" }}>
+                      <Badge text={a.cat} meta={CAT_META} />
+                      {isDone && a.existingUrl && (
+                        <div style={{ marginTop: 4 }}>
+                          <button onClick={() => runSEOCheck(a)} disabled={isCheckingSEO} 
+                            style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: seo ? (seo.score > 60 ? "#16a34a" : "#d97706") : "#f3f4f6", color: seo ? "#fff" : "#374151", border: "none", cursor: "pointer" }}>
+                            {isCheckingSEO ? "..." : seo ? `SEO: ${seo.score}%` : "SEO Check"}
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                    {/* Keyword */}
+                    <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)", maxWidth: 200 }}>
+                      {a.kw || "—"}
+                    </td>
+                    {/* Difficoltà */}
+                    <td style={{ padding: "8px 12px" }}>
+                      <Badge text={a.diff} meta={DIFF_META} />
+                    </td>
+                    {/* Tipo */}
+                    <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--color-text-secondary)" }}>
+                      {a.tipo || "—"}
+                    </td>
+                    {/* Mese */}
+                    <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      {a.month ? `Mese ${a.month}` : "—"}
+                    </td>
+                    {/* Status */}
+                    <td style={{ padding: "8px 12px" }}>
+                      <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} />
+                    </td>
+                    {/* Azioni */}
+                    <td style={{ padding: "8px 12px" }}>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          {a.analysisId ? (
+                               <button onClick={() => onViewResults(a.analysisId)} 
+                                       style={{ border: "1px solid #7c3aed", color: "#7c3aed", background: "none", fontSize: 10, padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>
+                                   Risultati
+                               </button>
+                          ) : (
+                               <button onClick={() => onAnalyze(a.title, a.id)} 
+                                       disabled={globalLoading}
+                                       style={{ border: "1px solid #6366f1", color: "#6366f1", background: "none", fontSize: 10, padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>
+                                   {globalLoading ? "..." : "🔍 Analizza"}
+                               </button>
+                          )}
+                          {!isDone && (
+                            <button onClick={() => createWPDraft(a)} title="Crea Bozza WP"
+                              style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14 }}>📝</button>
+                          )}
+                          <button onClick={() => deleteArticle(a.id)}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 14 }}
+                            title="Elimina">✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Modal WP Settings */}
+      {showWPSettings && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, color: "var(--color-text-primary)" }}>
+          <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: 400, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ marginTop: 0 }}>Impostazioni WordPress</h3>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>URL Sito</label>
+              <input value={wpSettings.url} onChange={e => setWPSettings({...wpSettings, url: e.target.value})} placeholder="https://www.tuosito.it" style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ddd" }} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>Nome Utente</label>
+              <input value={wpSettings.user} onChange={e => setWPSettings({...wpSettings, user: e.target.value})} style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ddd" }} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>Application Password</label>
+              <input type="password" value={wpSettings.pass} onChange={e => setWPSettings({...wpSettings, pass: e.target.value})} style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ddd" }} />
+              <div style={{ fontSize: 10, color: "#666", marginTop: 4 }}>Generabile da Utenti &gt; Profilo su WordPress</div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={saveWPSettings} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 600 }}>Salva</button>
+              <button onClick={() => setShowWPSettings(false)} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#f3f4f6", color: "#374151", border: "none" }}>Chiudi</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Suggest Link */}
+      {suggestions && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, color: "var(--color-text-primary)" }}>
+          <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: 500, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ marginTop: 0 }}>Suggerimenti Link Interni</h3>
+            <p style={{ fontSize: 13, color: "#666" }}>Pagine pubblicate correlate a: <strong>{suggestions.article.title}</strong></p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, margin: "20px 0" }}>
+              {suggestions.items.map(item => (
+                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8f9fa", padding: 10, borderRadius: 8 }}>
+                  <div style={{ fontSize: 12 }}>
+                    <div style={{ fontWeight: 600 }}>{item.title}</div>
+                    <div style={{ color: "#0284c7" }}>{item.existingUrl}</div>
+                  </div>
+                  <button onClick={() => { navigator.clipboard.writeText(item.existingUrl); alert("Copiato!"); }} style={{ fontSize: 10, padding: "4px 8px", background: "#e0f2fe", color: "#0369a1", border: "none", borderRadius: 4, cursor: "pointer" }}>Copia Link</button>
+                </div>
+              ))}
+              {suggestions.items.length === 0 && <div style={{ textAlign: "center", opacity: 0.5 }}>Nessun articolo correlato trovato online.</div>}
+            </div>
+            <button onClick={() => setSuggestions(null)} style={{ width: "100%", padding: 10, borderRadius: 8, background: "#f3f4f6", color: "#374151", border: "none" }}>Chiudi</button>
+          </div>
+        </div>
+      )}
 
       {/* Paginazione */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, fontSize: 13, color: "var(--color-text-secondary)" }}>
