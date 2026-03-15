@@ -489,7 +489,7 @@ export default function App() {
               
               <div className="tabs-container" style={{ display: 'flex', gap: 32, borderBottom: '1px solid var(--color-border)', marginBottom: 24 }}>
                 {tabs.map(t => (
-                  <button key={t.key} onClick={() => setActiveTab(t.key)} style={{ background: 'none', border: 'none', padding: '12px 0', fontSize: 14, fontWeight: activeTab === t.key ? 600 : 400, color: activeTab === t.key ? 'var(--color-primary)' : 'var(--color-text-secondary)', borderBottom: activeTab === t.key ? '3px solid var(--color-primary)' : '3px solid transparent', cursor: 'pointer' }}>
+                  <button key={t.key} onClick={() => startTransition(() => setActiveTab(t.key))} style={{ background: 'none', border: 'none', padding: '12px 0', fontSize: 14, fontWeight: activeTab === t.key ? 600 : 400, color: activeTab === t.key ? 'var(--color-primary)' : 'var(--color-text-secondary)', borderBottom: activeTab === t.key ? '3px solid var(--color-primary)' : '3px solid transparent', cursor: 'pointer' }}>
                     {t.label} ({t.count})
                   </button>
                 ))}
@@ -497,7 +497,7 @@ export default function App() {
 
               {activeTab === "articles" && newArticles.length > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                  <button onClick={addAllToPiano}
+                  <button onClick={() => startTransition(() => addAllToPiano())}
                     style={{ padding: '6px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
                       background: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer' }}>
                     📅 Aggiungi tutti al Piano ({newArticles.length})
@@ -517,28 +517,31 @@ export default function App() {
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#e8f0fe', color: '#1a73e8' }}>{k}</span>)}</div>,
                       <Pill text={a.priority} map={DIFF_COLORS} />,
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input type="checkbox"
-                          checked={current.statuses?.articles_new?.[i] === "pubblicato"}
-                          onChange={(e) => setArtNewStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
-                          style={{ width: 18, height: 18, cursor: 'pointer' }} />
-                        <StatusCycle
-                          value={current.statuses?.articles_new?.[i] || "da_scrivere"}
-                          map={ART_STATUS}
-                          onChange={v => setArtNewStatus(i, v)} />
-                        <button
-                          onClick={() => addToPiano(a, "nuovo")}
-                          disabled={exists}
-                          style={{ 
-                            fontSize: 11, padding: '4px 10px', borderRadius: 6, 
-                            border: exists ? '1px solid #ddd' : '1px solid #7c3aed',
-                            background: exists ? '#f9fafb' : '#f5f3ff', 
-                            color: exists ? '#9ca3af' : '#7c3aed', 
-                            cursor: exists ? 'not-allowed' : 'pointer', 
-                            whiteSpace: 'nowrap',
-                            fontWeight: 600
-                          }}>
-                          {exists ? "✓ In Piano" : "+ Piano"}
-                        </button>
+                          <input type="checkbox"
+                            checked={current.statuses?.articles_new?.[i] === "pubblicato"}
+                            onChange={(e) => {
+                              const val = e.target.checked ? "pubblicato" : "da_scrivere";
+                              startTransition(() => setArtNewStatus(i, val));
+                            }}
+                            style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                          <StatusCycle
+                            value={current.statuses?.articles_new?.[i] || "da_scrivere"}
+                            map={ART_STATUS}
+                            onChange={v => startTransition(() => setArtNewStatus(i, v))} />
+                          <button
+                            onClick={() => startTransition(() => addToPiano(a, "nuovo"))}
+                            disabled={exists}
+                            style={{ 
+                              fontSize: 11, padding: '4px 10px', borderRadius: 6, 
+                              border: exists ? '1px solid #ddd' : '1px solid #7c3aed',
+                              background: exists ? '#f9fafb' : '#f5f3ff', 
+                              color: exists ? '#9ca3af' : '#7c3aed', 
+                              cursor: exists ? 'not-allowed' : 'pointer', 
+                              whiteSpace: 'nowrap',
+                              fontWeight: 600
+                            }}>
+                            {exists ? "✓ In Piano" : "+ Piano"}
+                          </button>
                       </div>
                     ];
                   })}
@@ -557,13 +560,16 @@ export default function App() {
                       <a href={a.existing_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.existing_url}</a>,
                       <Pill text={a.priority} map={DIFF_COLORS} />,
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <input 
-                          type="checkbox" 
-                          checked={current.statuses?.articles_upd?.[i] === "pubblicato"} 
-                          onChange={(e) => setArtUpdStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
-                          style={{ width: 18, height: 18, cursor: 'pointer' }}
-                        />
-                        <StatusCycle value={current.statuses?.articles_upd?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => setArtUpdStatus(i, v)} />
+                          <input 
+                            type="checkbox" 
+                            checked={current.statuses?.articles_upd?.[i] === "pubblicato"} 
+                            onChange={(e) => {
+                              const val = e.target.checked ? "pubblicato" : "da_scrivere";
+                              startTransition(() => setArtUpdStatus(i, val));
+                            }}
+                            style={{ width: 18, height: 18, cursor: 'pointer' }}
+                          />
+                          <StatusCycle value={current.statuses?.articles_upd?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => startTransition(() => setArtUpdStatus(i, v))} />
                         {exists && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>✓ In Piano</span>}
                       </div>
                     ];
@@ -572,25 +578,32 @@ export default function App() {
               )}
 
               {activeTab === "keywords" && (
-                <SectionTable
-                  headers={["#", "Keyword", "Difficoltà", "Intento", "Volume Stimato", "Stato"]}
-                  rows={result.keywords?.map((kw, i) => [
-                    i + 1,
-                    <strong>{kw.keyword}</strong>,
-                    <Pill text={kw.difficulty} map={DIFF_COLORS} />,
-                    <Pill text={kw.intent} map={INTENT_COLORS} />,
-                    <span style={{ color: 'var(--color-text-secondary)' }}>{kw.volume || '~100/mese'}</span>,
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <input 
-                        type="checkbox" 
-                        checked={current.statuses?.keywords?.[i] === "fatto"} 
-                        onChange={(e) => setKwStatus(i, e.target.checked ? "fatto" : "da_fare")}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                      />
-                      <StatusCycle value={current.statuses?.keywords?.[i] || "da_fare"} map={KW_STATUS} onChange={v => setKwStatus(i, v)} />
-                    </div>
-                  ])}
-                />
+                    <SectionTable
+                      headers={["#", "Keyword", "Difficoltà AI", "Difficoltà Reale", "Google Ads", "Intento", "Volume Stimato", "Stato"]}
+                      rows={result.keywords?.map((kw, i) => [
+                        i + 1,
+                        <strong>{kw.keyword}</strong>,
+                        <Pill text={kw.difficulty} map={DIFF_COLORS} />,
+                        <Pill text={kw.difficulty_real || kw.difficulty} map={DIFF_COLORS} />,
+                        <span style={{ fontWeight: 600, color: (kw.serper_ads > 2) ? '#c5221f' : 'inherit' }}>
+                          {kw.serper_ads !== undefined ? `${kw.serper_ads} ads` : '—'}
+                        </span>,
+                        <Pill text={kw.intent} map={INTENT_COLORS} />,
+                        <span style={{ color: 'var(--color-text-secondary)' }}>{kw.volume || '~100/mese'}</span>,
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <input 
+                            type="checkbox" 
+                            checked={current.statuses?.keywords?.[i] === "fatto"} 
+                            onChange={(e) => {
+                              const val = e.target.checked ? "fatto" : "da_fare";
+                              startTransition(() => setKwStatus(i, val));
+                            }}
+                            style={{ width: 18, height: 18, cursor: 'pointer' }}
+                          />
+                          <StatusCycle value={current.statuses?.keywords?.[i] || "da_fare"} map={KW_STATUS} onChange={v => startTransition(() => setKwStatus(i, v))} />
+                        </div>
+                      ])}
+                    />
               )}
 
               {activeTab === "competitors" && (
@@ -659,7 +672,7 @@ export default function App() {
                         <td><span className="badge badge-neutral">{a.result?.keywords?.length || 0}</span></td>
                         <td>
                           <div style={{ display: 'flex', gap: 12 }}>
-                            <button onClick={() => { setCurrentId(a.id); setView("new"); }} style={{ border: 'none', background: 'none', color: 'var(--color-primary)', fontWeight: 600 }}>Apri</button>
+                            <button onClick={() => startTransition(() => { setCurrentId(a.id); setView("new"); })} style={{ border: 'none', background: 'none', color: 'var(--color-primary)', fontWeight: 600 }}>Apri</button>
                             <button onClick={() => { if (window.confirm("Eliminare?")) deleteAnalysis(a.id); }} style={{ border: 'none', background: 'none', color: '#c5221f' }}>Elimina</button>
                           </div>
                         </td>
@@ -683,7 +696,7 @@ export default function App() {
           </div>
           <PianoEditoriale 
             onAnalyze={(title, id) => runResearch(title, id)} 
-            onViewResults={(id) => { setCurrentId(id); setView("new"); }}
+            onViewResults={(id) => startTransition(() => { setCurrentId(id); setView("new"); })}
             loading={loading}
           />
         </main>
