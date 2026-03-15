@@ -28,7 +28,13 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || "Errore WordPress API");
+      if (response.status === 401) {
+        throw new Error("Autenticazione fallita: controlla Nome Utente e Application Password.");
+      }
+      if (response.status === 404) {
+        throw new Error("URL base non valido o REST API non trovata su questo sito.");
+      }
+      throw new Error(data.message || `Errore WordPress API (${response.status})`);
     }
 
     // Mappiamo i dati per restituire solo quello che ci serve

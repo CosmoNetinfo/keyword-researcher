@@ -10,6 +10,8 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  setDoc,
+  getDoc,
 } from "firebase/firestore";
 
 // ─── Costanti ────────────────────────────────────────────────────────────────
@@ -85,13 +87,8 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState("table"); // "table" | "calendar"
   const [showWPSettings, setShowWPSettings] = useState(false);
-  const [wpSettings, setWPSettings] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("kr_wp_settings") || '{"url":"","user":"","pass":""}');
-    } catch {
-      return { url: "", user: "", pass: "" };
-    }
-  });
+  const [wpSettings, setWPSettings] = useState({ url: "", user: "", pass: "" });
+  const [testingWP, setTestingWP] = useState(false);
 
   const [seoResult, setSEOResult] = useState(null);
   const [checkingSEO, setCheckingSEO] = useState(null); // article id
@@ -105,6 +102,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     const unsub = onSnapshot(q, (snap) => {
       setArticles(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
+
+    // Carica impostazioni WP
+    getDoc(doc(db, "config", "wordpress")).then((snapshot) => {
+      if (snapshot.exists()) {
+        setWPSettings(snapshot.data());
+      }
+    });
+
     return unsub;
   }, []);
 
@@ -144,10 +149,20 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
   // ── Aggiorna col sito (Feed RSS + WordPress API per programmati) ────────────────────────
   async function refreshFromSite() {
+    // Funzione per pulire i titoli (rimuove entità HTML comuni e spazi extra)
+    const cleanTitle = (t) => (t || "")
+      .toLowerCase()
+      .replace(/&#8211;|&#8212;/g, "-")
+      .replace(/&#8216;|&#8217;|&#8220;|&#8221;/g, "'")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/[^\w\s]/g, "") 
+      .trim();
+
     setRefreshing(true);
     try {
       let publishedFromWP = [];
-      let isWPActive = false;
+      let wpError = null;
 
       // 1. Tenta il fetch da WordPress API se abbiamo le credenziali
       if (wpSettings.url && wpSettings.user && wpSettings.pass) {
@@ -161,14 +176,19 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               appPassword: wpSettings.pass
             })
           });
+          const dataWP = await resWP.json();
           if (resWP.ok) {
-            const dataWP = await resWP.json();
             publishedFromWP = dataWP.posts || [];
-            isWPActive = true;
+          } else {
+            wpError = dataWP.error || "Errore sconosciuto";
+            console.error("WP API Error:", wpError);
           }
         } catch (e) {
-          console.warn("WP Fetch fallito, procedo con feed pubblico:", e);
+          wpError = e.message;
+          console.warn("WP Fetch fallito:", e);
         }
+      } else {
+        wpError = "Configurazione incompleta";
       }
 
       // 2. Tenta il fetch dal feed pubblico (fallback o integrazione)
@@ -179,7 +199,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       // Uniamo le liste evitando duplicati (usiamo il titolo come chiave)
       const allFound = [...publishedFromWP];
       for (const p of publishedPublic) {
-        if (!allFound.find(f => f.title.toLowerCase() === p.title.toLowerCase())) {
+        if (!allFound.find(f => cleanTitle(f.title) === cleanTitle(p.title))) {
           allFound.push(p);
         }
       }
@@ -187,16 +207,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       let countSynced = 0;
       let countImported = 0;
       
-      // Funzione per pulire i titoli (rimuove entità HTML comuni e spazi extra)
-      const cleanTitle = (t) => (t || "")
-        .toLowerCase()
-        .replace(/&#8211;|&#8212;/g, "-")
-        .replace(/&#8216;|&#8217;|&#8220;|&#8221;/g, "'")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/[^\w\s]/g, "") // Rimuove punteggiatura per confronto più robusto
-        .trim();
-
       // 3. Processiamo gli articoli trovati su WP/Sitemap
       for (const found of allFound) {
         const cleanFoundTitle = cleanTitle(found.title);
@@ -236,8 +246,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         }
       }
 
-      const wpInfo = isWPActive ? `\n(Dati recuperati via API WP: trovati ${publishedFromWP.length} post)` : "\n(⚠️ API WordPress non configurata)";
-      alert(`✅ Aggiornamento completato!\n- ${countSynced} articoli sincronizzati\n- ${countImported} nuovi articoli importati.${wpInfo}`);
+      const wpStatusMsg = !wpError 
+        ? `\n(✅ WordPress API: trovati ${publishedFromWP.length} post)` 
+        : `\n(⚠️ WordPress API: ${wpError})`;
+
+      alert(`✅ Aggiornamento completato!\n- ${countSynced} articoli sincronizzati\n- ${countImported} nuovi articoli importati.${wpStatusMsg}`);
     } catch (e) {
       console.error(e);
       alert("Errore durante il refresh: " + e.message);
@@ -311,10 +324,42 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     setSuggestions({ article, items: suggested });
   }
 
-  function saveWPSettings() {
-    localStorage.setItem("kr_wp_settings", JSON.stringify(wpSettings));
-    setShowWPSettings(false);
-    alert("Impostazioni salvate localmente.");
+  async function testWPConnection() {
+    setTestingWP(true);
+    try {
+      const res = await fetch("/api/wp-fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wpUrl: wpSettings.url,
+          username: wpSettings.user,
+          appPassword: wpSettings.pass
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("✅ Connessione riuscita! Trovati " + (data.posts?.length || 0) + " post.");
+      } else {
+        alert("❌ Errore: " + (data.error || "Impossibile connettersi"));
+      }
+    } catch (e) {
+      alert("❌ Errore di rete: " + e.message);
+    } finally {
+      setTestingWP(false);
+    }
+  }
+
+  async function saveWPSettings() {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, "config", "wordpress"), wpSettings);
+      setShowWPSettings(false);
+      alert("Impostazioni salvate nel database Firebase.");
+    } catch (e) {
+      alert("Errore nel salvataggio: " + e.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   // ── Filtraggio ────────────────────────────────────────────────────────────
@@ -692,9 +737,17 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               <input type="password" value={wpSettings.pass} onChange={e => setWPSettings({...wpSettings, pass: e.target.value})} style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ddd" }} />
               <div style={{ fontSize: 10, color: "#666", marginTop: 4 }}>Generabile da Utenti &gt; Profilo su WordPress</div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={saveWPSettings} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 600 }}>Salva</button>
-              <button onClick={() => setShowWPSettings(false)} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#f3f4f6", color: "#374151", border: "none" }}>Chiudi</button>
+            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <button onClick={saveWPSettings} disabled={saving} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>
+                {saving ? "Salvataggio..." : "Salva"}
+              </button>
+              <button 
+                onClick={testWPConnection} 
+                disabled={testingWP}
+                style={{ flex: 1, padding: 10, borderRadius: 8, background: "#ecfdf5", color: "#059669", border: "1px solid #059669", fontWeight: 600, cursor: "pointer" }}>
+                {testingWP ? "Test..." : "Test"}
+              </button>
+              <button onClick={() => setShowWPSettings(false)} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#f3f4f6", color: "#374151", border: "none", cursor: "pointer" }}>Chiudi</button>
             </div>
           </div>
         </div>
