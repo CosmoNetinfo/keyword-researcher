@@ -1,78 +1,60 @@
-# 🔍 Keyword Researcher (Vercel Serverless)
+# Keyword Researcher & Piano Editoriale AI
 
-> Strumento SEO professionale per analizzare il tuo sito, studiare i competitor italiani e pianificare i contenuti — ora multi-provider (Claude, Gemini, Groq) con web search integrata via Serper.dev.
+Keyword Researcher è una Single Page Application (SPA) avanzata progettata per automatizzare la ricerca di parole chiave, l'analisi dei competitor e la gestione di un piano editoriale strutturato. Il sistema utilizza vari motori di Intelligenza Artificiale (Groq/LLaMA 3.3, Gemini, Claude) per generare insight strategici partendo da un URL e una nicchia di riferimento.
 
----
+## 🚀 Caratteristiche Principali
 
-## ✨ Funzionalità
+### 1. **Analisi & Keyword Strategy**
+- **Scansione Intelligente**: Analizza siti web esistenti per identificare lacune di contenuto.
+- **Ricerca Keyword**: Identifica parole chiave target con difficoltà, intento di ricerca e volumi stimati.
+- **Analisi Competitor**: Monitora i principali attori della nicchia e i loro punti di forza.
+- **Generazione Idee Articoli**: Suggerisce nuovi contenuti e aggiornamenti per articoli esistenti.
 
-### 🤖 Multi-LLM Support
-Scegli il motore AI più adatto alle tue esigenze dall'interfaccia:
-- **Groq (LLaMA 3.3)** — Performance istantanee e completamente gratuito.
-- **Google Gemini 2.5 Flash** — Ottimo equilibrio e precisione, perfetto per la v1beta.
-- **Anthropic Claude 3.5 Sonnet** — Il gold standard per la qualità del contenuto SEO.
+### 2. **Piano Editoriale (Dashboard Real-time)**
+- **Sincronizzazione WordPress**: Importa automaticamente articoli pubblicati e programmati tramite REST API.
+- **Filtri Avanzati**: Gestione dei contenuti per Anno (2025, 2026, ecc.) e Mesi reali (Gennaio, Febbraio...).
+- **Vista Calendario**: Visualizzazione temporale della strategia di pubblicazione.
+- **Check SEO**: Analisi "on-page" rapida per verificare la presenza di keyword in Titolo, H1 e immagini.
 
-### 📡 Web Search & Analisi
-- **Serper.dev Integration** — Cerca in tempo reale i tuoi contenuti esistenti e i competitor su Google Italia.
-- **Scansione sito** — Trova automaticamente gli articoli già pubblicati sul tuo dominio.
-- **Keyword research** — 15+ keyword con difficoltà, intento e volume.
-- **Content Gap Analysis** — IDEE per nuovi articoli e suggerimenti di aggiornamento.
+### 3. **Automazione & UX**
+- **Deduplicazione**: Identificazione automatica di articoli già presenti nel piano per evitare doppioni.
+- **Aggiunta Massiva**: Inserimento veloce di decine di idee nel piano editoriale con un solo click.
+- **Responsive Design**: Ottimizzato per l'uso professionale su Desktop e per la consultazione rapida su Mobile.
 
----
+## 🛠 Architettura Tecnica
 
-## 🚀 Architettura
+- **Frontend**: React (Vite) con CSS Vanilla (Design Premium/Glassmorphism).
+- **Database e Auth**: Firebase Firestore per la persistenza real-time dei dati.
+- **Backend (Serverless)**:
+  - `api/analyze.js`: Orchestrazione delle chiamate AI e parsing dei risultati.
+  - `api/wp-fetch.js`: Integrazione sicura con WordPress (Application Passwords).
+  - `api/check-published.js`: Scraping leggero e check SEO.
+- **AI Engine**: Supporto multi-provider tramite API esterne (Groq, Google AI, Anthropic).
 
-L'applicazione utilizza una **Vercel Serverless Function** (`Edge Runtime`) per gestire le chiamate API in modo sicuro. Questo approccio:
-1. **Nasconde le API Keys** — Mai esposte nel browser.
-2. **Evita problemi CORS** — Comunicazione fluida backend-to-backend.
-3. **Ottimizza le performance** — Elaborazione vicina all'utente.
+## 📂 Struttura del Progetto
 
----
+```text
+/
+├── api/                # Funzioni Serverless (Vercel/Node.js)
+│   ├── analyze.js      # Core AI Analysis
+│   ├── wp-fetch.js     # WP REST API Bridge
+│   └── ...
+├── src/                # Sorgenti Frontend
+│   ├── components/     # Componenti React (PianoEditoriale, Dashboard...)
+│   ├── App.jsx         # Componente principale e Router logico
+│   ├── firebase.js     # Configurazione Database
+│   └── index.css       # Design System e stili globali
+├── public/             # Asset statici e Manifest PWA
+└── .env                # Variabili d'ambiente (API Keys, Firebase Config)
+```
 
-## ⚙️ Setup Chiavi API
+## ⚙️ Configurazione per lo Sviluppo
 
-Per il funzionamento completo, avrai bisogno di queste chiavi (tutte offrono piani gratuiti generosi):
-
-1. **[Serper.dev](https://serper.dev)** (Search) → 2500 ricerche gratis al mese.
-2. **[Groq Cloud](https://console.groq.com)** (LLM) → LLaMA 3.3 ultraveloce.
-3. **[Google AI Studio](https://aistudio.google.com)** (Gemini) → Accesso a Gemini 2.5/1.5.
-4. **[Anthropic Console](https://console.anthropic.com)** (Claude) → Opzionale, per massima qualità.
-
----
-
-## 🌐 Deploy su Vercel
-
-1. Importa il repo su [vercel.com](https://vercel.com)
-2. Aggiungi le seguenti **Environment Variables**:
-   - `SERPER_API_KEY`
-   - `GROQ_API_KEY`
-   - `GEMINI_API_KEY`
-   - `ANTHROPIC_API_KEY`
-3. Clicca **Deploy**
-
----
-
-## 📦 Sviluppo Locale
-
-1. Clona e installa:
-   ```bash
-   npm install
-   ```
-2. Crea un file `.env` con le chiavi sopra indicate.
-3. Avvia:
-   ```bash
-   npm run dev
-   ```
+1. **Installazione**: `npm install`
+2. **Setup Ambiente**: Crea un file `.env` basato su `.env.example` con le chiavi API per Firebase, Groq, Gemini e Claude.
+3. **Esecuzione Locale**:
+   - Frontend: `npm run dev`
+   - API e Full Stack: `vercel dev` (consigliato per testare la sincronizzazione WordPress).
 
 ---
-
-## 💾 Privacy & Dati
-
-- **localStorage** — Lo storico e gli stati dei task sono salvati esclusivamente sul tuo browser.
-- **Zero Database** — L'app non conserva dati su server esterni se non durante l'invocazione delle API AI.
-
----
-
-## 👤 Autore
-
-Daniele — [cosmonet.info](https://www.cosmonet.info)
+*Progetto sviluppato da Antigravity per CosmoNet.*
