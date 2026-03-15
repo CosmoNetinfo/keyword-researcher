@@ -31,6 +31,11 @@ const DIFF_META = {
   alta:   { label: "Alta",   color: "#b91c1c" },
 };
 
+const MONTH_NAMES = [
+  "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+  "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+];
+
 const STATUS_META = {
   da_scrivere:   { label: "Da scrivere",   next: "in_lavorazione" },
   in_lavorazione:{ label: "In lavorazione",next: "programmato"    },
@@ -79,10 +84,14 @@ function StatusBtn({ status, onChange }) {
 
 export default function PianoEditoriale({ onAnalyze, onViewResults, loading: globalLoading }) {
   const [articles, setArticles] = useState([]);
-  const [filter, setFilter]     = useState({ month: "all", cat: "all", status: "all", q: "" });
+  const [filter, setFilter]     = useState({ year: "all", month: "all", cat: "all", status: "all", q: "" });
   const [page, setPage]         = useState(1);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm]         = useState({ title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", month: 1 });
+  const [form, setForm]         = useState({ 
+    title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", 
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear()
+  });
   const [saving, setSaving]     = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState("table"); // "table" | "calendar"
@@ -142,7 +151,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       source: "manuale",
       createdAt: serverTimestamp(),
     });
-    setForm({ title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", month: 1 });
+    setForm({ 
+      title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", 
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear()
+    });
     setShowForm(false);
     setSaving(false);
   }
@@ -218,12 +231,15 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         });
 
         const isFuture = found.status === "future";
+        const postDate = new Date(found.date);
         const updateData = {
           title: found.title,
           existingUrl: found.url,
           status: isFuture ? "programmato" : "pubblicato",
           wpStatus: isFuture ? "programmato" : "online",
-          scheduledDate: isFuture ? found.date : null
+          scheduledDate: isFuture ? found.date : null,
+          year: postDate.getFullYear(),
+          month: postDate.getMonth() + 1
         };
 
         if (existing) {
@@ -238,7 +254,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             cat: "news",
             diff: "bassa",
             tipo: "News/Review",
-            month: isFuture ? (new Date(found.date).getMonth() % 3) + 1 : 0, 
             source: "wp-import",
             createdAt: serverTimestamp(),
           });
@@ -366,13 +381,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
   // ── Filtraggio ────────────────────────────────────────────────────────────
   const filtered = articles.filter(a => {
+    const yOk  = filter.year   === "all" || String(a.year) === filter.year;
     const mOk  = filter.month  === "all" || String(a.month) === filter.month;
     const cOk  = filter.cat    === "all" || a.cat    === filter.cat;
     const sOk  = filter.status === "all" || a.status === filter.status;
     const qOk  = !filter.q || a.title.toLowerCase().includes(filter.q.toLowerCase())
                            || (a.kw || "").toLowerCase().includes(filter.q.toLowerCase());
-    return mOk && cOk && sOk && qOk;
+    return yOk && mOk && cOk && sOk && qOk;
   });
+
+  const availableYears = [...new Set(articles.map(a => a.year || new Date().getFullYear()))]
+    .filter(Boolean)
+    .sort((a,b) => b-a);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const pageItems  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
@@ -431,6 +451,23 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       {/* Filtri + Cerca */}
       <div className="filter-scroll-container">
         <div className="filter-scroll" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Anno a tendina */}
+          <select 
+            value={filter.year} 
+            onChange={(e) => { setFilter(f=>({...f,year:e.target.value})); setPage(1); }}
+            style={{
+              padding: "5px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer",
+              border: "1.5px solid var(--color-border-secondary,#d1d5db)",
+              background: "white", color: "var(--color-text-primary)",
+              fontWeight: 500, outline: "none", minWidth: 100
+            }}
+          >
+            <option value="all">Tutti gli anni</option>
+            {availableYears.map(y => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
+
           {/* Mese a tendina */}
           <select 
             value={filter.month} 
@@ -439,14 +476,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               padding: "5px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer",
               border: "1.5px solid var(--color-border-secondary,#d1d5db)",
               background: "white", color: "var(--color-text-primary)",
-              fontWeight: 500, outline: "none", minWidth: 120
+              fontWeight: 500, outline: "none", minWidth: 130
             }}
           >
             <option value="all">Tutti i mesi</option>
-            <option value="0">✓ Online</option>
-            <option value="1">Mese 1</option>
-            <option value="2">Mese 2</option>
-            <option value="3">Mese 3</option>
+            {MONTH_NAMES.map((name, i) => (
+              <option key={name} value={String(i + 1)}>{name}</option>
+            ))}
           </select>
 
           <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
@@ -564,10 +600,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           </select>
           <select value={form.month} onChange={e => setForm(f=>({...f,month:Number(e.target.value)}))}
             style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }}>
-            <option value={1}>Mese 1</option>
-            <option value={2}>Mese 2</option>
-            <option value={3}>Mese 3</option>
+            {MONTH_NAMES.map((name, i) => (
+              <option key={name} value={i + 1}>{name}</option>
+            ))}
           </select>
+          <input type="number" placeholder="Anno" value={form.year}
+            onChange={e => setForm(f=>({...f,year:Number(e.target.value)}))}
+            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }} />
           <button type="submit" disabled={saving}
             style={{ padding: "8px 16px", borderRadius: 6, background: "#6366f1", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
             {saving ? "Salvo..." : "💾 Aggiungi"}
@@ -577,28 +616,37 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       {/* Tabella articoli */}
 
-      {/* Vista Calendario Multipagina */}
+      {/* Vista Calendario Multipagina (Versione semplificata per Anno/Mese corrente) */}
       {viewMode === "calendar" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
-          {[1, 2, 3].map(m => (
-            <div key={m} style={{ background: "var(--color-background-secondary,#f9fafb)", border: "1px solid var(--color-border-secondary,#e5e7eb)", borderRadius: 12, padding: 12, minHeight: 400 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, borderBottom: "1px solid #e5e7eb", paddingBottom: 6 }}>
-                Mese {m}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {articles.filter(a => a.month === m).map(a => (
-                  <div key={a.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8, fontSize: 11, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{a.title}</div>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <Badge text={a.cat} meta={CAT_META} />
-                      <span style={{ opacity: 0.6 }}>{a.diff}</span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 20 }}>
+          {MONTH_NAMES.map((name, i) => {
+            const m = i + 1;
+            const curArticles = articles.filter(a => 
+              (filter.year === "all" || String(a.year) === filter.year) && 
+              a.month === m
+            );
+            if (filter.month !== "all" && String(m) !== filter.month) return null;
+            if (curArticles.length === 0 && filter.month === "all") return null;
+
+            return (
+              <div key={m} style={{ background: "var(--color-background-secondary,#f9fafb)", border: "1px solid var(--color-border-secondary,#e5e7eb)", borderRadius: 12, padding: 12, minHeight: 200 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, borderBottom: "1px solid #e5e7eb", paddingBottom: 6 }}>
+                  {name} {filter.year !== "all" ? filter.year : ""}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {curArticles.map(a => (
+                    <div key={a.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8, fontSize: 11, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{a.title}</div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <Badge text={a.cat} meta={CAT_META} />
+                        <span style={{ opacity: 0.6 }}>{a.diff}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {articles.filter(a => a.month === m).length === 0 && <div style={{ opacity: 0.4, fontSize: 11, textAlign: "center", marginTop: 20 }}>Nessun articolo per questo mese</div>}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
