@@ -407,7 +407,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
 
         {/* Status */}
-        {["all", "da_scrivere", "in_lavorazione", "pubblicato"].map(s => (
+        {["all", "da_scrivere", "in_lavorazione", "programmato", "pubblicato"].map(s => (
           <button key={s} onClick={() => { setFilter(f=>({...f,status:s})); setPage(1); }}
             style={{
               padding: "4px 10px", borderRadius: 12, fontSize: 11, cursor: "pointer",
