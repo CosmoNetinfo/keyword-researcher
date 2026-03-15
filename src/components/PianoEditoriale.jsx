@@ -243,7 +243,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         };
 
         if (existing) {
-          if (existing.status !== "pubblicato") {
+          // Aggiorna se non è pubblicato OPPURE se mancano i dati di anno/mese
+          const needsDataFix = !existing.year || !existing.month;
+          if (existing.status !== "pubblicato" || needsDataFix) {
             await updateDoc(doc(db, "piano_editoriale", existing.id), updateData);
             countSynced++;
           }
@@ -381,8 +383,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
   // ── Filtraggio ────────────────────────────────────────────────────────────
   const filtered = articles.filter(a => {
-    const yOk  = filter.year   === "all" || String(a.year) === filter.year;
-    const mOk  = filter.month  === "all" || String(a.month) === filter.month;
+    // Fallback per anno/mese se mancano (usa createdAt o data corrente)
+    const itemDate = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date();
+    const itemYear = a.year || itemDate.getFullYear();
+    const itemMonth = a.month || (itemDate.getMonth() + 1);
+
+    const yOk  = filter.year   === "all" || String(itemYear) === filter.year;
+    const mOk  = filter.month  === "all" || String(itemMonth) === filter.month;
     const cOk  = filter.cat    === "all" || a.cat    === filter.cat;
     const sOk  = filter.status === "all" || a.status === filter.status;
     const qOk  = !filter.q || a.title.toLowerCase().includes(filter.q.toLowerCase())
@@ -390,9 +397,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     return yOk && mOk && cOk && sOk && qOk;
   });
 
-  const availableYears = [...new Set(articles.map(a => a.year || new Date().getFullYear()))]
-    .filter(Boolean)
-    .sort((a,b) => b-a);
+  const availableYears = [...new Set(articles.map(a => {
+    const itemDate = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date();
+    return a.year || itemDate.getFullYear();
+  }))].filter(Boolean).sort((a,b) => b-a);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const pageItems  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
