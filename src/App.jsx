@@ -154,6 +154,15 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("articles");
   const [analyses, setAnalyses] = useState([]);
   const [currentId, setCurrentId] = useState(null);
+  const [pianoItems, setPianoItems] = useState([]);
+
+  // Load piano articles to check for duplicates
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "piano_editoriale"), (snapshot) => {
+      setPianoItems(snapshot.docs.map(d => ({ id: d.id, title: d.data().title })));
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Load analyses from Firestore in real-time
   useEffect(() => {
@@ -189,37 +198,65 @@ export default function App() {
   function setArtNewStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_new: { ...(a.statuses?.articles_new || {}), [i]: val } } })); }
   function setArtUpdStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_upd: { ...(a.statuses?.articles_upd || {}), [i]: val } } })); }
 
-  async function addToPiano(article, tipo = "nuovo") {
+  async function addToPiano(article, tipo = "nuovo", silent = false) {
+    // Deduplicazione: controlla se il titolo esiste già (case insensitive)
+    const exists = pianoItems.some(p => p.title?.toLowerCase() === article.title?.toLowerCase());
+    if (exists) {
+      if (!silent) alert(`L'articolo "${article.title}" è già presente nel piano.`);
+      return;
+    }
+
     const cat  = topicToCat(finalTopic);
     const diff = prioritaToDiff(article.priority);
     const kw   = (article.keywords || []).join(", ");
 
-    await addDoc(collection(db, "piano_editoriale"), {
-      title:     article.title,
-      kw:        kw,
-      cat:       cat,
-      diff:      diff,
-      tipo:      tipo === "aggiornamento" ? "Aggiornamento" : "Articolo",
-      month:     1,
-      status:    "da_scrivere",
-      source:    "keyword-researcher",
-      sourceUrl: url,
-      topic:     finalTopic,
-      description: article.description || "",
-      createdAt: serverTimestamp(),
-    });
-
-    alert(`✅ "${article.title}" aggiunto al Piano Editoriale!`);
+    try {
+      await addDoc(collection(db, "piano_editoriale"), {
+        title:     article.title,
+        kw:        kw,
+        cat:       cat,
+        diff:      diff,
+        tipo:      tipo === "aggiornamento" ? "Aggiornamento" : "Articolo",
+        month:     new Date().getMonth() + 1, // Mese corrente come default
+        year:      new Date().getFullYear(),
+        status:    "da_scrivere",
+        source:    "keyword-researcher",
+        sourceUrl: url,
+        topic:     finalTopic,
+        description: article.description || "",
+        createdAt: serverTimestamp(),
+      });
+      if (!silent) alert(`✅ "${article.title}" aggiunto al Piano Editoriale!`);
+    } catch (e) {
+      console.error("Errore aggiunta piano:", e);
+      if (!silent) alert("Errore durante l'aggiunta: " + e.message);
+    }
   }
 
   async function addAllToPiano() {
     if (!newArticles.length) return;
-    const count = newArticles.length;
-    if (!window.confirm(`Aggiungere tutti i ${count} articoli al Piano Editoriale?`)) return;
-    for (const art of newArticles) {
-      await addToPiano(art, "nuovo");
+    
+    // Filtriamo quelli che già ci sono
+    const existingTitles = new Set(pianoItems.map(p => p.title?.toLowerCase()));
+    const toAdd = newArticles.filter(a => !existingTitles.has(a.title?.toLowerCase()));
+
+    if (toAdd.length === 0) {
+      alert("Tutti gli articoli sono già presenti nel Piano Editoriale.");
+      return;
     }
-    alert(`✅ ${count} articoli aggiunti al Piano!`);
+
+    const count = toAdd.length;
+    // Una sola conferma iniziale per l'operazione massiva
+    if (!window.confirm(`Aggiungere i ${count} nuovi articoli al Piano Editoriale? (I duplicati verranno saltati)`)) return;
+    
+    setLoading(true); // Usiamo il loading globale per indicare l'attività
+    let added = 0;
+    for (const art of toAdd) {
+      await addToPiano(art, "nuovo", true); // Esecuzione silenziosa
+      added++;
+    }
+    setLoading(false);
+    alert(`✅ Operazione completata: ${added} articoli aggiunti al Piano!`);
   }
 
   async function addExistingToPiano(articles) {
@@ -429,51 +466,66 @@ export default function App() {
               {activeTab === "articles" && (
                 <SectionTable
                   headers={["#", "Titolo Articolo", "Descrizione", "Keyword Target", "Priorità", "Stato"]}
-                  rows={newArticles.map((a, i) => [
-                    i + 1,
-                    <strong>{a.title}</strong>,
-                    <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.description}</span>,
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#e8f0fe', color: '#1a73e8' }}>{k}</span>)}</div>,
-                    <Pill text={a.priority} map={DIFF_COLORS} />,
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input type="checkbox"
-                        checked={current.statuses?.articles_new?.[i] === "pubblicato"}
-                        onChange={(e) => setArtNewStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }} />
-                      <StatusCycle
-                        value={current.statuses?.articles_new?.[i] || "da_scrivere"}
-                        map={ART_STATUS}
-                        onChange={v => setArtNewStatus(i, v)} />
-                      <button
-                        onClick={() => addToPiano(a, "nuovo")}
-                        style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, border: '1px solid #7c3aed',
-                          background: '#f5f3ff', color: '#7c3aed', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        + Piano
-                      </button>
-                    </div>
-                  ])}
+                  rows={newArticles.map((a, i) => {
+                    const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
+                    return [
+                      i + 1,
+                      <strong>{a.title}</strong>,
+                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.description}</span>,
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#e8f0fe', color: '#1a73e8' }}>{k}</span>)}</div>,
+                      <Pill text={a.priority} map={DIFF_COLORS} />,
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="checkbox"
+                          checked={current.statuses?.articles_new?.[i] === "pubblicato"}
+                          onChange={(e) => setArtNewStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
+                          style={{ width: 18, height: 18, cursor: 'pointer' }} />
+                        <StatusCycle
+                          value={current.statuses?.articles_new?.[i] || "da_scrivere"}
+                          map={ART_STATUS}
+                          onChange={v => setArtNewStatus(i, v)} />
+                        <button
+                          onClick={() => addToPiano(a, "nuovo")}
+                          disabled={exists}
+                          style={{ 
+                            fontSize: 11, padding: '4px 10px', borderRadius: 6, 
+                            border: exists ? '1px solid #ddd' : '1px solid #7c3aed',
+                            background: exists ? '#f9fafb' : '#f5f3ff', 
+                            color: exists ? '#9ca3af' : '#7c3aed', 
+                            cursor: exists ? 'not-allowed' : 'pointer', 
+                            whiteSpace: 'nowrap',
+                            fontWeight: 600
+                          }}>
+                          {exists ? "✓ In Piano" : "+ Piano"}
+                        </button>
+                      </div>
+                    ];
+                  })}
                 />
               )}
 
               {activeTab === "updates" && (
                 <SectionTable
                   headers={["#", "Titolo", "Descrizione Aggiornamento", "URL Esistente", "Priorità", "Stato"]}
-                  rows={updateArticles.map((a, i) => [
-                    i + 1,
-                    <strong>{a.title}</strong>,
-                    <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.update_reason || a.description}</span>,
-                    <a href={a.existing_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.existing_url}</a>,
-                    <Pill text={a.priority} map={DIFF_COLORS} />,
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <input 
-                        type="checkbox" 
-                        checked={current.statuses?.articles_upd?.[i] === "pubblicato"} 
-                        onChange={(e) => setArtUpdStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
-                        style={{ width: 18, height: 18, cursor: 'pointer' }}
-                      />
-                      <StatusCycle value={current.statuses?.articles_upd?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => setArtUpdStatus(i, v)} />
-                    </div>
-                  ])}
+                  rows={updateArticles.map((a, i) => {
+                    const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
+                    return [
+                      i + 1,
+                      <strong>{a.title}</strong>,
+                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.update_reason || a.description}</span>,
+                      <a href={a.existing_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.existing_url}</a>,
+                      <Pill text={a.priority} map={DIFF_COLORS} />,
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <input 
+                          type="checkbox" 
+                          checked={current.statuses?.articles_upd?.[i] === "pubblicato"} 
+                          onChange={(e) => setArtUpdStatus(i, e.target.checked ? "pubblicato" : "da_scrivere")}
+                          style={{ width: 18, height: 18, cursor: 'pointer' }}
+                        />
+                        <StatusCycle value={current.statuses?.articles_upd?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => setArtUpdStatus(i, v)} />
+                        {exists && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>✓ In Piano</span>}
+                      </div>
+                    ];
+                  })}
                 />
               )}
 
@@ -514,13 +566,19 @@ export default function App() {
               {activeTab === "existing" && (
                 <SectionTable
                   headers={["#", "Titolo", "Argomento", "URL", "Stato"]}
-                  rows={result.existing_articles?.map((a, i) => [
-                    i + 1,
-                    <strong>{a.title}</strong>,
-                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{a.topic}</span>,
-                    <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.url}</a>,
-                    <Pill text={a.status === "aggiornare" ? "media" : "bassa"} map={DIFF_COLORS} />
-                  ])}
+                  rows={result.existing_articles?.map((a, i) => {
+                    const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
+                    return [
+                      i + 1,
+                      <strong>{a.title}</strong>,
+                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{a.topic}</span>,
+                      <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.url}</a>,
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Pill text={a.status === "aggiornare" ? "media" : "bassa"} map={DIFF_COLORS} />
+                        {exists && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>✓ In Piano</span>}
+                      </div>
+                    ];
+                  })}
                 />
               )}
 
