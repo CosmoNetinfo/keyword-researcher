@@ -147,6 +147,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     setRefreshing(true);
     try {
       let publishedFromWP = [];
+      let isWPActive = false;
 
       // 1. Tenta il fetch da WordPress API se abbiamo le credenziali
       if (wpSettings.url && wpSettings.user && wpSettings.pass) {
@@ -163,6 +164,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           if (resWP.ok) {
             const dataWP = await resWP.json();
             publishedFromWP = dataWP.posts || [];
+            isWPActive = true;
           }
         } catch (e) {
           console.warn("WP Fetch fallito, procedo con feed pubblico:", e);
