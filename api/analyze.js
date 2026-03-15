@@ -124,7 +124,43 @@ Richieste di volumi:
         content = content.trim().replace(/^```json|^```|```$/g, "").trim();
     }
 
-    res.status(200).json(JSON.parse(content));
+    const resultObj = JSON.parse(content);
+
+    // FEATURE 1: Arricchimento Keyword via Serper (Dati reali)
+    if (serperKey && resultObj.keywords && resultObj.keywords.length > 0) {
+      try {
+        const enriched = await Promise.all(
+          resultObj.keywords.slice(0, 10).map(async (kw) => {
+            try {
+              const r = await fetch("https://google.serper.dev/search", {
+                method: "POST",
+                headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+                body: JSON.stringify({ q: kw.keyword, gl: "it", hl: "it", num: 5 })
+              });
+              const data = await r.json();
+              const adsCount = data.ads?.length || 0;
+              const organicCount = data.organic?.length || 0;
+              
+              return {
+                ...kw,
+                serper_ads: adsCount,
+                serper_organic: organicCount,
+                difficulty_real: adsCount > 2 ? 'alta' : kw.difficulty
+              };
+            } catch (err) {
+              console.error("Single keyword enrichment error:", err);
+              return kw;
+            }
+          })
+        );
+        // Replace first 10 with enriched ones, keep the rest
+        resultObj.keywords = [...enriched, ...resultObj.keywords.slice(10)];
+      } catch (e) {
+        console.error("Enrichment process error:", e);
+      }
+    }
+
+    res.status(200).json(resultObj);
 
   } catch (error) {
     console.error(error);
