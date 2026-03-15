@@ -1,4 +1,4 @@
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, startTransition, useMemo } from "react";
 import { db } from "../firebase";
 import {
   collection,
@@ -105,12 +105,12 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [showWPSettings, setShowWPSettings] = useState(false);
   const [wpSettings, setWPSettings] = useState({ url: "", user: "", pass: "" });
   const [testingWP, setTestingWP] = useState(false);
-
   const [seoResult, setSEOResult] = useState(null);
   const [checkingSEO, setCheckingSEO] = useState(null); // article id
   const [suggestions, setSuggestions] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
-  const PER_PAGE = 20;
+  const PER_PAGE = 50; // Come richiesto nel Fix 1
 
   // ── Carica articoli da Firestore in real-time ────────────────────────────
   useEffect(() => {
@@ -129,17 +129,26 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     return unsub;
   }, []);
 
+  // FEAT 2: Shortcut Ricerca (Ctrl+K)
+  useEffect(() => {
+    const handleKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        const searchInput = document.getElementById("piano-search-input");
+        if (searchInput) searchInput.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
   // ── Aggiorna status ──────────────────────────────────────────────────────
   async function cycleStatus(article) {
     const next = STATUS_META[article.status]?.next || "da_scrivere";
     await updateDoc(doc(db, "piano_editoriale", article.id), { status: next });
   }
 
-  // ── Marca completato (checkbox) ──────────────────────────────────────────
-  async function toggleDone(article) {
-    const next = article.status === "pubblicato" ? "da_scrivere" : "pubblicato";
-    await updateDoc(doc(db, "piano_editoriale", article.id), { status: next });
-  }
+
 
   // ── Elimina articolo ─────────────────────────────────────────────────────
   async function deleteArticle(id) {
@@ -352,8 +361,68 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       } else {
         throw new Error(data.error);
       }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // FEAT 3: Export CSV
+  function exportCSV() {
+    if (filtered.length === 0) return alert("Nessun dato da esportare");
+    
+    const headers = ["Titolo", "Categoria", "Keyword", "Priorità", "Tipo", "Data", "Stato"];
+    const rows = filtered.map(a => [
+      `"${(a.title || "").replace(/"/g, '""')}"`,
+      CAT_META[a.cat]?.label || a.cat,
+      `"${(a.kw || "").replace(/"/g, '""')}"`,
+      a.diff,
+      a.tipo,
+      `${a.month}/${a.year}`,
+      STATUS_META[a.status]?.label || a.status
+    ]);
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `piano_editoriale_${filter.year}_${filter.month}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // FEAT 1: Azioni Bulk
+  async function bulkUpdate(updates) {
+    if (selectedIds.size === 0) return;
+    setSaving(true);
+    try {
+      const promises = Array.from(selectedIds).map(id => 
+        updateDoc(doc(db, "piano_editoriale", id), updates)
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      alert("✅ Aggiornamento completato!");
     } catch (e) {
-      alert("Errore WordPress: " + e.message);
+      alert("Errore aggiornamento bulk: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function bulkDelete() {
+    if (!window.confirm(`Eliminare ${selectedIds.size} articoli?`)) return;
+    setSaving(true);
+    try {
+      const promises = Array.from(selectedIds).map(id => 
+        deleteDoc(doc(db, "piano_editoriale", id))
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      alert("✅ Articoli eliminati!");
+    } catch (err) {
+      alert("Errore eliminazione: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -412,41 +481,60 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
-  // ── Filtraggio ────────────────────────────────────────────────────────────
-  const filtered = articles.filter(a => {
-    // Fallback per anno/mese se mancano (usa createdAt o data corrente)
-    const itemDate = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date();
-    const itemYear = a.year || itemDate.getFullYear();
-    const itemMonth = a.month || (itemDate.getMonth() + 1);
+  // ── Filtraggio Memoizzato ───────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    return articles.filter(a => {
+      const itemDate = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date();
+      const itemYear = a.year || itemDate.getFullYear();
+      const itemMonth = a.month || (itemDate.getMonth() + 1);
 
-    const yOk  = filter.year   === "all" || String(itemYear) === filter.year;
-    const mOk  = filter.month  === "all" || String(itemMonth) === filter.month;
-    const cOk  = filter.cat    === "all" || a.cat    === filter.cat;
-    const sOk  = filter.status === "all" || a.status === filter.status;
-    const qOk  = !filter.q || a.title.toLowerCase().includes(filter.q.toLowerCase())
-                           || (a.kw || "").toLowerCase().includes(filter.q.toLowerCase());
-    return yOk && mOk && cOk && sOk && qOk;
-  });
+      const yOk  = filter.year   === "all" || String(itemYear) === filter.year;
+      const mOk  = filter.month  === "all" || String(itemMonth) === filter.month;
+      const cOk  = filter.cat    === "all" || a.cat    === filter.cat;
+      const sOk  = filter.status === "all" || a.status === filter.status;
+      const qOk  = !filter.q || a.title.toLowerCase().includes(filter.q.toLowerCase())
+                             || (a.kw || "").toLowerCase().includes(filter.q.toLowerCase());
+      return yOk && mOk && cOk && sOk && qOk;
+    });
+  }, [articles, filter]);
 
-  const availableYears = [...new Set(articles.map(a => {
-    const itemDate = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date();
-    return a.year || itemDate.getFullYear();
-  }))].filter(Boolean).sort((a,b) => b-a);
+  const availableYears = useMemo(() => {
+    return [...new Set(articles.map(a => {
+      const itemDate = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date();
+      return a.year || itemDate.getFullYear();
+    }))].filter(Boolean).sort((a,b) => b-a);
+  }, [articles]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const pageItems  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / PER_PAGE)), [filtered.length]);
+  const pageItems  = useMemo(() => filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE), [filtered, page]);
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
-  const articoliNuovi    = articles.filter(a => a.source !== "cosmonet-esistente");
-  const articoliOnline   = articles.filter(a => a.source === "cosmonet-esistente");
+  // ── Stats Memoizzate ─────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const articoliNuovi    = articles.filter(a => a.source !== "cosmonet-esistente");
+    const articoliOnline   = articles.filter(a => a.source === "cosmonet-esistente");
+    return {
+      total:       articoliNuovi.length,
+      pubblicati:  articoliNuovi.filter(a => a.status === "pubblicato").length,
+      programmato: articoliNuovi.filter(a => a.status === "programmato").length,
+      lavorazione: articoliNuovi.filter(a => a.status === "in_lavorazione").length,
+      daFare:      articoliNuovi.filter(a => a.status === "da_scrivere" || !a.status).length,
+      online:      articoliOnline.length,
+    };
+  }, [articles]);
 
-  const stats = {
-    total:       articoliNuovi.length,
-    pubblicati:  articoliNuovi.filter(a => a.status === "pubblicato").length,
-    programmato:  articoliNuovi.filter(a => a.status === "programmato").length,
-    lavorazione: articoliNuovi.filter(a => a.status === "in_lavorazione").length,
-    daFare:      articoliNuovi.filter(a => a.status === "da_scrivere" || !a.status).length,
-    online:      articoliOnline.length,
+  const toggleSelectAll = () => {
+    if (selectedIds.size === pageItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pageItems.map(a => a.id)));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
   };
 
   // Progress solo sui nuovi (non include gli esistenti)
@@ -567,9 +655,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       {/* Search + Add button */}
       <div className="action-bar-responsive" style={{ display: "flex", gap: 10, marginBottom: 14 }}>
         <input
+          id="piano-search-input"
           value={filter.q}
           onChange={e => { setFilter(f=>({...f,q:e.target.value})); setPage(1); }}
-          placeholder="Cerca articolo o keyword..."
+          placeholder="Cerca [Ctrl+K] titolo o keyword..."
           style={{
             flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13,
             border: "1px solid var(--color-border-secondary,#d1d5db)",
@@ -598,6 +687,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             background: "none", color: "#0284c7", border: "1.5px solid #0284c7", cursor: "pointer"
           }}>
           {viewMode === "table" ? "📅 Vista Calendario" : "📋 Vista Tabella"}
+        </button>
+        <button onClick={exportCSV}
+          style={{
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: "none", color: "#16a34a", border: "1.5px solid #16a34a", cursor: "pointer"
+          }}>
+          📊 Export CSV
         </button>
         <button onClick={() => setShowWPSettings(true)}
           style={{
@@ -695,7 +791,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--color-background-secondary,#f9fafb)", borderBottom: "1.5px solid var(--color-border-secondary,#e5e7eb)" }}>
-                {["✓","#","Titolo","Categoria/SEO","Keyword","Difficoltà","Tipo","Mese","Status","Azioni"].map((h,i) => (
+                <th style={{ padding: "10px 12px", textAlign: "left" }}>
+                  <input type="checkbox" 
+                    checked={pageItems.length > 0 && selectedIds.size === pageItems.length} 
+                    onChange={toggleSelectAll}
+                    style={{ cursor: "pointer" }} />
+                </th>
+                {["#","Titolo","Categoria/SEO","Keyword","Difficoltà","Tipo","Mese","Status","Azioni"].map((h,i) => (
                   <th key={i} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600,
                     color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: ".4px",
                     whiteSpace: "nowrap" }}>
@@ -718,13 +820,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 return (
                   <tr key={a.id} style={{
                     borderBottom: "1px solid var(--color-border-tertiary,#f3f4f6)",
-                    background: isDone ? "var(--color-background-success,#f0fdf4)" : "transparent",
+                    background: selectedIds.has(a.id) ? "#f0f7ff" : (isDone ? "var(--color-background-success,#f0fdf4)" : "transparent"),
                     opacity: isDone ? 0.9 : 1,
                   }}>
-                    {/* Checkbox */}
+                    {/* Selezione */}
                     <td style={{ padding: "8px 12px" }}>
-                      <input type="checkbox" checked={isDone} onChange={() => toggleDone(a)}
-                        style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#16a34a" }} />
+                      <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)}
+                        style={{ width: 16, height: 16, cursor: "pointer" }} />
                     </td>
                     {/* # */}
                     <td style={{ padding: "8px 12px", color: "var(--color-text-secondary)", fontSize: 11 }}>
@@ -887,6 +989,52 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           Succ →
         </button>
       </div>
+
+      {/* FEAT 1: Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div style={{
+          position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
+          background: "var(--color-primary,#6366f1)", color: "#fff",
+          padding: "12px 24px", borderRadius: 16, display: "flex", alignItems: "center", gap: 20,
+          boxShadow: "0 10px 30px rgba(99, 102, 241, 0.4)", zIndex: 1000,
+          animation: "slideUp 0.3s ease"
+        }}>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>{selectedIds.size} selezionati</span>
+          
+          <div style={{ height: 20, width: 1, background: "rgba(255,255,255,0.3)" }} />
+          
+          {/* Cambia Stato */}
+          <select 
+            onChange={(e) => bulkUpdate({ status: e.target.value })}
+            style={{ padding: "4px 8px", borderRadius: 6, border: "none", fontSize: 12, background: "rgba(255,255,255,0.2)", color: "#fff", outline: "none" }}
+          >
+            <option value="">Cambia Stato...</option>
+            {Object.entries(STATUS_META).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+
+          {/* Cambia Mese */}
+          <select 
+            onChange={(e) => bulkUpdate({ month: Number(e.target.value) })}
+            style={{ padding: "4px 8px", borderRadius: 6, border: "none", fontSize: 12, background: "rgba(255,255,255,0.2)", color: "#fff", outline: "none" }}
+          >
+            <option value="">Sposta Mese...</option>
+            {MONTH_NAMES.map((name, i) => <option key={i} value={i+1}>{name}</option>)}
+          </select>
+
+          <button onClick={bulkDelete} style={{ background: "#ef4444", color: "#fff", border: "none", padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            Elimina
+          </button>
+
+          <button onClick={() => setSelectedIds(new Set())} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 16 }}>✕</button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translate(-50%, 50px); opacity: 0; }
+          to { transform: translate(-50%, 0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, startTransition, useMemo } from "react";
 import { db } from "./firebase";
 import { 
   collection, 
@@ -163,10 +163,37 @@ export default function App() {
   const [currentId, setCurrentId] = useState(null);
   const [pianoItems, setPianoItems] = useState([]);
 
+  // FEAT 4: Dynamic Browser Tab Title
+  useEffect(() => {
+    const titles = {
+      history: "Storico — cosmonet.info",
+      new: "Analisi — cosmonet.info",
+      piano: "Piano Editoriale — cosmonet.info"
+    };
+    document.title = titles[view] || "Keyword Researcher — cosmonet.info";
+  }, [view]);
+
+  // FEAT 5: Badge Articoli in Scadenza
+  const dueCount = useMemo(() => {
+    const now = new Date();
+    const curMonth = now.getMonth() + 1;
+    const curYear = now.getFullYear();
+    
+    return pianoItems.filter(item => {
+      if (item.status !== "da_scrivere") return false;
+      const year = item.year || curYear;
+      const month = item.month || curMonth;
+      
+      if (year < curYear) return true;
+      if (year === curYear && month <= curMonth) return true;
+      return false;
+    }).length;
+  }, [pianoItems]);
+
   // Load piano articles to check for duplicates
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "piano_editoriale"), (snapshot) => {
-      setPianoItems(snapshot.docs.map(d => ({ id: d.id, title: d.data().title })));
+      setPianoItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
     return () => unsubscribe();
   }, []);
@@ -391,10 +418,18 @@ export default function App() {
             fontWeight: view === 'history' ? 600 : 400, cursor: 'pointer' }}>
             Storico ({analyses.length})
           </button>
-          <button onClick={() => startTransition(() => setView("piano"))} style={{ background: 'none', border: 'none',
+          <button onClick={() => startTransition(() => setView("piano"))} style={{ position: 'relative', background: 'none', border: 'none',
             color: view === 'piano' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
             fontWeight: view === 'piano' ? 600 : 400, cursor: 'pointer' }}>
             📅 Piano Editoriale
+            {dueCount > 0 && (
+              <span style={{
+                position: 'absolute', top: -8, right: -12, background: '#ef4444', color: '#fff',
+                fontSize: 10, padding: '1px 5px', borderRadius: 10, fontWeight: 700, minWidth: 16
+              }}>
+                {dueCount}
+              </span>
+            )}
           </button>
           <button onClick={() => startTransition(() => setView("new"))} style={{ background: 'none', border: 'none', color: view === 'new' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'new' ? 600 : 400, cursor: 'pointer' }}>Analisi</button>
         </nav>
