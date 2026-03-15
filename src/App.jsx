@@ -24,7 +24,7 @@ async function loadXLSX() {
   });
 }
 
-const TOPICS = ["AI & ChatGPT", "Linux & Open Source", "Gaming", "WordPress", "Produttività digitale"];
+const TOPICS = ["Intelligenza Artificiale", "Linux & Open Source", "Gaming", "WordPress", "Produttività digitale"];
 const PHASES = ["Scansione articoli esistenti...", "Analisi competitor italiani...", "Ricerca keyword e gap...", "Generazione idee articoli..."];
 
 const DIFF_COLORS = { bassa: "badge-bassa", media: "badge-media", alta: "badge-alta" };

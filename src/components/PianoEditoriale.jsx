@@ -15,7 +15,7 @@ import {
 // ─── Costanti ────────────────────────────────────────────────────────────────
 
 const CAT_META = {
-  ai:      { label: "AI",          color: "#7c3aed", bg: "#f5f3ff" },
+  ai:      { label: "Intelligenza Artificiale", color: "#7c3aed", bg: "#f5f3ff" },
   linux:   { label: "Linux",       color: "#059669", bg: "#ecfdf5" },
   oss:     { label: "Open Source", color: "#0284c7", bg: "#e0f2fe" },
   gaming:  { label: "Gaming",      color: "#d97706", bg: "#fef3c7" },
