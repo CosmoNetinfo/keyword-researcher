@@ -80,6 +80,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState({ title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", month: 1 });
   const [saving, setSaving]     = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const PER_PAGE = 20;
 
   // ── Carica articoli da Firestore in real-time ────────────────────────────
@@ -123,6 +124,42 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     setForm({ title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", month: 1 });
     setShowForm(false);
     setSaving(false);
+  }
+
+  // ── Aggiorna col sito (Feed RSS) ──────────────────────────────────────────
+  async function refreshFromSite() {
+    setRefreshing(true);
+    try {
+      const res = await fetch("/api/check-published");
+      if (!res.ok) throw new Error("Errore API refresh");
+      const { published } = await res.json();
+      
+      let count = 0;
+      for (const art of articles) {
+        if (art.status === "pubblicato") continue;
+        
+        // Confronto fuzzy: titiolo simile
+        const found = published.find(p => 
+          p.title.toLowerCase().trim().includes(art.title.toLowerCase().trim()) ||
+          art.title.toLowerCase().trim().includes(p.title.toLowerCase().trim())
+        );
+
+        if (found) {
+          await updateDoc(doc(db, "piano_editoriale", art.id), { 
+            status: "pubblicato",
+            existingUrl: found.url,
+            source: art.source === "manuale" ? "manuale" : "keyword-researcher" // Manteniamo la sorgente ma segnamo come online
+          });
+          count++;
+        }
+      }
+      alert(`✅ Aggiornamento completato: ${count} articoli segnati come pubblicati.`);
+    } catch (e) {
+      console.error(e);
+      alert("Errore durante il refresh: " + e.message);
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   // ── Filtraggio ────────────────────────────────────────────────────────────
@@ -261,6 +298,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             background: "#6366f1", color: "#fff", border: "none", cursor: "pointer",
           }}>
           {showForm ? "✕ Chiudi" : "+ Aggiungi articolo"}
+        </button>
+        <button onClick={refreshFromSite} disabled={refreshing}
+          style={{
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: "none", color: "#6366f1", border: "1.5px solid #6366f1", cursor: refreshing ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", gap: 6
+          }}>
+          {refreshing ? "⏳ Aggiornamento..." : "🔄 Aggiorna da Sito"}
         </button>
       </div>
 
