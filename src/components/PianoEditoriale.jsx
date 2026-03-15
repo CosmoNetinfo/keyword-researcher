@@ -31,7 +31,8 @@ const DIFF_META = {
 
 const STATUS_META = {
   da_scrivere:   { label: "Da scrivere",   next: "in_lavorazione" },
-  in_lavorazione:{ label: "In lavorazione",next: "pubblicato"     },
+  in_lavorazione:{ label: "In lavorazione",next: "programmato"    },
+  programmato:   { label: "Programmato 📅", next: "pubblicato"     },
   pubblicato:    { label: "Pubblicato ✓",  next: "da_scrivere"    },
 };
 
@@ -56,6 +57,7 @@ function StatusBtn({ status, onChange }) {
   const colors = {
     da_scrivere:    { bg: "#f3f4f6", color: "#374151" },
     in_lavorazione: { bg: "#dbeafe", color: "#1d4ed8" },
+    programmato:    { bg: "#fef3c7", color: "#d97706" },
     pubblicato:     { bg: "#dcfce7", color: "#15803d" },
   };
   const c = colors[status] || colors.da_scrivere;
@@ -145,7 +147,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     setRefreshing(true);
     try {
       let publishedFromWP = [];
-      let isWPActive = false;
 
       // 1. Tenta il fetch da WordPress API se abbiamo le credenziali
       if (wpSettings.url && wpSettings.user && wpSettings.pass) {
@@ -162,7 +163,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           if (resWP.ok) {
             const dataWP = await resWP.json();
             publishedFromWP = dataWP.posts || [];
-            isWPActive = true;
           }
         } catch (e) {
           console.warn("WP Fetch fallito, procedo con feed pubblico:", e);
@@ -197,7 +197,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         const updateData = {
           title: found.title,
           existingUrl: found.url,
-          status: isFuture ? "in_lavorazione" : "pubblicato",
+          status: isFuture ? "programmato" : "pubblicato",
           wpStatus: isFuture ? "programmato" : "online",
           scheduledDate: isFuture ? found.date : null
         };
