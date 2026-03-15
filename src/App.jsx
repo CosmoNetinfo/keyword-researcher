@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { db } from "./firebase";
 import { 
   collection, 
@@ -38,6 +38,13 @@ function prioritaToDiff(priority) {
   if (p === "alta")   return "alta";
   if (p === "media")  return "media";
   return "bassa";
+}
+
+function decodeHTML(str) {
+  if (!str) return "";
+  const txt = document.createElement('textarea');
+  txt.innerHTML = str;
+  return txt.value;
 }
 
 function topicToCat(topic) {
@@ -379,17 +386,17 @@ export default function App() {
           </p>
         </div>
         <nav className="header-nav" style={{ display: 'flex', gap: 24 }}>
-          <button onClick={() => setView("history")} style={{ background: 'none', border: 'none',
+          <button onClick={() => startTransition(() => setView("history"))} style={{ background: 'none', border: 'none',
             color: view === 'history' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
             fontWeight: view === 'history' ? 600 : 400, cursor: 'pointer' }}>
             Storico ({analyses.length})
           </button>
-          <button onClick={() => setView("piano")} style={{ background: 'none', border: 'none',
+          <button onClick={() => startTransition(() => setView("piano"))} style={{ background: 'none', border: 'none',
             color: view === 'piano' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
             fontWeight: view === 'piano' ? 600 : 400, cursor: 'pointer' }}>
             📅 Piano Editoriale
           </button>
-          <button onClick={() => setView("new")} style={{ background: 'none', border: 'none', color: view === 'new' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'new' ? 600 : 400, cursor: 'pointer' }}>Analisi</button>
+          <button onClick={() => startTransition(() => setView("new"))} style={{ background: 'none', border: 'none', color: view === 'new' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'new' ? 600 : 400, cursor: 'pointer' }}>Analisi</button>
         </nav>
       </header>
 
@@ -470,7 +477,7 @@ export default function App() {
                     const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
                     return [
                       i + 1,
-                      <strong>{a.title}</strong>,
+                      <strong>{decodeHTML(a.title)}</strong>,
                       <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.description}</span>,
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#e8f0fe', color: '#1a73e8' }}>{k}</span>)}</div>,
                       <Pill text={a.priority} map={DIFF_COLORS} />,
@@ -510,7 +517,7 @@ export default function App() {
                     const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
                     return [
                       i + 1,
-                      <strong>{a.title}</strong>,
+                      <strong>{decodeHTML(a.title)}</strong>,
                       <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.update_reason || a.description}</span>,
                       <a href={a.existing_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.existing_url}</a>,
                       <Pill text={a.priority} map={DIFF_COLORS} />,
@@ -570,7 +577,7 @@ export default function App() {
                     const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
                     return [
                       i + 1,
-                      <strong>{a.title}</strong>,
+                      <strong>{decodeHTML(a.title)}</strong>,
                       <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{a.topic}</span>,
                       <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.url}</a>,
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

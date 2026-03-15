@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { db } from "../firebase";
 import {
   collection,
@@ -42,6 +42,13 @@ const STATUS_META = {
   programmato:   { label: "Programmato 📅", next: "pubblicato"     },
   pubblicato:    { label: "Pubblicato ✓",  next: "da_scrivere"    },
 };
+
+function decodeHTML(str) {
+  if (!str) return "";
+  const txt = document.createElement('textarea');
+  txt.innerHTML = str;
+  return txt.value;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -668,7 +675,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {curArticles.map(a => (
                     <div key={a.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8, fontSize: 11, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{a.title}</div>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{decodeHTML(a.title)}</div>
                       <div style={{ display: "flex", gap: 4 }}>
                         <Badge text={a.cat} meta={CAT_META} />
                         <span style={{ opacity: 0.6 }}>{a.diff}</span>
@@ -726,7 +733,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                     {/* Titolo */}
                     <td style={{ padding: "8px 12px", maxWidth: 320 }}>
                       <div style={{ fontWeight: 500, color: "var(--color-text-primary)", textDecoration: isDone ? "none" : "none" }}>
-                        {a.title}
+                        {decodeHTML(a.title)}
                       </div>
                       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                         {a.source === "keyword-researcher" && <span style={{ fontSize: 9, color: "#7c3aed", fontWeight: 600 }}>🔍 KR</span>}
@@ -786,7 +793,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                                    Risultati
                                </button>
                           ) : (
-                               <button onClick={() => onAnalyze(a.title, a.id)} 
+                               <button onClick={() => startTransition(() => onAnalyze(a.title, a.id))} 
                                        disabled={globalLoading}
                                        style={{ border: "1px solid #6366f1", color: "#6366f1", background: "none", fontSize: 10, padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>
                                    {globalLoading ? "..." : "🔍 Analizza"}
