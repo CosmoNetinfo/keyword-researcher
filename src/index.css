@@ -184,4 +184,46 @@ tr:hover {
     font-size: 13px;
     padding: 12px 16px;
   }
+
+  /* Nuove classi responsive per Piano Editoriale */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  .stats-grid > div {
+    min-width: 0 !important; /* Permette alla griglia di restringersi */
+  }
+
+  .filter-scroll {
+    display: flex !important;
+    overflow-x: auto !important;
+    padding-bottom: 8px !important;
+    gap: 8px !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  }
+  
+  .filter-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .action-bar-responsive {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  
+  .action-bar-responsive > * {
+    width: 100% !important;
+  }
+}
+
+.filter-scroll-container {
+  width: 100%;
+  overflow: hidden;
+  margin-bottom: 14px;
 }

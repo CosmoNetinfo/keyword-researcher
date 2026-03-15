@@ -398,7 +398,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     <div style={{ fontFamily: "var(--font-sans, sans-serif)", padding: "0 0 40px" }}>
 
       {/* Header stats */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+      <div className="stats-grid" style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         {[
           { label: "Da pianificare", val: stats.total,       accent: "#6366f1" },
           { label: "Pubblicati",      val: stats.pubblicati,  accent: "#16a34a" },
@@ -429,62 +429,68 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       </div>
 
       {/* Filtri + Cerca */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {/* Mese */}
-        {["all", "0", "1", "2", "3"].map(m => (
-          <button key={m} onClick={() => { setFilter(f=>({...f,month:m})); setPage(1); }}
+      <div className="filter-scroll-container">
+        <div className="filter-scroll" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Mese a tendina */}
+          <select 
+            value={filter.month} 
+            onChange={(e) => { setFilter(f=>({...f,month:e.target.value})); setPage(1); }}
             style={{
-              padding: "5px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer",
+              padding: "5px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer",
               border: "1.5px solid var(--color-border-secondary,#d1d5db)",
-              background: filter.month === m ? "var(--color-text-primary)" : "transparent",
-              color: filter.month === m ? "var(--color-background-primary,#fff)" : "var(--color-text-secondary)",
-              fontWeight: filter.month === m ? 600 : 400,
-            }}>
-            {m === "all" ? "Tutti" : m === "0" ? "✓ Online" : `Mese ${m}`}
-          </button>
-        ))}
+              background: "white", color: "var(--color-text-primary)",
+              fontWeight: 500, outline: "none", minWidth: 120
+            }}
+          >
+            <option value="all">Tutti i mesi</option>
+            <option value="0">✓ Online</option>
+            <option value="1">Mese 1</option>
+            <option value="2">Mese 2</option>
+            <option value="3">Mese 3</option>
+          </select>
 
-        <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
+          <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
 
-        {/* Categoria */}
-        {["all", ...Object.keys(CAT_META)].map(c => (
-          <button key={c} onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
-            style={{
-              padding: "4px 10px", borderRadius: 12, fontSize: 11, cursor: "pointer",
-              border: filter.cat === c
-                ? `1.5px solid ${c === "all" ? "#374151" : CAT_META[c].color}`
-                : "1px solid var(--color-border-tertiary,#e5e7eb)",
-              background: filter.cat === c
-                ? (c === "all" ? "#374151" : CAT_META[c].bg)
-                : "transparent",
-              color: filter.cat === c
-                ? (c === "all" ? "#fff" : CAT_META[c].color)
-                : "var(--color-text-secondary)",
-              fontWeight: filter.cat === c ? 600 : 400,
-            }}>
-            {c === "all" ? "Tutte" : CAT_META[c].label}
-          </button>
-        ))}
+          {/* Categoria */}
+          {["all", ...Object.keys(CAT_META)].map(c => (
+            <button key={c} onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
+              style={{
+                padding: "4px 10px", borderRadius: 12, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
+                border: filter.cat === c
+                  ? `1.5px solid ${c === "all" ? "#374151" : CAT_META[c].color}`
+                  : "1px solid var(--color-border-tertiary,#e5e7eb)",
+                background: filter.cat === c
+                  ? (c === "all" ? "#374151" : CAT_META[c].bg)
+                  : "transparent",
+                color: filter.cat === c
+                  ? (c === "all" ? "#fff" : CAT_META[c].color)
+                  : "var(--color-text-secondary)",
+                fontWeight: filter.cat === c ? 600 : 400,
+              }}>
+              {c === "all" ? "Tutte" : CAT_META[c].label}
+            </button>
+          ))}
 
-        <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
+          <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
 
-        {/* Status */}
-        {["all", "da_scrivere", "in_lavorazione", "programmato", "pubblicato"].map(s => (
-          <button key={s} onClick={() => { setFilter(f=>({...f,status:s})); setPage(1); }}
-            style={{
-              padding: "4px 10px", borderRadius: 12, fontSize: 11, cursor: "pointer",
-              border: "1px solid var(--color-border-tertiary,#e5e7eb)",
-              background: filter.status === s ? "var(--color-background-secondary,#f3f4f6)" : "transparent",
-              color: filter.status === s ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-              fontWeight: filter.status === s ? 600 : 400,
-            }}>
-            {s === "all" ? "Tutti gli stati" : STATUS_META[s]?.label}
-          </button>
-        ))}
+          {/* Status */}
+          {["all", "da_scrivere", "in_lavorazione", "programmato", "pubblicato"].map(s => (
+            <button key={s} onClick={() => { setFilter(f=>({...f,status:s})); setPage(1); }}
+              style={{
+                padding: "4px 10px", borderRadius: 12, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
+                border: "1px solid var(--color-border-tertiary,#e5e7eb)",
+                background: filter.status === s ? "var(--color-background-secondary,#f3f4f6)" : "transparent",
+                color: filter.status === s ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                fontWeight: filter.status === s ? 600 : 400,
+              }}>
+              {s === "all" ? "Tutti gli stati" : STATUS_META[s]?.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Search + Add button */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+      <div className="action-bar-responsive" style={{ display: "flex", gap: 10, marginBottom: 14 }}>
         <input
           value={filter.q}
           onChange={e => { setFilter(f=>({...f,q:e.target.value})); setPage(1); }}
