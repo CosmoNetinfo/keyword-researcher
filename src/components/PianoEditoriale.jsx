@@ -140,34 +140,78 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     setSaving(false);
   }
 
-  // ── Aggiorna col sito (Feed RSS) ──────────────────────────────────────────
+  // ── Aggiorna col sito (Feed RSS + WordPress API per programmati) ────────────────────────
   async function refreshFromSite() {
     setRefreshing(true);
     try {
+      let publishedFromWP = [];
+      let isWPActive = false;
+
+      // 1. Tenta il fetch da WordPress API se abbiamo le credenziali
+      if (wpSettings.url && wpSettings.user && wpSettings.pass) {
+        try {
+          const resWP = await fetch("/api/wp-fetch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              wpUrl: wpSettings.url,
+              username: wpSettings.user,
+              appPassword: wpSettings.pass
+            })
+          });
+          if (resWP.ok) {
+            const dataWP = await resWP.json();
+            publishedFromWP = dataWP.posts || [];
+            isWPActive = true;
+          }
+        } catch (e) {
+          console.warn("WP Fetch fallito, procedo con feed pubblico:", e);
+        }
+      }
+
+      // 2. Tenta il fetch dal feed pubblico (fallback o integrazione)
       const res = await fetch("/api/check-published");
-      if (!res.ok) throw new Error("Errore API refresh");
-      const { published } = await res.json();
+      if (!res.ok) throw new Error("Errore API refresh pubblico");
+      const { published: publishedPublic } = await res.json();
       
+      // Uniamo le liste evitando duplicati (usiamo il titolo come chiave)
+      const allFound = [...publishedFromWP];
+      for (const p of publishedPublic) {
+        if (!allFound.find(f => f.title.toLowerCase() === p.title.toLowerCase())) {
+          allFound.push(p);
+        }
+      }
+
       let count = 0;
       for (const art of articles) {
         if (art.status === "pubblicato") continue;
         
         // Confronto fuzzy: titiolo simile
-        const found = published.find(p => 
+        const found = allFound.find(p => 
           p.title.toLowerCase().trim().includes(art.title.toLowerCase().trim()) ||
           art.title.toLowerCase().trim().includes(p.title.toLowerCase().trim())
         );
 
         if (found) {
-          await updateDoc(doc(db, "piano_editoriale", art.id), { 
-            status: "pubblicato",
+          const updateData = {
             existingUrl: found.url,
-            source: art.source === "manuale" ? "manuale" : "keyword-researcher" // Manteniamo la sorgente ma segnamo come online
-          });
+            source: art.source === "manuale" ? "manuale" : "keyword-researcher"
+          };
+
+          if (found.status === "future") {
+             updateData.scheduledDate = found.date;
+             updateData.wpStatus = "programmato";
+             // Se è programmato lo mettiamo "in lavorazione" se non lo era già
+             if (art.status !== "pubblicato") updateData.status = "in_lavorazione";
+          } else {
+             updateData.status = "pubblicato";
+          }
+
+          await updateDoc(doc(db, "piano_editoriale", art.id), updateData);
           count++;
         }
       }
-      alert(`✅ Aggiornamento completato: ${count} articoli segnati come pubblicati.`);
+      alert(`✅ Aggiornamento completato: ${count} articoli sincronizzati.${isWPActive ? " (Dati recuperati da WP API)" : ""}`);
     } catch (e) {
       console.error(e);
       alert("Errore durante il refresh: " + e.message);
@@ -526,7 +570,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                         {a.source === "keyword-researcher" && <span style={{ fontSize: 9, color: "#7c3aed", fontWeight: 600 }}>🔍 KR</span>}
                         {a.existingUrl && (
-                          <a href={a.existingUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: "#0284c7", fontWeight: 600, textDecoration: "none" }}>🌐 ONLINE</a>
+                          <a href={a.existingUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: "#0284c7", fontWeight: 600, textDecoration: "none" }}>{a.wpStatus === "programmato" ? "📅 PROGRAMMATO" : "🌐 ONLINE"}</a>
+                        )}
+                        {a.scheduledDate && (
+                           <span style={{ fontSize: 9, color: "#d97706", fontWeight: 600 }}>({new Date(a.scheduledDate).toLocaleDateString()})</span>
                         )}
                         <button onClick={() => showLinkSuggestions(a)} style={{ fontSize: 9, color: "#6366f1", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}>🔗 LINK</button>
                       </div>
@@ -541,6 +588,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                             {isCheckingSEO ? "..." : seo ? `SEO: ${seo.score}%` : "SEO Check"}
                           </button>
                         </div>
+                      )}
+                      {!isDone && a.wpStatus === "programmato" && (
+                         <div style={{ marginTop: 4, fontSize: 10, color: "#d97706", fontWeight: 600 }}>In coda su WP</div>
                       )}
                     </td>
                     {/* Keyword */}
