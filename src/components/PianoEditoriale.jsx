@@ -189,7 +189,16 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               appPassword: wpSettings.pass
             })
           });
-          const dataWP = await resWP.json();
+          
+          const contentTypeWP = resWP.headers.get("content-type");
+          let dataWP = {};
+          if (contentTypeWP && contentTypeWP.includes("application/json")) {
+            dataWP = await resWP.json();
+          } else {
+            const raw = await resWP.text();
+            throw new Error(`Risposta non valida dall'API (/api/wp-fetch). In locale assicurati di usare 'vercel dev' o verifica il file api/wp-fetch.js. Dettaglio: ${raw.substring(0, 50)}...`);
+          }
+
           if (resWP.ok) {
             publishedFromWP = dataWP.posts || [];
           } else {
@@ -204,10 +213,19 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         wpError = "Configurazione incompleta";
       }
 
-      // 2. Tenta il fetch dal feed pubblico (fallback o integrazione)
       const res = await fetch("/api/check-published");
-      if (!res.ok) throw new Error("Errore API refresh pubblico");
-      const { published: publishedPublic } = await res.json();
+      const contentTypePub = res.headers.get("content-type");
+      let publishedPublic = [];
+      
+      if (contentTypePub && contentTypePub.includes("application/json")) {
+        const dataPub = await res.json();
+        publishedPublic = dataPub.published || [];
+      } else {
+        const raw = await res.text();
+        console.warn("Chiamata check-published non ha restituito JSON (normale in ambiente dev locale):", raw.substring(0, 50));
+      }
+      
+      if (!res.ok && publishedPublic.length === 0) throw new Error("Errore API refresh pubblico o ambiente locale");
       
       // Uniamo le liste evitando duplicati (usiamo il titolo come chiave)
       const allFound = [...publishedFromWP];
@@ -286,8 +304,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: article.existingUrl, keyword: article.kw })
       });
-      const data = await res.json();
-      setSEOResult({ id: article.id, ...data });
+      
+      const contentTypeSEO = res.headers.get("content-type");
+      if (contentTypeSEO && contentTypeSEO.includes("application/json")) {
+        const data = await res.json();
+        setSEOResult({ id: article.id, ...data });
+      } else {
+        throw new Error("Risposta non valida dall'API SEO Check (JSON atteso).");
+      }
     } catch (e) {
       alert("Errore SEO Check: " + e.message);
     } finally {

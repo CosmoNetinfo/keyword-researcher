@@ -29,10 +29,17 @@ export default async function handler(req, res) {
       while (page <= totalPages) {
         const paginatedUrl = `${baseApiUrl}&page=${page}`;
         const response = await fetch(paginatedUrl, { method: "GET", headers });
-        const data = await response.json();
+        const contentType = response.headers.get("content-type");
+        let data = {};
+        if (contentType && contentType.includes("application/json")) {
+           data = await response.json();
+        } else {
+           const text = await response.text();
+           throw { status: response.status, message: `Risposta non JSON dal server WordPress: ${text.substring(0, 100)}` };
+        }
 
         if (!response.ok) {
-          throw { status: response.status, message: data.message };
+          throw { status: response.status, message: data.message || "Errore sconosciuto" };
         }
 
         results = results.concat(data);
