@@ -737,7 +737,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                     </td>
                     {/* Mese */}
                     <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
-                      {a.month ? `Mese ${a.month}` : "—"}
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                      {a.month ? `${MONTH_NAMES[a.month - 1]} ${a.year || ""}` : "—"}
+                    </div>
                     </td>
                     {/* Status */}
                     <td style={{ padding: "8px 12px" }}>
