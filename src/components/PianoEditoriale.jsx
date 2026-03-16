@@ -391,10 +391,19 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         const cleanFoundTitle = cleanTitle(found.title);
         
         // Cerchiamo se esiste già nel piano
-        const existing = articles.find(art => {
+        let existing = articles.find(art => {
           const cleanArtTitle = cleanTitle(art.title);
+          // Match esatto o inclusivo
           return (cleanFoundTitle && cleanArtTitle) && (cleanFoundTitle.includes(cleanArtTitle) || cleanArtTitle.includes(cleanFoundTitle));
         });
+
+        // Se non trovato con match "duro", proviamo con la similitudine (fuzzy match)
+        if (!existing) {
+          existing = articles.find(art => {
+            const similarity = calculateSimilarity(cleanFoundTitle, cleanTitle(art.title));
+            return similarity > 0.85; // Alta soglia per evitare falsi positivi
+          });
+        }
 
         const isFuture = found.status === "future";
         const postDate = new Date(found.date);
