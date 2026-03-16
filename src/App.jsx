@@ -9,6 +9,7 @@ import {
   updateDoc, 
   doc, 
   deleteDoc,
+  getDoc,
   serverTimestamp
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
@@ -212,6 +213,16 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  const [wpCategories, setWPCategories] = useState([]);
+  useEffect(() => {
+    getDoc(doc(db, "config", "wordpress")).then((snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.categories) setWPCategories(data.categories);
+      }
+    });
+  }, []);
+
 
 
   const [provider, setProvider] = useState("groq");
@@ -241,7 +252,10 @@ export default function App() {
       return;
     }
 
-    const cat  = topicToCat(finalTopic);
+    const cat = wpCategories.find(c => 
+      c.name.toLowerCase().includes(finalTopic.toLowerCase()) || 
+      finalTopic.toLowerCase().includes(c.name.toLowerCase())
+    )?.slug || topicToCat(finalTopic);
     const diff = prioritaToDiff(article.priority);
     const kw   = (article.keywords || []).join(", ");
 

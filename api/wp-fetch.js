@@ -77,18 +77,37 @@ export default async function handler(req, res) {
       }
     }
 
+    let categories = [];
+    try {
+      const catUrl = `${wpUrl.replace(/\/$/, '')}/wp-json/wp/v2/categories?per_page=100`;
+      const catRes = await fetch(catUrl, { method: "GET", headers });
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        categories = catData.map(c => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          count: c.count
+        }));
+      }
+    } catch (catErr) {
+      console.warn("Failed to fetch categories:", catErr);
+    }
+
     // Mappiamo i dati per restituire solo quello che ci serve
     const posts = allPosts.map(post => ({
       id: post.id,
       title: post.title.rendered,
       url: post.link,
       status: post.status, // publish o future
-      date: post.date
+      date: post.date,
+      categoryIds: post.categories
     }));
 
     res.status(200).json({ 
       success: true, 
       posts,
+      categories,
       totalCount: posts.length,
       warning
     });

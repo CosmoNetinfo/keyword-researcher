@@ -153,6 +153,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [showDuplicateReview, setShowDuplicateReview] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: "month", direction: "asc" }); // Default: per data (mese)
+  const [wpCategories, setWPCategories] = useState([]);
 
   const PER_PAGE = 50; // Come richiesto nel Fix 1
 
@@ -166,7 +167,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     // Carica impostazioni WP
     getDoc(doc(db, "config", "wordpress")).then((snapshot) => {
       if (snapshot.exists()) {
-        setWPSettings(snapshot.data());
+        const data = snapshot.data();
+        setWPSettings(data);
+        if (data.categories) setWPCategories(data.categories);
       }
     });
 
@@ -313,7 +316,8 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       return;
     }
 
-    if (!window.confirm(`⚠️ Trovati ${ghosts.length} articoli che non risultano più presenti sul sito.\n\nVuoi eliminarli dall'applicazione per allineare i conteggi?`)) return;
+    const titles = ghosts.map(g => `- ${g.title} (${g.status})`).join("\n");
+    if (!window.confirm(`⚠️ Trovati ${ghosts.length} articoli che non risultano più presenti sul sito (o sono nel cestino):\n\n${titles}\n\nVuoi eliminarli dall'applicazione per allineare i conteggi?`)) return;
 
     setSaving(true);
     try {
@@ -376,6 +380,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
           if (resWP.ok) {
             publishedFromWP = dataWP.posts || [];
+            if (dataWP.categories) {
+              setWPCategories(dataWP.categories);
+              // Salva le categorie nella configurazione (opzionale se lo fai qui)
+              updateDoc(doc(db, "config", "wordpress"), { categories: dataWP.categories });
+            }
           } else {
             wpError = dataWP.error || "Errore sconosciuto";
             console.error("WP API Error:", wpError);
@@ -415,6 +424,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       
       // 3. Processiamo gli articoli trovati su WP/Sitemap
       const syncTimestamp = Date.now();
+      
+      // Mappa delle categorie per ID
+      const catMap = {};
+      wpCategories.forEach(c => { catMap[c.id] = c.slug; });
+
       for (const found of allFound) {
         const cleanFoundTitle = cleanTitle(found.title);
         
@@ -440,6 +454,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
         const isFuture = found.status === "future";
         const postDate = new Date(found.date);
+        
+        // Determiniamo la categoria (prendiamo la prima se presente)
+        let importedCat = "news";
+        if (found.categoryIds && found.categoryIds.length > 0) {
+          const firstCatId = found.categoryIds[0];
+          if (catMap[firstCatId]) importedCat = catMap[firstCatId];
+        }
+
         const updateData = {
           title: found.title,
           existingUrl: found.url,
@@ -449,7 +471,8 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           scheduledDate: isFuture ? found.date : null,
           year: postDate.getFullYear(),
           month: postDate.getMonth() + 1,
-          lastSyncedAt: syncTimestamp
+          lastSyncedAt: syncTimestamp,
+          cat: importedCat
         };
 
         if (existing) {
@@ -459,7 +482,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           await addDoc(collection(db, "piano_editoriale"), {
             ...updateData,
             kw: "",
-            cat: "news",
             diff: "bassa",
             tipo: "News/Review",
             source: "wp-import",
@@ -646,7 +668,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function saveWPSettings() {
     setSaving(true);
     try {
-      await setDoc(doc(db, "config", "wordpress"), wpSettings);
+      await setDoc(doc(db, "config", "wordpress"), { ...wpSettings, categories: wpCategories });
       setShowWPSettings(false);
       alert("Impostazioni salvate nel database Firebase.");
     } catch (e) {
@@ -703,6 +725,24 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   }, [articles]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / PER_PAGE)), [filtered.length]);
+
+  // Merge CAT_META with dynamic categories
+  const allCategories = useMemo(() => {
+    const combined = { ...CAT_META };
+    wpCategories.forEach(c => {
+      if (!combined[c.slug]) {
+        combined[c.slug] = {
+          label: c.name,
+          color: "text-slate-600",
+          bg: "bg-slate-50",
+          border: "border-slate-100",
+          dynamic: true
+        };
+      }
+    });
+    return combined;
+  }, [wpCategories]);
+
   const pageItems  = useMemo(() => filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE), [filtered, page]);
 
   // ── Stats Memoizzate ─────────────────────────────────────────────────────────
@@ -819,7 +859,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block" />
 
             <div className="flex flex-wrap gap-2">
-              {["all", ...Object.keys(CAT_META)].map(c => (
+              {["all", ...Object.keys(allCategories)].map(c => (
                 <button 
                   key={c} 
                   onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
@@ -830,7 +870,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                       : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue hover:text-electric-blue"
                   )}
                 >
-                  {c === "all" ? "Tutte" : CAT_META[c].label}
+                  {c === "all" ? "Tutte" : allCategories[c].label}
                 </button>
               ))}
             </div>
@@ -957,7 +997,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               onChange={e => setForm(f=>({...f,cat:e.target.value}))}
               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all cursor-pointer"
             >
-              {Object.entries(CAT_META).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+              {Object.entries(allCategories).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
 
@@ -1021,7 +1061,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                     <div key={a.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:border-electric-blue/30 transition-all group">
                       <div className="font-bold text-[11px] text-deep-space leading-snug mb-2 group-hover:text-electric-blue transition-colors">{decodeHTML(a.title)}</div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge text={a.cat} meta={CAT_META} />
+                        <Badge text={a.cat} meta={allCategories} />
                         <span className={cn(
                           "text-[9px] font-bold px-2 py-0.5 rounded",
                           DIFF_META[a.diff]?.bg || "bg-slate-100",
@@ -1189,7 +1229,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-2">
-                          <Badge text={a.cat} meta={CAT_META} />
+                          <Badge text={a.cat} meta={allCategories} />
                           {isDone && a.existingUrl && (
                             <button 
                               onClick={() => runSEOCheck(a)} 
