@@ -261,6 +261,25 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
+  async function bulkDeleteDuplicates() {
+    const ids = Object.keys(duplicateWarnings);
+    if (ids.length === 0) return;
+    if (!window.confirm(`⚠️ Sei sicuro di voler eliminare tutti i ${ids.length} articoli con conflitti?\nQuesta operazione non è reversibile.`)) return;
+    
+    setSaving(true);
+    try {
+        const promises = ids.map(id => deleteDoc(doc(db, "piano_editoriale", id)));
+        await Promise.all(promises);
+        setDuplicateWarnings({});
+        setShowDuplicateReview(false);
+        alert("✅ Tutti gli articoli con conflitti sono stati eliminati.");
+    } catch (e) {
+        alert("Errore durante l'eliminazione bulk: " + e.message);
+    } finally {
+        setSaving(false);
+    }
+  }
+
   // ── Aggiorna col sito (Feed RSS + WordPress API per programmati) ────────────────────────
   async function refreshFromSite() {
     // Funzione per pulire i titoli (rimuove entità HTML comuni e spazi extra)
@@ -1143,7 +1162,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               </table>
             </div>
 
-            <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid #eee", textAlign: "right" }}>
+            <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button 
+                onClick={bulkDeleteDuplicates} 
+                disabled={saving}
+                style={{ padding: "10px 24px", borderRadius: 8, background: "#fee2e2", color: "#ef4444", border: "1.5px solid #ef4444", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}
+              >
+                {saving ? "Eliminazione..." : `🗑️ Elimina tutti (${Object.keys(duplicateWarnings).length})`}
+              </button>
               <button onClick={() => setShowDuplicateReview(false)} style={{ padding: "10px 24px", borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>
                 Ho finito la revisione
               </button>
