@@ -132,6 +132,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [duplicateWarnings, setDuplicateWarnings] = useState({});
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [showDuplicateReview, setShowDuplicateReview] = useState(false);
 
   const PER_PAGE = 50; // Come richiesto nel Fix 1
 
@@ -214,13 +215,16 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     setCheckingDuplicates(true);
     const warnings = {};
     
-    for (let i = 0; i < articles.length; i++) {
-        const a = articles[i];
+    // Filtriamo gli articoli: controlliamo solo quelli NON pubblicati
+    const toCheck = articles.filter(a => a.status !== "pubblicato");
+    
+    for (let i = 0; i < toCheck.length; i++) {
+        const a = toCheck[i];
         const titleA = (a.title || "").toLowerCase().trim();
         const kwA = (a.kw || "").toLowerCase().trim();
 
-        for (let j = i + 1; j < articles.length; j++) {
-            const b = articles[j];
+        for (let j = i + 1; j < toCheck.length; j++) {
+            const b = toCheck[j];
             const titleB = (b.title || "").toLowerCase().trim();
             const kwB = (b.kw || "").toLowerCase().trim();
 
@@ -251,7 +255,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     
     const count = Object.keys(warnings).length;
     if (count > 0) {
-        alert(`Analisi completata! Trovati ${count} articoli con potenziali problemi di duplicazione o similitudine.`);
+        setShowDuplicateReview(true);
     } else {
         alert("✅ Nessun duplicato o articolo troppo simile trovato!");
     }
@@ -1073,6 +1077,77 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               {suggestions.items.length === 0 && <div style={{ textAlign: "center", opacity: 0.5 }}>Nessun articolo correlato trovato online.</div>}
             </div>
             <button onClick={() => setSuggestions(null)} style={{ width: "100%", padding: 10, borderRadius: 8, background: "#f3f4f6", color: "#374151", border: "none" }}>Chiudi</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Revisione Duplicati */}
+      {showDuplicateReview && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, color: "var(--color-text-primary)" }}>
+          <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: "90%", maxWidth: 800, maxHeight: "85vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h3 style={{ margin: 0 }}>Revisione Articoli Duplicati o Simili</h3>
+              <button onClick={() => setShowDuplicateReview(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
+            </div>
+            
+            <p style={{ fontSize: 13, color: "#666", marginBottom: 20 }}>
+              Sono stati trovati {Object.keys(duplicateWarnings).length} articoli con potenziali conflitti. Revisiona la lista e usa l'icona <span style={{color: "#ef4444"}}>✕</span> per eliminare quelli non necessari.
+            </p>
+
+            <div style={{ flex: 1, overflowY: "auto", paddingRight: 10 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+                  <tr style={{ textAlign: "left", borderBottom: "2px solid #eee" }}>
+                    <th style={{ padding: "10px 5px" }}>Articolo</th>
+                    <th style={{ padding: "10px 5px" }}>Problema</th>
+                    <th style={{ padding: "10px 5px", textAlign: "right" }}>Azione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(duplicateWarnings).map(([id, info]) => {
+                    const art = articles.find(a => a.id === id);
+                    if (!art) return null;
+                    return (
+                      <tr key={id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "12px 5px" }}>
+                          <div style={{ fontWeight: 600 }}>{art.title}</div>
+                          <div style={{ fontSize: 11, color: "#9ca3af" }}>KW: {art.kw || "—"}</div>
+                        </td>
+                        <td style={{ padding: "12px 5px" }}>
+                          <span style={{ 
+                            fontSize: 10, padding: "2px 6px", borderRadius: 4, 
+                            background: info.type === 'duplicato' ? "#fee2e2" : info.type === 'stessa_kw' ? "#fef3c7" : "#e0f2fe",
+                            color: info.type === 'duplicato' ? "#991b1b" : info.type === 'stessa_kw' ? "#92400e" : "#075985"
+                          }}>
+                            {info.type === 'duplicato' ? 'DUPLICATO ESATTO' : info.type === 'stessa_kw' ? 'STESSA KEYWORD' : 'MOLTO SIMILE'}
+                          </span>
+                          <div style={{ fontSize: 11, marginTop: 4, fontStyle: "italic" }}>Correlato a: {info.relatedTitle}</div>
+                        </td>
+                        <td style={{ padding: "12px 5px", textAlign: "right" }}>
+                          <button 
+                            onClick={() => {
+                              deleteArticle(art.id);
+                              // Aggiorniamo localmente i warnings per far sparire la riga
+                              const next = {...duplicateWarnings};
+                              delete next[art.id];
+                              setDuplicateWarnings(next);
+                            }}
+                            style={{ background: "#fee2e2", color: "#ef4444", border: "none", width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontWeight: "bold" }}
+                            title="Elimina articolo"
+                          >✕</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid #eee", textAlign: "right" }}>
+              <button onClick={() => setShowDuplicateReview(false)} style={{ padding: "10px 24px", borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>
+                Ho finito la revisione
+              </button>
+            </div>
           </div>
         </div>
       )}
