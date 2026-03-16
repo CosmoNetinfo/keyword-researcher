@@ -667,15 +667,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
   // ── Stats Memoizzate ─────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const articoliNuovi    = articles.filter(a => a.source !== "cosmonet-esistente");
-    const articoliOnline   = articles.filter(a => a.source === "cosmonet-esistente");
+    // Consolidiamo tutti gli articoli per avere conteggi reali che corrispondano a WP
     return {
-      total:       articoliNuovi.length,
-      pubblicati:  articoliNuovi.filter(a => a.status === "pubblicato").length,
-      programmato: articoliNuovi.filter(a => a.status === "programmato").length,
-      lavorazione: articoliNuovi.filter(a => a.status === "in_lavorazione").length,
-      daFare:      articoliNuovi.filter(a => a.status === "da_scrivere" || !a.status).length,
-      online:      articoliOnline.length,
+      total:       articles.length,
+      pubblicati:  articles.filter(a => a.status === "pubblicato").length,
+      programmato: articles.filter(a => a.status === "programmato").length,
+      lavorazione: articles.filter(a => a.status === "in_lavorazione").length,
+      daFare:      articles.filter(a => a.status === "da_scrivere" || !a.status).length,
     };
   }, [articles]);
 
@@ -702,14 +700,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     <div className="space-y-8">
 
       {/* Header stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
           { label: "Totali", val: stats.total,       color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-500" },
           { label: "Pubblicati",      val: stats.pubblicati,  color: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", accent: "bg-emerald-500" },
           { label: "Programmati",    val: stats.programmato, color: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", accent: "bg-amber-500" },
           { label: "In corso",        val: stats.lavorazione, color: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", accent: "bg-blue-500" },
           { label: "Da scrivere",     val: stats.daFare,      color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-400" },
-          { label: "Online",          val: stats.online,      color: "bg-sky-50", border: "border-sky-200", text: "text-sky-700", accent: "bg-sky-500" },
           { label: "Progress",        val: pct + "%",         color: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", accent: "bg-violet-500" },
         ].map(s => (
           <div key={s.label} className={cn(
