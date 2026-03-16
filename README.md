@@ -1,60 +1,99 @@
-# Keyword Researcher & Piano Editoriale AI
+# 🚀 Keyword Researcher & Piano Editoriale AI
 
-Keyword Researcher è una Single Page Application (SPA) avanzata progettata per automatizzare la ricerca di parole chiave, l'analisi dei competitor e la gestione di un piano editoriale strutturato. Il sistema utilizza vari motori di Intelligenza Artificiale (Groq/LLaMA 3.3, Gemini, Claude) per generare insight strategici partendo da un URL e una nicchia di riferimento.
-
-## 🚀 Caratteristiche Principali
-
-### 1. **Analisi & Keyword Strategy**
-- **Scansione Intelligente**: Analizza siti web esistenti per identificare lacune di contenuto.
-- **Ricerca Keyword**: Identifica parole chiave target con difficoltà, intento di ricerca e volumi stimati.
-- **Analisi Competitor**: Monitora i principali attori della nicchia e i loro punti di forza.
-- **Generazione Idee Articoli**: Suggerisce nuovi contenuti e aggiornamenti per articoli esistenti.
-
-### 2. **Piano Editoriale (Dashboard Real-time)**
-- **Sincronizzazione WordPress**: Importa automaticamente articoli pubblicati e programmati tramite REST API.
-- **Filtri Avanzati**: Gestione dei contenuti per Anno (2025, 2026, ecc.) e Mesi reali (Gennaio, Febbraio...).
-- **Vista Calendario**: Visualizzazione temporale della strategia di pubblicazione.
-- **Check SEO**: Analisi "on-page" rapida per verificare la presenza di keyword in Titolo, H1 e immagini.
-
-### 3. **Automazione & UX**
-- **Deduplicazione**: Identificazione automatica di articoli già presenti nel piano per evitare doppioni.
-- **Aggiunta Massiva**: Inserimento veloce di decine di idee nel piano editoriale con un solo click.
-- **Responsive Design**: Ottimizzato per l'uso professionale su Desktop e per la consultazione rapida su Mobile.
-
-## 🛠 Architettura Tecnica
-
-- **Frontend**: React (Vite) con CSS Vanilla (Design Premium/Glassmorphism).
-- **Database e Auth**: Firebase Firestore per la persistenza real-time dei dati.
-- **Backend (Serverless)**:
-  - `api/analyze.js`: Orchestrazione delle chiamate AI e parsing dei risultati.
-  - `api/wp-fetch.js`: Integrazione sicura con WordPress (Application Passwords).
-  - `api/check-published.js`: Scraping leggero e check SEO.
-- **AI Engine**: Supporto multi-provider tramite API esterne (Groq, Google AI, Anthropic).
-
-## 📂 Struttura del Progetto
-
-```text
-/
-├── api/                # Funzioni Serverless (Vercel/Node.js)
-│   ├── analyze.js      # Core AI Analysis
-│   ├── wp-fetch.js     # WP REST API Bridge
-│   └── ...
-├── src/                # Sorgenti Frontend
-│   ├── components/     # Componenti React (PianoEditoriale, Dashboard...)
-│   ├── App.jsx         # Componente principale e Router logico
-│   ├── firebase.js     # Configurazione Database
-│   └── index.css       # Design System e stili globali
-├── public/             # Asset statici e Manifest PWA
-└── .env                # Variabili d'ambiente (API Keys, Firebase Config)
-```
-
-## ⚙️ Configurazione per lo Sviluppo
-
-1. **Installazione**: `npm install`
-2. **Setup Ambiente**: Crea un file `.env` basato su `.env.example` con le chiavi API per Firebase, Groq, Gemini e Claude.
-3. **Esecuzione Locale**:
-   - Frontend: `npm run dev`
-   - API e Full Stack: `vercel dev` (consigliato per testare la sincronizzazione WordPress).
+**Keyword Researcher Pro** è una potente suite "All-in-One" progettata per SEO, Content Manager e Copywriter. Automatizza l'intero processo editoriale: dalla scoperta di keyword alla generazione di idee, fino alla gestione di un piano editoriale sincronizzato in tempo reale con WordPress.
 
 ---
-*Progetto sviluppato da Antigravity per CosmoNet.*
+
+## 💎 Caratteristiche Principali
+
+### 🔍 1. Nuova Analisi (AI Research)
+Trasforma un semplice URL e un argomento in una strategia completa:
+- **Analisi Competitor**: Scansione automatica per identificare i principali player della nicchia.
+- **Content Gap Analysis**: Identifica cosa manca al tuo sito rispetto ai competitor.
+- **Keyword Blueprint**: Genera liste di parole chiave con volumi, difficoltà AI e intento di ricerca.
+- **Ideazione Contenuti**: Suggerisce nuovi articoli e aggiornamenti per massimizzare il ROI del traffico.
+
+### 📅 2. Piano Editoriale Premium
+Un centro di controllo per il tuo calendario di pubblicazione:
+- **Sincronizzazione WordPress**: Importazione bidirezionale di articoli pubblicati e programmati tramite API REST.
+- **Filtri Intelligenti**: Organizzazione dei contenuti per anno, mese e categorie (con filtro rapido per le categorie principali).
+- **Vista Calendario & Tabella**: Passa da una visualizzazione tabellare dettagliata a una panoramica mensile.
+- **Check SEO On-Page**: Verifica istantaneamente la salute SEO dei tuoi articoli online.
+
+### 🤖 3. Multi-Engine AI Support
+Utilizza il meglio della tecnologia LLM:
+- **Groq (LLaMA 3.3)**: Velocità estrema per analisi istantanee.
+- **Google Gemini 2.0**: Accuratezza e profondità di ragionamento.
+- **Anthropic Claude 3.5**: Eccellente per la generazione di testi e descrizioni creative.
+
+---
+
+## 🛠 Stack Tecnologico
+
+- **Frontend**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Styling**: Vanilla CSS Premium con utility [Tailwind CSS 4](https://tailwindcss.com/)
+- **Database**: [Firebase Firestore](https://firebase.google.com/docs/firestore) (Real-time)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Backend API**: Node.js Serverless (Vercel)
+
+---
+
+## 📁 Struttura del Progetto
+
+```text
+keyword-researcher/
+├── api/                # Cloud Functions (Backend Serverless)
+│   ├── analyze.js      # Orchestrazione della ricerca tramite AI
+│   ├── wp-fetch.js     # Ponte sicuro con l'API WordPress 
+│   └── ...
+├── src/                # Sorgenti Applicazione
+│   ├── components/     # UI Components (Piano Editoriale, Sidebar, Layout...)
+│   ├── App.jsx         # Logica principale e visualizzazione Analisi
+│   ├── App.css         # Styling Premium e Design System
+│   └── firebase.js     # Connessione al database real-time
+├── public/             # Asset statici (loghi, manifest PWA)
+└── .env                # Configurazioni sensibili (API Keys)
+```
+
+---
+
+## 🚀 Guida Rapida alla Configurazione
+
+### 1. Prerequisiti
+Assicurati di avere [Node.js 20.x](https://nodejs.org/) installato.
+
+### 2. Installazione
+```bash
+npm install
+```
+
+### 3. Variabili d'Ambiente
+Crea un file `.env` nella root del progetto e inserisci le tue chiavi:
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_PROJECT_ID=...
+GROQ_API_KEY=...
+GEMINI_API_KEY=...
+ANTHROPIC_API_KEY=...
+```
+
+### 4. Avvio Sviluppo
+Per il solo frontend:
+```bash
+npm run dev
+```
+Per testare le API (WordPress, SEO Check, AI) è necessario usare Vercel CLI:
+```bash
+vercel dev
+```
+
+---
+
+## 🌟 Note sulla Versione "Premium UI"
+L'ultima versione include un redesign completo:
+- **Layout Nuova Analisi**: Una dashboard pulita e strutturata per avviare le ricerche.
+- **Ottimizzazione Categorie**: Un sistema di filtraggio bilanciato che mostra le categorie principali come tasti rapidi e le altre in un menù a tendina.
+- **Micro-animazioni**: Feedback visivi fluidi durante la navigazione e il caricamento delle analisi.
+
+---
+*Prodotto con ❤️ dal team di sviluppo CosmoNet Pro.*

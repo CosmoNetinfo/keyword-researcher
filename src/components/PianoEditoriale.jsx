@@ -858,8 +858,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             
             <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block" />
 
-            <div className="flex flex-wrap gap-2">
-              {["all", ...Object.keys(allCategories)].map(c => (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Main Categories Buttons */}
+              {["all", "ai", "oss", "gaming", "linux"].map(c => (
                 <button 
                   key={c} 
                   onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
@@ -870,10 +871,44 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                       : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue hover:text-electric-blue"
                   )}
                 >
-                  {c === "all" ? "Tutte" : allCategories[c].label}
+                  {c === "all" ? "Tutte" : allCategories[c]?.label || c}
                 </button>
               ))}
+
+              {/* Other Categories Dropdown */}
+              <div className="relative">
+                <select
+                  value={(!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)) ? filter.cat : "other"}
+                  onChange={(e) => {
+                    if (e.target.value !== "other") {
+                      setFilter(f => ({ ...f, cat: e.target.value }));
+                      setPage(1);
+                    }
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-bold border appearance-none pr-8 cursor-pointer focus:ring-0",
+                    (!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat))
+                      ? "bg-electric-blue text-white border-electric-blue shadow-lg shadow-electric-blue/20"
+                      : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue"
+                  )}
+                  style={{ width: 'auto', minWidth: '120px' }}
+                >
+                  <option value="other" disabled={!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)}>Altre...</option>
+                  {Object.keys(allCategories).filter(c => !["ai", "oss", "gaming", "linux"].includes(c)).map(c => (
+                    <option key={c} value={c} className="text-slate-900 bg-white">
+                      {allCategories[c].label}
+                    </option>
+                  ))}
+                </select>
+                <div className={cn(
+                  "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none",
+                  (!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)) ? "text-white" : "text-slate-400"
+                )}>
+                  <ChevronLeft size={14} className="-rotate-90" />
+                </div>
+              </div>
             </div>
+
           </div>
         </div>
 

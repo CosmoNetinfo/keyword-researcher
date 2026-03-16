@@ -424,25 +424,27 @@ export default function App() {
 
 
       {view === "new" && (
-        <main>
-          <section className="card">
-            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        <main className="max-w-4xl mx-auto">
+          <section className="card" style={{ marginBottom: 40 }}>
+            <h2 style={{ marginBottom: 24, fontSize: '1.25rem' }}>Nuova Analisi</h2>
+            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr)', gap: 24, marginBottom: 24 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Sito Web</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>Sito Web</label>
                 <input value={url} onChange={e => setUrl(e.target.value)} placeholder="esempio.it" />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Nicchia / Argomento</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>Argomento</label>
                 <select value={topic} onChange={e => setTopic(e.target.value)}>
                   {TOPICS.map(t => <option key={t}>{t}</option>)}
                   <option value="Personalizzato">Personalizzato...</option>
                 </select>
               </div>
             </div>
-            {topic === "Personalizzato" && <input value={customTopic} onChange={e => setCustomTopic(e.target.value)} placeholder="Es: fotografia digitale..." style={{ marginBottom: 20 }} />}
+            {topic === "Personalizzato" && <input value={customTopic} onChange={e => setCustomTopic(e.target.value)} placeholder="Es: fotografia digitale..." style={{ marginBottom: 24 }} />}
             
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Motore di AI</label>
+            <div style={{ marginBottom: 32 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>Motore di AI</label>
+
               <select value={provider} onChange={e => setProvider(e.target.value)}>
                 <option value="groq">Groq (LLaMA 3.3 - Ultra veloce)</option>
                 <option value="gemini">Google Gemini 2.0 Flash</option>
@@ -473,13 +475,14 @@ export default function App() {
             <div style={{ marginTop: 40, animation: "fadeUp 0.3s ease" }}>
               {result.insights && <div className="insights-box">{result.insights}</div>}
               
-              <div className="tabs-container" style={{ display: 'flex', gap: 32, borderBottom: '1px solid var(--color-border)', marginBottom: 24 }}>
+              <div className="tabs-container" style={{ display: 'flex', gap: 32, borderBottom: '1px solid #e2e8f0', marginBottom: 32, overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: 2 }}>
                 {tabs.map(t => (
-                  <button key={t.key} onClick={() => startTransition(() => setActiveTab(t.key))} style={{ background: 'none', border: 'none', padding: '12px 0', fontSize: 14, fontWeight: activeTab === t.key ? 600 : 400, color: activeTab === t.key ? 'var(--color-primary)' : 'var(--color-text-secondary)', borderBottom: activeTab === t.key ? '3px solid var(--color-primary)' : '3px solid transparent', cursor: 'pointer' }}>
-                    {t.label} ({t.count})
+                  <button key={t.key} onClick={() => startTransition(() => setActiveTab(t.key))} style={{ background: 'none', border: 'none', padding: '12px 0', fontSize: 14, fontWeight: activeTab === t.key ? 700 : 500, color: activeTab === t.key ? 'var(--color-primary)' : '#64748b', borderBottom: activeTab === t.key ? '3px solid var(--color-primary)' : '3px solid transparent', cursor: 'pointer', outline: 'none' }}>
+                    {t.label} <span style={{ opacity: 0.6, fontSize: '0.8em', marginLeft: 4 }}>{t.count}</span>
                   </button>
                 ))}
               </div>
+
 
               {activeTab === "articles" && newArticles.length > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
@@ -498,9 +501,10 @@ export default function App() {
                     const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
                     return [
                       i + 1,
-                      <strong>{decodeHTML(a.title)}</strong>,
-                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.description}</span>,
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#e8f0fe', color: '#1a73e8' }}>{k}</span>)}</div>,
+                      <strong style={{ color: '#0f172a' }}>{decodeHTML(a.title)}</strong>,
+                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400, color: '#475569', lineHeight: 1.5 }}>{a.description}</span>,
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#eff6ff', color: '#1d4ed8' }}>{k}</span>)}</div>,
+
                       <Pill text={a.priority} map={DIFF_COLORS} />,
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <input type="checkbox"
@@ -541,8 +545,9 @@ export default function App() {
                     const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
                     return [
                       i + 1,
-                      <strong>{decodeHTML(a.title)}</strong>,
-                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400 }}>{a.update_reason || a.description}</span>,
+                      <strong style={{ color: '#0f172a' }}>{decodeHTML(a.title)}</strong>,
+                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400, color: '#475569', lineHeight: 1.5 }}>{a.update_reason || a.description}</span>,
+
                       <a href={a.existing_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.existing_url}</a>,
                       <Pill text={a.priority} map={DIFF_COLORS} />,
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -611,8 +616,9 @@ export default function App() {
                     const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
                     return [
                       i + 1,
-                      <strong>{decodeHTML(a.title)}</strong>,
-                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{a.topic}</span>,
+                      <strong style={{ color: '#0f172a' }}>{decodeHTML(a.title)}</strong>,
+                      <span style={{ fontSize: 12, color: '#64748b' }}>{a.topic}</span>,
+
                       <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.url}</a>,
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Pill text={a.status === "aggiornare" ? "media" : "bassa"} map={DIFF_COLORS} />
