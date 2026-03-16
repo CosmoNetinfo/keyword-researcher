@@ -50,6 +50,27 @@ function decodeHTML(str) {
   return txt.value;
 }
 
+// ─── Utility per Similitudine ───────────────────────────────────────────────
+function getTokens(str) {
+  if (!str) return [];
+  // Stop words italiane comuni
+  const stopWords = new Set(["il", "lo", "la", "i", "gli", "le", "un", "una", "uno", "di", "a", "da", "in", "con", "su", "per", "tra", "fra", "e", "o", "che", "non", "del", "al", "ai", "come", "perche", "quando", "dove"]);
+  return str.toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w));
+}
+
+function calculateSimilarity(s1, s2) {
+  const tokens1 = new Set(getTokens(s1));
+  const tokens2 = new Set(getTokens(s2));
+  if (tokens1.size === 0 || tokens2.size === 0) return 0;
+  
+  const intersection = new Set([...tokens1].filter(x => tokens2.has(x)));
+  // Sørensen–Dice coefficient
+  return (2 * intersection.size) / (tokens1.size + tokens2.size);
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function Badge({ text, meta }) {
@@ -109,6 +130,8 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [checkingSEO, setCheckingSEO] = useState(null); // article id
   const [suggestions, setSuggestions] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [duplicateWarnings, setDuplicateWarnings] = useState({});
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
   const PER_PAGE = 50; // Come richiesto nel Fix 1
 
@@ -160,6 +183,16 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function addArticle(e) {
     e.preventDefault();
     if (!form.title) return;
+
+    // Controllo preventivo duplicati
+    const normalizedNew = form.title.toLowerCase().trim();
+    const existing = articles.find(a => a.title.toLowerCase().trim() === normalizedNew);
+    if (existing) {
+      if (!window.confirm(`⚠️ Esiste già un articolo con questo titolo esatto:\n"${existing.title}"\n\nVuoi aggiungerlo comunque?`)) {
+        return;
+      }
+    }
+
     setSaving(true);
     await addDoc(collection(db, "piano_editoriale"), {
       ...form,
@@ -174,6 +207,54 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     });
     setShowForm(false);
     setSaving(false);
+  }
+
+  // ── Controlla Duplicati ───────────────────────────────────────────────────
+  function checkDuplicates() {
+    setCheckingDuplicates(true);
+    const warnings = {};
+    
+    for (let i = 0; i < articles.length; i++) {
+        const a = articles[i];
+        const titleA = (a.title || "").toLowerCase().trim();
+        const kwA = (a.kw || "").toLowerCase().trim();
+
+        for (let j = i + 1; j < articles.length; j++) {
+            const b = articles[j];
+            const titleB = (b.title || "").toLowerCase().trim();
+            const kwB = (b.kw || "").toLowerCase().trim();
+
+            let type = null;
+            let score = 0;
+
+            if (titleA === titleB && titleA !== "") {
+                type = "duplicato";
+            } else if (kwA === kwB && kwA !== "" && kwA !== "—") {
+                type = "stessa_kw";
+            } else {
+                score = calculateSimilarity(titleA, titleB);
+                if (score > 0.75) {
+                    type = "simile";
+                }
+            }
+
+            if (type) {
+                // Assegna warning a entrambi
+                warnings[a.id] = { type, relatedTitle: b.title, score };
+                warnings[b.id] = { type, relatedTitle: a.title, score };
+            }
+        }
+    }
+    
+    setDuplicateWarnings(warnings);
+    setCheckingDuplicates(false);
+    
+    const count = Object.keys(warnings).length;
+    if (count > 0) {
+        alert(`Analisi completata! Trovati ${count} articoli con potenziali problemi di duplicazione o similitudine.`);
+    } else {
+        alert("✅ Nessun duplicato o articolo troppo simile trovato!");
+    }
   }
 
   // ── Aggiorna col sito (Feed RSS + WordPress API per programmati) ────────────────────────
@@ -705,6 +786,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           }}>
           ⚙️ WP
         </button>
+        <button onClick={checkDuplicates} disabled={checkingDuplicates}
+          style={{
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: "none", color: "#f59e0b", border: "1.5px solid #f59e0b", cursor: checkingDuplicates ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", gap: 6
+          }}>
+          {checkingDuplicates ? "⏳..." : "⚠️ Controlla Duplicati"}
+        </button>
       </div>
 
       {/* Form aggiunta manuale */}
@@ -837,8 +926,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                     </td>
                     {/* Titolo */}
                     <td style={{ padding: "8px 12px", maxWidth: 320 }}>
-                      <div style={{ fontWeight: 500, color: "var(--color-text-primary)", textDecoration: isDone ? "none" : "none" }}>
-                        {decodeHTML(a.title)}
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                        <div style={{ fontWeight: 500, color: "var(--color-text-primary)" }}>
+                          {decodeHTML(a.title)}
+                        </div>
+                        {duplicateWarnings[a.id] && (
+                          <span 
+                            title={`${duplicateWarnings[a.id].type === 'duplicato' ? 'Duplicato esatto' : duplicateWarnings[a.id].type === 'stessa_kw' ? 'Stessa Keyword' : 'Molto simile'} a: ${duplicateWarnings[a.id].relatedTitle}`}
+                            style={{ cursor: "help", fontSize: 14 }}
+                          >
+                            ⚠️
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                         {a.source === "keyword-researcher" && <span style={{ fontSize: 9, color: "#7c3aed", fontWeight: 600 }}>🔍 KR</span>}
