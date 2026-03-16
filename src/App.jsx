@@ -14,6 +14,23 @@ import {
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
 import Layout from "./components/Layout";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { 
+  Search, 
+  ExternalLink, 
+  Calendar,
+  CheckCircle2,
+  BarChart3,
+  Plus,
+  RefreshCw,
+  Clock,
+  Check
+} from "lucide-react";
+
+function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
 
 async function loadXLSX() {
   if (window.XLSX) return window.XLSX;
@@ -26,7 +43,7 @@ async function loadXLSX() {
   });
 }
 
-const TOPICS = ["Intelligenza Artificiale", "Linux & Open Source", "Gaming", "WordPress", "Produttività digitale"];
+const TOPICS = ["Intelligenza Artificiale", "Open Source", "Gaming", "Linux", "WordPress"];
 const PHASES = ["Scansione articoli esistenti...", "Analisi competitor italiani...", "Ricerca keyword e gap...", "Generazione idee articoli..."];
 
 const DIFF_COLORS = { bassa: "badge-bassa", media: "badge-media", alta: "badge-alta" };
@@ -76,26 +93,44 @@ function StatusCycle({ value, map, onChange }) {
   );
 }
 
-function SectionTable({ headers, rows }) {
-  if (!rows?.length) return <div className="insights-box">Nessun dato disponibile per questa sezione.</div>;
+function SectionTable({ headers, rows, columnClasses }) {
+  if (!rows?.length) return (
+    <div className="bg-slate-50 border border-slate-200 rounded-3xl p-12 text-center text-slate-400 font-medium">
+      Nessun dato disponibile per questa sezione.
+    </div>
+  );
+  
   return (
-    <div className="card" style={{ padding: 0 }}>
-      <div className="table-container">
-        <table>
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-500/10 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left">
           <thead>
-            <tr>
+            <tr className="bg-slate-50/50 border-b border-slate-200">
               {headers.map((h, i) => (
-                <th key={i}>{h}</th>
+                <th key={i} className={cn(
+                  "px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest",
+                  columnClasses?.[i]
+                )}>
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {rows.map((row, i) => {
               const isChecked = row[0]?.props?.checked;
               return (
-                <tr key={i} className={isChecked ? "row-completed" : ""}>
+                <tr key={i} className={cn(
+                  "transition-all hover:bg-slate-50/80",
+                  isChecked && "bg-emerald-50/30"
+                )}>
                   {row.map((cell, j) => (
-                    <td key={j}>{cell}</td>
+                    <td key={j} className={cn(
+                      "px-6 py-4",
+                      columnClasses?.[j]
+                    )}>
+                      {cell}
+                    </td>
                   ))}
                 </tr>
               );
@@ -233,16 +268,17 @@ export default function App() {
   const newArticles = result?.articles?.filter(a => a.type === "nuovo") || [];
   const updateArticles = result?.articles?.filter(a => a.type === "aggiornamento") || [];
 
-  async function updateCurrent(updater) {
+  /* function updateCurrent(updater) {
     if (!current) return;
     const updatedData = updater(current);
     const { id: _id, ...data } = updatedData;
-    await updateDoc(doc(db, "analyses", current.id), data);
-  }
+    updateDoc(doc(db, "analyses", current.id), data);
+  } */
 
-  function setKwStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, keywords: { ...(a.statuses?.keywords || {}), [i]: val } } })); }
-  function setArtNewStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_new: { ...(a.statuses?.articles_new || {}), [i]: val } } })); }
-  function setArtUpdStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_upd: { ...(a.statuses?.articles_upd || {}), [i]: val } } })); }
+  /* Unused state setters removed to resolve lint errors */
+  // function setKwStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, keywords: { ...(a.statuses?.keywords || {}), [i]: val } } })); }
+  // function setArtNewStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_new: { ...(a.statuses?.articles_new || {}), [i]: val } } })); }
+  // function setArtUpdStatus(i, val) { updateCurrent(a => ({ ...a, statuses: { ...a.statuses, articles_upd: { ...(a.statuses?.articles_upd || {}), [i]: val } } })); }
 
   async function addToPiano(article, tipo = "nuovo", silent = false) {
     // Deduplicazione: controlla se il titolo esiste già (case insensitive)
@@ -424,36 +460,96 @@ export default function App() {
 
 
       {view === "new" && (
-        <main className="max-w-4xl mx-auto">
-          <section className="card" style={{ marginBottom: 40 }}>
-            <h2 style={{ marginBottom: 24, fontSize: '1.25rem' }}>Nuova Analisi</h2>
-            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr)', gap: 24, marginBottom: 24 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>Sito Web</label>
-                <input value={url} onChange={e => setUrl(e.target.value)} placeholder="esempio.it" />
+        <main className="max-w-[1000px] mx-auto">
+          <section className="card-premium animate-fade-up border-slate-200/60 shadow-xl shadow-slate-200/40" style={{ marginBottom: 40 }}>
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                <Search className="text-indigo-600" size={20} />
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>Argomento</label>
-                <select value={topic} onChange={e => setTopic(e.target.value)}>
+              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Nuova Ricerca Strategica</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Sito Web Target</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <ExternalLink size={16} className="text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                  </div>
+                  <input 
+                    value={url} 
+                    onChange={e => setUrl(e.target.value)} 
+                    placeholder="esempio.it" 
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Argomento / Nicchia</label>
+                <select 
+                  value={topic} 
+                  onChange={e => setTopic(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none appearance-none cursor-pointer"
+                >
                   {TOPICS.map(t => <option key={t}>{t}</option>)}
                   <option value="Personalizzato">Personalizzato...</option>
                 </select>
               </div>
             </div>
-            {topic === "Personalizzato" && <input value={customTopic} onChange={e => setCustomTopic(e.target.value)} placeholder="Es: fotografia digitale..." style={{ marginBottom: 24 }} />}
-            
-            <div style={{ marginBottom: 32 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-secondary)', marginBottom: 8, letterSpacing: '0.05em' }}>Motore di AI</label>
 
-              <select value={provider} onChange={e => setProvider(e.target.value)}>
-                <option value="groq">Groq (LLaMA 3.3 - Ultra veloce)</option>
-                <option value="gemini">Google Gemini 2.0 Flash</option>
-                <option value="claude">Anthropic Claude 3.5 Sonnet</option>
-              </select>
+            {topic === "Personalizzato" && (
+              <div className="mb-8 animate-fade-up">
+                <input 
+                  value={customTopic} 
+                  onChange={e => setCustomTopic(e.target.value)} 
+                  placeholder="Es: Domotica per la casa, Fotografia Digitale..." 
+                  className="w-full px-5 py-3.5 bg-indigo-50/30 border border-indigo-100 rounded-2xl text-indigo-900 font-bold placeholder:text-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
+                />
+              </div>
+            )}
+            
+            <div className="space-y-2 mb-10">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Modello di Intelligenza Artificiale</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { id: 'groq', name: 'Groq LLaMA 3.3', speed: 'Ultra Veloce', color: 'indigo' },
+                  { id: 'gemini', name: 'Google Gemini 2.0', speed: 'Smart & Link', color: 'emerald' },
+                  { id: 'claude', name: 'Claude 3.5 Sonnet', speed: 'Qualità Massima', color: 'amber' }
+                ].map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setProvider(p.id)}
+                    className={cn(
+                      "flex flex-col items-start p-4 rounded-2xl border-2 transition-all",
+                      provider === p.id 
+                        ? "bg-white border-indigo-600 shadow-md ring-4 ring-indigo-50" 
+                        : "bg-slate-50 border-transparent hover:border-slate-200"
+                    )}
+                  >
+                    <span className={cn("text-xs font-bold mb-1", provider === p.id ? "text-indigo-600" : "text-slate-600")}>{p.name}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">{p.speed}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <button onClick={() => runResearch()} disabled={loading} className="btn-primary" style={{ width: '100%' }}>
-              {loading ? 'Analisi in corso...' : 'Avvia analisi completa ↗'}
+            <button 
+              onClick={() => runResearch()} 
+              disabled={loading} 
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-2xl font-extrabold text-lg shadow-xl shadow-indigo-600/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="animate-spin" size={24} />
+                  <span>Elaborazione Strategica...</span>
+                </>
+              ) : (
+                <>
+                  <span>Avvia Analisi Strategica</span>
+                  <Search size={20} strokeWidth={3} />
+                </>
+              )}
             </button>
           </section>
 
@@ -485,198 +581,208 @@ export default function App() {
 
 
               {activeTab === "articles" && newArticles.length > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                  <button onClick={() => startTransition(() => addAllToPiano())}
-                    style={{ padding: '6px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      background: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer' }}>
-                    📅 Aggiungi tutti al Piano ({newArticles.length})
-                  </button>
+                <div className="animate-[fadeUp_0.3s_ease]">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
+                        <Plus className="text-indigo-600" size={18} />
+                      </div>
+                      Nuovi Contenuti Suggeriti
+                    </h3>
+                    <button onClick={() => startTransition(() => addAllToPiano())}
+                            className="bg-electric-blue text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-electric-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2">
+                       <Plus size={18} strokeWidth={3} /> Aggiungi tutti al Piano ({newArticles.length})
+                    </button>
+                  </div>
+                  
+                  <SectionTable
+                    headers={["#", "Titolo Articolo", "Descrizione Strategica", "Keyword", "Diff", "Azioni"]}
+                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[35%] text-slate-500 italic text-[13px] leading-relaxed", "w-[15%]", "w-[100px] text-center", "w-[180px] text-right"]}
+                    rows={newArticles.map((a, i) => {
+                      const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
+                      return [
+                        i + 1,
+                        decodeHTML(a.title),
+                        a.description,
+                        <div className="flex flex-wrap gap-1">{(a.keywords || []).slice(0, 3).map(k => <span key={k} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 uppercase">{k}</span>)}</div>,
+                        <div className="flex justify-center"><Pill text={a.priority} map={DIFF_COLORS} /></div>,
+                        <div className="flex items-center justify-end gap-3">
+                          {exists ? (
+                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold border border-emerald-100 italic">
+                               <Check size={14} strokeWidth={3} /> In Piano
+                             </div>
+                          ) : (
+                            <button onClick={() => startTransition(() => addToPiano(a, "nuovo"))}
+                                    className="px-4 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-bold border border-slate-200 hover:border-electric-blue hover:text-electric-blue transition-all shadow-sm">
+                              + Aggiungi
+                            </button>
+                          )}
+                        </div>
+                      ];
+                    })}
+                  />
                 </div>
               )}
 
-              {activeTab === "articles" && (
-                <SectionTable
-                  headers={["#", "Titolo Articolo", "Descrizione", "Keyword Target", "Priorità", "Stato"]}
-                  rows={newArticles.map((a, i) => {
-                    const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
-                    return [
-                      i + 1,
-                      <strong style={{ color: '#0f172a' }}>{decodeHTML(a.title)}</strong>,
-                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400, color: '#475569', lineHeight: 1.5 }}>{a.description}</span>,
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{(a.keywords || []).map(k => <span key={k} className="badge badge-neutral" style={{ background: '#eff6ff', color: '#1d4ed8' }}>{k}</span>)}</div>,
-
-                      <Pill text={a.priority} map={DIFF_COLORS} />,
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input type="checkbox"
-                            checked={current.statuses?.articles_new?.[i] === "pubblicato"}
-                            onChange={(e) => {
-                              const val = e.target.checked ? "pubblicato" : "da_scrivere";
-                              startTransition(() => setArtNewStatus(i, val));
-                            }}
-                            style={{ width: 18, height: 18, cursor: 'pointer' }} />
-                          <StatusCycle
-                            value={current.statuses?.articles_new?.[i] || "da_scrivere"}
-                            map={ART_STATUS}
-                            onChange={v => startTransition(() => setArtNewStatus(i, v))} />
-                          <button
-                            onClick={() => startTransition(() => addToPiano(a, "nuovo"))}
-                            disabled={exists}
-                            style={{ 
-                              fontSize: 11, padding: '4px 10px', borderRadius: 6, 
-                              border: exists ? '1px solid #ddd' : '1px solid #7c3aed',
-                              background: exists ? '#f9fafb' : '#f5f3ff', 
-                              color: exists ? '#9ca3af' : '#7c3aed', 
-                              cursor: exists ? 'not-allowed' : 'pointer', 
-                              whiteSpace: 'nowrap',
-                              fontWeight: 600
-                            }}>
-                            {exists ? "✓ In Piano" : "+ Piano"}
-                          </button>
-                      </div>
-                    ];
-                  })}
-                />
-              )}
 
               {activeTab === "updates" && (
-                <SectionTable
-                  headers={["#", "Titolo", "Descrizione Aggiornamento", "URL Esistente", "Priorità", "Stato"]}
-                  rows={updateArticles.map((a, i) => {
-                    const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
-                    return [
-                      i + 1,
-                      <strong style={{ color: '#0f172a' }}>{decodeHTML(a.title)}</strong>,
-                      <span style={{ fontSize: 12, display: 'block', maxWidth: 400, color: '#475569', lineHeight: 1.5 }}>{a.update_reason || a.description}</span>,
-
-                      <a href={a.existing_url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.existing_url}</a>,
-                      <Pill text={a.priority} map={DIFF_COLORS} />,
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <input 
-                            type="checkbox" 
-                            checked={current.statuses?.articles_upd?.[i] === "pubblicato"} 
-                            onChange={(e) => {
-                              const val = e.target.checked ? "pubblicato" : "da_scrivere";
-                              startTransition(() => setArtUpdStatus(i, val));
-                            }}
-                            style={{ width: 18, height: 18, cursor: 'pointer' }}
-                          />
-                          <StatusCycle value={current.statuses?.articles_upd?.[i] || "da_scrivere"} map={ART_STATUS} onChange={v => startTransition(() => setArtUpdStatus(i, v))} />
-                        {exists && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>✓ In Piano</span>}
-                      </div>
-                    ];
-                  })}
-                />
+                <div className="animate-[fadeUp_0.3s_ease]">
+                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                      <RefreshCw className="text-amber-600" size={18} />
+                    </div>
+                    Contenuti da Ottimizzare
+                  </h3>
+                  <SectionTable
+                    headers={["#", "Pagina Corrente", "Strategia SEO", "Link", "Diff", "Azione"]}
+                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[35%] text-slate-500 italic text-[13px] leading-relaxed", "w-[15%]", "w-[100px] text-center", "w-[180px] text-right"]}
+                    rows={updateArticles.map((a, i) => {
+                      return [
+                        i + 1,
+                        decodeHTML(a.title),
+                        a.update_reason || a.description,
+                        <a href={a.existing_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-bold border border-slate-200 hover:bg-white hover:text-electric-blue transition-all">
+                          <ExternalLink size={12} /> Visita
+                        </a>,
+                        <div className="flex justify-center"><Pill text={a.priority} map={DIFF_COLORS} /></div>,
+                        <div className="flex items-center justify-end">
+                          <button onClick={() => startTransition(() => addToPiano(a, "aggiornare"))}
+                                  className="px-4 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-bold border border-slate-200 hover:border-electric-blue hover:text-electric-blue transition-all shadow-sm">
+                            + Piano
+                          </button>
+                        </div>
+                      ];
+                    })}
+                  />
+                </div>
               )}
+
 
               {activeTab === "keywords" && (
-                    <SectionTable
-                      headers={["#", "Keyword", "Difficoltà AI", "Difficoltà Reale", "Google Ads", "Intento", "Volume Stimato", "Stato"]}
-                      rows={result.keywords?.map((kw, i) => [
-                        i + 1,
-                        <strong>{kw.keyword}</strong>,
-                        <Pill text={kw.difficulty} map={DIFF_COLORS} />,
-                        <Pill text={kw.difficulty_real || kw.difficulty} map={DIFF_COLORS} />,
-                        <span style={{ fontWeight: 600, color: (kw.serper_ads > 2) ? '#c5221f' : 'inherit' }}>
-                          {kw.serper_ads !== undefined ? `${kw.serper_ads} ads` : '—'}
-                        </span>,
-                        <Pill text={kw.intent} map={INTENT_COLORS} />,
-                        <span style={{ color: 'var(--color-text-secondary)' }}>{kw.volume || '~100/mese'}</span>,
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <input 
-                            type="checkbox" 
-                            checked={current.statuses?.keywords?.[i] === "fatto"} 
-                            onChange={(e) => {
-                              const val = e.target.checked ? "fatto" : "da_fare";
-                              startTransition(() => setKwStatus(i, val));
-                            }}
-                            style={{ width: 18, height: 18, cursor: 'pointer' }}
-                          />
-                          <StatusCycle value={current.statuses?.keywords?.[i] || "da_fare"} map={KW_STATUS} onChange={v => startTransition(() => setKwStatus(i, v))} />
-                        </div>
-                      ])}
-                    />
+                <div className="animate-[fadeUp_0.3s_ease]">
+                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
+                      <Search className="text-indigo-600" size={18} />
+                    </div>
+                    Ricerca Keyword & Trend
+                  </h3>
+                  <SectionTable
+                    headers={["#", "Parola Chiave", "AI Diff", "Real Diff", "Ads", "Intento", "Vol / Mese"]}
+                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[15%] text-center", "w-[15%] text-center", "w-[10%] text-center", "w-[15%] text-center", "w-[15%] text-right font-mono text-[13px] text-slate-600"]}
+                    rows={result.keywords?.map((kw, i) => [
+                      i + 1,
+                      kw.keyword,
+                      <div className="flex justify-center"><Pill text={kw.difficulty} map={DIFF_COLORS} /></div>,
+                      <div className="flex justify-center"><Pill text={kw.difficulty_real || kw.difficulty} map={DIFF_COLORS} /></div>,
+                      <span className={cn("text-xs font-bold", kw.serper_ads > 2 ? "text-rose-500" : "text-slate-400")}>
+                        {kw.serper_ads !== undefined ? `${kw.serper_ads} ads` : '—'}
+                      </span>,
+                      <div className="flex justify-center"><Pill text={kw.intent} map={INTENT_COLORS} /></div>,
+                      kw.volume || '~100'
+                    ])}
+                  />
+                </div>
               )}
 
+
               {activeTab === "competitors" && (
-                <SectionTable
-                  headers={["#", "Sito / Competitor", "URL", "Punto di Forza"]}
-                  rows={result.competitors?.map((c, i) => [
-                    i + 1,
-                    <strong>{c.name}</strong>,
-                    <a href={c.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{c.url}</a>,
-                    <span style={{ fontSize: 12 }}>{c.strength}</span>
-                  ])}
-                />
+                <div className="animate-[fadeUp_0.3s_ease]">
+                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center">
+                      <BarChart3 className="text-rose-600" size={18} />
+                    </div>
+                    Analisi dei Competitor
+                  </h3>
+                  <SectionTable
+                    headers={["#", "Sito / Competitor", "URL / Link Esterno", "Focus Strategico"]}
+                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[30%] font-mono text-[11px]", "w-[40%] text-slate-500 text-[13px] leading-relaxed"]}
+                    rows={result.competitors?.map((c, i) => [
+                      i + 1,
+                      c.name,
+                      <a href={c.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-bold border border-slate-200 hover:bg-white hover:text-electric-blue transition-all">
+                        <ExternalLink size={12} /> Visita Sito
+                      </a>,
+                      c.strength
+                    ])}
+                  />
+                </div>
               )}
 
               {activeTab === "existing" && (
-                <SectionTable
-                  headers={["#", "Titolo", "Argomento", "URL", "Stato"]}
-                  rows={result.existing_articles?.map((a, i) => {
-                    const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
-                    return [
-                      i + 1,
-                      <strong style={{ color: '#0f172a' }}>{decodeHTML(a.title)}</strong>,
-                      <span style={{ fontSize: 12, color: '#64748b' }}>{a.topic}</span>,
-
-                      <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11 }}>{a.url}</a>,
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Pill text={a.status === "aggiornare" ? "media" : "bassa"} map={DIFF_COLORS} />
-                        {exists && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>✓ In Piano</span>}
-                      </div>
-                    ];
-                  })}
-                />
+                <div className="animate-[fadeUp_0.3s_ease]">
+                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+                      <CheckCircle2 className="text-emerald-600" size={18} />
+                    </div>
+                    Contenuti Già Pubblicati
+                  </h3>
+                  <SectionTable
+                    headers={["#", "Titolo Pagina", "Argomento", "Link", "Stato SEO"]}
+                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[40%] font-bold text-slate-900", "w-[20%] text-slate-400", "w-[15%]", "w-[150px] text-center"]}
+                    rows={result.existing_articles?.map((a, i) => {
+                      const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
+                      return [
+                        i + 1,
+                        decodeHTML(a.title),
+                        a.topic,
+                        <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-bold border border-slate-200 hover:bg-white hover:text-electric-blue transition-all">
+                          <ExternalLink size={12} /> Apri
+                        </a>,
+                        <div className="flex flex-col items-center gap-1">
+                          <Pill text={a.status === "aggiornare" ? "media" : "bassa"} map={DIFF_COLORS} />
+                          {exists && <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-tighter">In Piano</span>}
+                        </div>
+                      ];
+                    })}
+                  />
+                </div>
               )}
 
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
-                <button onClick={() => exportCSV(current)} style={{ background: '#f8f9fa', border: '1px solid #dadce0' }}>⬇ Excel (.xlsx)</button>
+              <div className="flex justify-end mt-8">
+                <button onClick={() => exportCSV(current)} className="bg-slate-50 text-slate-600 px-5 py-2 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-100 transition-all flex items-center gap-2">
+                  <BarChart3 size={16} /> Esporta Risultati (.xlsx)
+                </button>
               </div>
+
             </div>
           )}
         </main>
       )}
 
       {view === "history" && (
-        <main>
-          <h2>Cronologia Ricerche</h2>
-          <div className="card" style={{ padding: 0 }}>
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Sito Analizzato</th>
-                    <th>Nicchia</th>
-                    <th>Keyword</th>
-                    <th>Azioni</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analyses.length === 0 ? (
-                    <tr><td colSpan="5" style={{ textAlign: 'center', padding: 40 }}>Nessuna analisi salvata.</td></tr>
-                  ) : (
-                    analyses.map(a => (
-                      <tr key={a.id}>
-                        <td>{new Date(a.date).toLocaleDateString()}</td>
-                        <td><strong>{a.url}</strong></td>
-                        <td>{a.topic}</td>
-                        <td><span className="badge badge-neutral">{a.result?.keywords?.length || 0}</span></td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 12 }}>
-                            <button onClick={() => startTransition(() => { setCurrentId(a.id); setView("new"); })} style={{ border: 'none', background: 'none', color: 'var(--color-primary)', fontWeight: 600 }}>Apri</button>
-                            <button onClick={() => { if (window.confirm("Eliminare?")) deleteAnalysis(a.id); }} style={{ border: 'none', background: 'none', color: '#c5221f' }}>Elimina</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+        <main className="max-w-5xl mx-auto animate-[fadeUp_0.3s_ease]">
+          <div className="flex justify-between items-center mb-10">
+            <div>
+              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Cronologia Analisi</h2>
+              <p className="text-slate-500 mt-1">Gestisci e consulta le tue ricerche SEO precedenti</p>
             </div>
           </div>
+
+          <SectionTable
+            headers={["Data", "Sito / Target", "Nicchia Analizzata", "Keyword Trovate", "Azioni"]}
+            columnClasses={["w-[150px] text-slate-500", "w-[30%] font-bold text-slate-900", "w-[25%] font-medium text-slate-600", "w-[15%] text-center", "w-[200px] text-right"]}
+            rows={analyses.length === 0 ? [] : analyses.map(a => [
+              new Date(a.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
+              <div className="flex flex-col">
+                <span className="font-bold">{a.url}</span>
+              </div>,
+              a.topic,
+              <div className="flex justify-center"><span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold border border-indigo-100">{a.result?.keywords?.length || 0}</span></div>,
+              <div className="flex justify-end gap-3">
+                <button onClick={() => startTransition(() => { setCurrentId(a.id); setView("new"); })} 
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Apri Analisi">
+                  <Search size={18} />
+                </button>
+                <button onClick={() => { if (window.confirm("Eliminare definitivamente?")) deleteAnalysis(a.id); }} 
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Elimina">
+                  <Plus size={18} className="rotate-45" />
+                </button>
+              </div>
+            ])}
+          />
         </main>
       )}
+
 
       {view === "piano" && (
         <main>

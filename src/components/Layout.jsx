@@ -1,33 +1,26 @@
 import React from 'react';
 import Sidebar from './Sidebar';
+import { Menu } from 'lucide-react';
 
 const Layout = ({ children, activeView, setView, dueCount }) => {
   return (
-    <div className="flex min-h-screen bg-surface font-roboto">
-      {/* Sidebar - Desktop */}
+    <div className="flex min-h-screen bg-[#F8FAFC] font-inter">
       <Sidebar activeView={activeView} setView={setView} dueCount={dueCount} />
       
-      {/* Main Content Area */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between p-4 bg-background text-ghost-white sticky top-0 z-40">
-           <div className="font-bold text-electric-blue text-xl">KR Pro</div>
-           <button className="p-2 hover:bg-slate-500/20 rounded-lg">
-             {/* Menu icon for mobile toggle could go here */}
-             <div className="w-6 h-0.5 bg-ghost-white mb-1.5" />
-             <div className="w-6 h-0.5 bg-ghost-white mb-1.5" />
-             <div className="w-6 h-0.5 bg-ghost-white" />
+      <div className="flex-1 md:ml-[280px] flex flex-col min-h-screen relative">
+        <header className="md:hidden flex items-center justify-between p-4 bg-[#0F172A] text-white sticky top-0 z-40">
+           <div className="font-bold text-white text-xl">KR Pro</div>
+           <button className="p-2 hover:bg-slate-700 rounded-lg">
+             <Menu size={24} />
            </button>
         </header>
 
-        {/* Global Action Bar / KPI Overview Placeholder */}
-        <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+        <main className="flex-1 px-8 py-10 max-w-[1400px] w-full mx-auto">
           {children}
         </main>
         
-        {/* Footer */}
-        <footer className="p-6 text-center text-slate-500 text-xs border-t border-slate-500/10">
-          © 2026 Keyword Researcher Pro · Design by DesignAI
+        <footer className="p-8 text-center text-slate-400 text-[11px] font-medium border-t border-slate-200">
+          © 2026 Keyword Researcher Pro · Design by DesignAI · Real-time Sync Active
         </footer>
       </div>
     </div>
