@@ -13,22 +13,46 @@ import {
   setDoc,
   getDoc,
 } from "firebase/firestore";
+import { 
+  Plus, 
+  Search, 
+  RefreshCw, 
+  Trash2, 
+  ExternalLink, 
+  Edit3, 
+  BarChart3, 
+  AlertTriangle,
+  FileText,
+  Calendar,
+  CheckCircle2,
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  ArrowUpDown
+} from "lucide-react";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
 
 // ─── Costanti ────────────────────────────────────────────────────────────────
 
 const CAT_META = {
-  ai:      { label: "Intelligenza Artificiale", color: "#7c3aed", bg: "#f5f3ff" },
-  linux:   { label: "Linux",       color: "#059669", bg: "#ecfdf5" },
-  oss:     { label: "Open Source", color: "#0284c7", bg: "#e0f2fe" },
-  gaming:  { label: "Gaming",      color: "#d97706", bg: "#fef3c7" },
-  tools:   { label: "Tools",       color: "#db2777", bg: "#fce7f3" },
-  news:    { label: "News",        color: "#16a34a", bg: "#dcfce7" },
+  ai:      { label: "AI",          color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-100" },
+  linux:   { label: "Linux",       color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100" },
+  oss:     { label: "Open Source", color: "text-sky-600", bg: "bg-sky-50", border: "border-sky-100" },
+  gaming:  { label: "Gaming",      color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
+  tools:   { label: "Tools",       color: "text-pink-600", bg: "bg-pink-50", border: "border-pink-100" },
+  news:    { label: "News",        color: "text-green-600", bg: "bg-green-50", border: "border-green-100" },
 };
 
 const DIFF_META = {
-  bassa:  { label: "Bassa",  color: "#15803d" },
-  media:  { label: "Media",  color: "#b45309" },
-  alta:   { label: "Alta",   color: "#b91c1c" },
+  bassa:  { label: "Bassa",  color: "text-emerald-600", bg: "bg-emerald-50" },
+  media:  { label: "Media",  color: "text-amber-600", bg: "bg-amber-50" },
+  alta:   { label: "Alta",   color: "text-rose-600", bg: "bg-rose-50" },
 };
 
 const MONTH_NAMES = [
@@ -37,10 +61,10 @@ const MONTH_NAMES = [
 ];
 
 const STATUS_META = {
-  da_scrivere:   { label: "Da scrivere",   next: "in_lavorazione" },
-  in_lavorazione:{ label: "In lavorazione",next: "programmato"    },
-  programmato:   { label: "Programmato 📅", next: "pubblicato"     },
-  pubblicato:    { label: "Pubblicato ✓",  next: "da_scrivere"    },
+  da_scrivere:   { label: "Da scrivere",   next: "in_lavorazione", color: "text-slate-500", bg: "bg-slate-100" },
+  in_lavorazione:{ label: "In corso",      next: "programmato",    color: "text-blue-600", bg: "bg-blue-50" },
+  programmato:   { label: "Programmato",   next: "pubblicato",     color: "text-amber-600", bg: "bg-amber-50" },
+  pubblicato:    { label: "Pubblicato",    next: "da_scrivere",    color: "text-emerald-600", bg: "bg-emerald-50" },
 };
 
 function decodeHTML(str) {
@@ -73,36 +97,31 @@ function calculateSimilarity(s1, s2) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function Badge({ text, meta }) {
+function Badge({ text, meta, className }) {
   if (!text || !meta?.[text]) return null;
-  const { label, color, bg } = meta[text];
+  const { label, color, bg, border } = meta[text];
   return (
-    <span style={{
-      display: "inline-block", padding: "2px 8px", borderRadius: 10,
-      fontSize: 11, fontWeight: 600, background: bg || "#f3f4f6",
-      color, border: `1px solid ${color}22`, whiteSpace: "nowrap",
-    }}>
+    <span className={cn(
+      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border",
+      bg, color, border || "border-transparent",
+      className
+    )}>
       {label}
     </span>
   );
 }
 
-function StatusBtn({ status, onChange }) {
+function StatusBtn({ status, onChange, className }) {
   const m = STATUS_META[status] || STATUS_META.da_scrivere;
-  const colors = {
-    da_scrivere:    { bg: "#f3f4f6", color: "#374151" },
-    in_lavorazione: { bg: "#dbeafe", color: "#1d4ed8" },
-    programmato:    { bg: "#fef3c7", color: "#d97706" },
-    pubblicato:     { bg: "#dcfce7", color: "#15803d" },
-  };
-  const c = colors[status] || colors.da_scrivere;
   return (
-    <button onClick={onChange}
-      style={{
-        padding: "3px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600,
-        border: "none", cursor: "pointer", background: c.bg, color: c.color,
-        whiteSpace: "nowrap",
-      }}>
+    <button 
+      onClick={onChange}
+      className={cn(
+        "inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold transition-all border border-transparent hover:scale-105 active:scale-95",
+        m.bg, m.color,
+        className
+      )}
+    >
       {m.label}
     </button>
   );
@@ -680,226 +699,255 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ fontFamily: "var(--font-sans, sans-serif)", padding: "0 0 40px" }}>
+    <div className="space-y-8">
 
       {/* Header stats */}
-      <div className="stats-grid" style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         {[
-          { label: "Da pianificare", val: stats.total,       accent: "#6366f1" },
-          { label: "Pubblicati",      val: stats.pubblicati,  accent: "#16a34a" },
-          { label: "Programmati",    val: stats.programmato, accent: "#d97706" },
-          { label: "In lavorazione",  val: stats.lavorazione, accent: "#2563eb" },
-          { label: "Da scrivere",     val: stats.daFare,      accent: "#9ca3af" },
-          { label: "Già online",      val: stats.online,      accent: "#0284c7" },
-          { label: "Completamento",   val: pct + "%",         accent: "#7c3aed" },
+          { label: "Totali", val: stats.total,       color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-500" },
+          { label: "Pubblicati",      val: stats.pubblicati,  color: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", accent: "bg-emerald-500" },
+          { label: "Programmati",    val: stats.programmato, color: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", accent: "bg-amber-500" },
+          { label: "In corso",        val: stats.lavorazione, color: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", accent: "bg-blue-500" },
+          { label: "Da scrivere",     val: stats.daFare,      color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-400" },
+          { label: "Online",          val: stats.online,      color: "bg-sky-50", border: "border-sky-200", text: "text-sky-700", accent: "bg-sky-500" },
+          { label: "Progress",        val: pct + "%",         color: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", accent: "bg-violet-500" },
         ].map(s => (
-          <div key={s.label} style={{
-            background: "var(--color-background-secondary, #f8f9fa)",
-            border: "1px solid var(--color-border-tertiary, #e5e7eb)",
-            borderRadius: 10, padding: "10px 16px", minWidth: 120,
-            borderTop: `3px solid ${s.accent}`,
-          }}>
-            <div style={{ fontSize: 22, fontWeight: 600, color: "var(--color-text-primary)" }}>{s.val}</div>
-            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>{s.label}</div>
+          <div key={s.label} className={cn(
+            "relative p-4 rounded-2xl border transition-all hover:shadow-md",
+            s.color, s.border
+          )}>
+            <div className={cn("text-2xl font-bold font-inter", s.text)}>{s.val}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-1">{s.label}</div>
+            <div className={cn("absolute top-0 left-0 w-full h-1 rounded-t-2xl", s.accent)} />
           </div>
         ))}
+      </div>
 
-        {/* Progress bar */}
-        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
-          <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Progresso piano</div>
-          <div style={{ background: "var(--color-border-tertiary, #e5e7eb)", borderRadius: 8, height: 8, overflow: "hidden" }}>
-            <div style={{ width: pct + "%", height: "100%", background: "linear-gradient(90deg,#6366f1,#16a34a)", borderRadius: 8, transition: "width .4s" }} />
+      {/* Progress bar */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-500/10">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <BarChart3 size={16} className="text-electric-blue" />
+            Progresso Editoriale
+          </span>
+          <span className="text-electric-blue font-bold font-inter">{pct}%</span>
+        </div>
+        <div className="bg-slate-100 rounded-full h-3 overflow-hidden">
+          <div 
+            style={{ width: `${pct}%` }} 
+            className="h-full bg-gradient-to-r from-electric-blue to-emerald-500 transition-all duration-1000 ease-out" 
+          />
+        </div>
+      </div>
+
+      {/* Filtri + Cerca Area */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-500/10 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+              <Calendar size={14} className="text-slate-400" />
+              <select 
+                value={filter.year} 
+                onChange={(e) => { setFilter(f=>({...f,year:e.target.value})); setPage(1); }}
+                className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer"
+              >
+                <option value="all">Tutti gli anni</option>
+                {availableYears.map(y => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+              <Filter size={14} className="text-slate-400" />
+              <select 
+                value={filter.month} 
+                onChange={(e) => { setFilter(f=>({...f,month:e.target.value})); setPage(1); }}
+                className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer"
+              >
+                <option value="all">Tutti i mesi</option>
+                {MONTH_NAMES.map((name, i) => (
+                  <option key={name} value={String(i + 1)}>{name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block" />
+
+            <div className="flex flex-wrap gap-2">
+              {["all", ...Object.keys(CAT_META)].map(c => (
+                <button 
+                  key={c} 
+                  onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                    filter.cat === c
+                      ? "bg-electric-blue text-white border-electric-blue shadow-lg shadow-electric-blue/20"
+                      : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue hover:text-electric-blue"
+                  )}
+                >
+                  {c === "all" ? "Tutte" : CAT_META[c].label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Filtri + Cerca */}
-      <div className="filter-scroll-container">
-        <div className="filter-scroll" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Anno a tendina */}
-          <select 
-            value={filter.year} 
-            onChange={(e) => { setFilter(f=>({...f,year:e.target.value})); setPage(1); }}
-            style={{
-              padding: "5px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer",
-              border: "1.5px solid var(--color-border-secondary,#d1d5db)",
-              background: "white", color: "var(--color-text-primary)",
-              fontWeight: 500, outline: "none", minWidth: 100
-            }}
-          >
-            <option value="all">Tutti gli anni</option>
-            {availableYears.map(y => (
-              <option key={y} value={String(y)}>{y}</option>
-            ))}
-          </select>
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-electric-blue transition-colors" size={18} />
+            <input
+              id="piano-search-input"
+              value={filter.q}
+              onChange={e => { setFilter(f=>({...f,q:e.target.value})); setPage(1); }}
+              placeholder="Cerca titolo o keyword... (Ctrl+K)"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue transition-all"
+            />
+          </div>
 
-          {/* Mese a tendina */}
-          <select 
-            value={filter.month} 
-            onChange={(e) => { setFilter(f=>({...f,month:e.target.value})); setPage(1); }}
-            style={{
-              padding: "5px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer",
-              border: "1.5px solid var(--color-border-secondary,#d1d5db)",
-              background: "white", color: "var(--color-text-primary)",
-              fontWeight: 500, outline: "none", minWidth: 130
-            }}
-          >
-            <option value="all">Tutti i mesi</option>
-            {MONTH_NAMES.map((name, i) => (
-              <option key={name} value={String(i + 1)}>{name}</option>
-            ))}
-          </select>
-
-          <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
-
-          {/* Categoria */}
-          {["all", ...Object.keys(CAT_META)].map(c => (
-            <button key={c} onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
-              style={{
-                padding: "4px 10px", borderRadius: 12, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
-                border: filter.cat === c
-                  ? `1.5px solid ${c === "all" ? "#374151" : CAT_META[c].color}`
-                  : "1px solid var(--color-border-tertiary,#e5e7eb)",
-                background: filter.cat === c
-                  ? (c === "all" ? "#374151" : CAT_META[c].bg)
-                  : "transparent",
-                color: filter.cat === c
-                  ? (c === "all" ? "#fff" : CAT_META[c].color)
-                  : "var(--color-text-secondary)",
-                fontWeight: filter.cat === c ? 600 : 400,
-              }}>
-              {c === "all" ? "Tutte" : CAT_META[c].label}
+          <div className="flex flex-wrap items-center gap-3">
+            <button 
+              onClick={() => setShowForm(v => !v)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-electric-blue/20",
+                showForm 
+                  ? "bg-slate-800 text-white" 
+                  : "bg-electric-blue text-white hover:bg-electric-blue/90"
+              )}
+            >
+              <Plus size={18} />
+              {showForm ? "Chiudi" : "Aggiungi"}
             </button>
-          ))}
 
-          <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>|</span>
-
-          {/* Status */}
-          {["all", "da_scrivere", "in_lavorazione", "programmato", "pubblicato"].map(s => (
-            <button key={s} onClick={() => { setFilter(f=>({...f,status:s})); setPage(1); }}
-              style={{
-                padding: "4px 10px", borderRadius: 12, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
-                border: "1px solid var(--color-border-tertiary,#e5e7eb)",
-                background: filter.status === s ? "var(--color-background-secondary,#f3f4f6)" : "transparent",
-                color: filter.status === s ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                fontWeight: filter.status === s ? 600 : 400,
-              }}>
-              {s === "all" ? "Tutti gli stati" : STATUS_META[s]?.label}
+            <button 
+              onClick={refreshFromSite} 
+              disabled={refreshing}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-slate-700 hover:border-electric-blue hover:text-electric-blue transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+              {refreshing ? "Sincronizzazione..." : "Sincronizza"}
             </button>
-          ))}
+
+            <button 
+              onClick={() => setViewMode(v => v === "table" ? "calendar" : "table")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-slate-700 hover:border-violet-500 hover:text-violet-500 transition-all"
+            >
+              {viewMode === "table" ? <Calendar size={18} /> : <BarChart3 size={18} />}
+              {viewMode === "table" ? "Calendario" : "Tabella"}
+            </button>
+
+            <div className="h-8 w-px bg-slate-200 mx-1" />
+
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={exportCSV}
+                title="Esporta CSV"
+                className="p-2.5 rounded-xl bg-white border border-slate-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-500 transition-all"
+              >
+                <ExternalLink size={18} />
+              </button>
+              
+              <button 
+                onClick={() => setShowWPSettings(true)}
+                title="Impostazioni WordPress"
+                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-800 transition-all"
+              >
+                <MoreVertical size={18} />
+              </button>
+
+              <button 
+                onClick={checkDuplicates} 
+                disabled={checkingDuplicates}
+                title="Controlla Duplicati"
+                className={cn(
+                  "p-2.5 rounded-xl transition-all border",
+                  checkingDuplicates 
+                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                    : "bg-white border-slate-200 text-amber-500 hover:bg-amber-50 hover:border-amber-500"
+                )}
+              >
+                <AlertTriangle size={18} />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Search + Add button */}
-      <div className="action-bar-responsive" style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-        <input
-          id="piano-search-input"
-          value={filter.q}
-          onChange={e => { setFilter(f=>({...f,q:e.target.value})); setPage(1); }}
-          placeholder="Cerca [Ctrl+K] titolo o keyword..."
-          style={{
-            flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13,
-            border: "1px solid var(--color-border-secondary,#d1d5db)",
-            background: "var(--color-background-secondary,#f9fafb)",
-            color: "var(--color-text-primary)", outline: "none",
-          }}
-        />
-        <button onClick={() => setShowForm(v => !v)}
-          style={{
-            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: "#6366f1", color: "#fff", border: "none", cursor: "pointer",
-          }}>
-          {showForm ? "✕ Chiudi" : "+ Aggiungi articolo"}
-        </button>
-        <button onClick={refreshFromSite} disabled={refreshing}
-          style={{
-            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: "none", color: "#6366f1", border: "1.5px solid #6366f1", cursor: refreshing ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", gap: 6
-          }}>
-          {refreshing ? "⏳ Aggiornamento..." : "🔄 Aggiorna da Sito"}
-        </button>
-        <button onClick={() => setViewMode(v => v === "table" ? "calendar" : "table")}
-          style={{
-            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: "none", color: "#0284c7", border: "1.5px solid #0284c7", cursor: "pointer"
-          }}>
-          {viewMode === "table" ? "📅 Vista Calendario" : "📋 Vista Tabella"}
-        </button>
-        <button onClick={exportCSV}
-          style={{
-            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: "none", color: "#16a34a", border: "1.5px solid #16a34a", cursor: "pointer"
-          }}>
-          📊 Export CSV
-        </button>
-        <button onClick={() => setShowWPSettings(true)}
-          style={{
-            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: "none", color: "#9ca3af", border: "1.5px solid #9ca3af", cursor: "pointer"
-          }}>
-          ⚙️ WP
-        </button>
-        <button onClick={checkDuplicates} disabled={checkingDuplicates}
-          style={{
-            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-            background: "none", color: "#f59e0b", border: "1.5px solid #f59e0b", cursor: checkingDuplicates ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", gap: 6
-          }}>
-          {checkingDuplicates ? "⏳..." : "⚠️ Controlla Duplicati"}
-        </button>
       </div>
 
       {/* Form aggiunta manuale */}
       {showForm && (
-        <form onSubmit={addArticle} style={{
-          background: "var(--color-background-secondary,#f9fafb)",
-          border: "1px solid var(--color-border-secondary,#d1d5db)",
-          borderRadius: 10, padding: 16, marginBottom: 16,
-          display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10,
-        }}>
-          <input required placeholder="Titolo articolo *" value={form.title}
-            onChange={e => setForm(f=>({...f,title:e.target.value}))}
-            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, gridColumn: "1 / -1" }} />
-          <input placeholder="Keyword principale" value={form.kw}
-            onChange={e => setForm(f=>({...f,kw:e.target.value}))}
-            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }} />
-          <select value={form.cat} onChange={e => setForm(f=>({...f,cat:e.target.value}))}
-            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }}>
-            {Object.entries(CAT_META).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-          <select value={form.diff} onChange={e => setForm(f=>({...f,diff:e.target.value}))}
-            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }}>
-            <option value="bassa">Difficoltà: Bassa</option>
-            <option value="media">Difficoltà: Media</option>
-            <option value="alta">Difficoltà: Alta</option>
-          </select>
-          <select value={form.tipo} onChange={e => setForm(f=>({...f,tipo:e.target.value}))}
-            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }}>
-            {["Tutorial","Guida","Confronto","Listicle","Recensione","News/Review","Approfondimento"].map(t =>
-              <option key={t}>{t}</option>)}
-          </select>
-          <select value={form.month} onChange={e => setForm(f=>({...f,month:Number(e.target.value)}))}
-            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }}>
-            {MONTH_NAMES.map((name, i) => (
-              <option key={name} value={i + 1}>{name}</option>
-            ))}
-          </select>
-          <input type="number" placeholder="Anno" value={form.year}
-            onChange={e => setForm(f=>({...f,year:Number(e.target.value)}))}
-            style={{ padding: "8px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }} />
-          <button type="submit" disabled={saving}
-            style={{ padding: "8px 16px", borderRadius: 6, background: "#6366f1", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-            {saving ? "Salvo..." : "💾 Aggiungi"}
-          </button>
+        <form onSubmit={addArticle} className="bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-inner grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="lg:col-span-4">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Titolo Articolo</label>
+            <input 
+              required 
+              placeholder="Inserisci il titolo dell'articolo..." 
+              value={form.title}
+              onChange={e => setForm(f=>({...f,title:e.target.value}))}
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Keyword</label>
+            <input 
+              placeholder="Keyword principale..." 
+              value={form.kw}
+              onChange={e => setForm(f=>({...f,kw:e.target.value}))}
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Categoria</label>
+            <select 
+              value={form.cat} 
+              onChange={e => setForm(f=>({...f,cat:e.target.value}))}
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all cursor-pointer"
+            >
+              {Object.entries(CAT_META).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pianificazione</label>
+            <div className="grid grid-cols-2 gap-2">
+              <select 
+                value={form.month} 
+                onChange={e => setForm(f=>({...f,month:Number(e.target.value)}))}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2 py-2.5 text-xs focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all cursor-pointer"
+              >
+                {MONTH_NAMES.map((name, i) => (
+                  <option key={name} value={i + 1}>{name}</option>
+                ))}
+              </select>
+              <input 
+                type="number" 
+                placeholder="Anno" 
+                value={form.year}
+                onChange={e => setForm(f=>({...f,year:Number(e.target.value)}))}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2 py-2.5 text-xs focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-end">
+            <button 
+              type="submit" 
+              disabled={saving}
+              className="w-full bg-electric-blue text-white rounded-xl py-2.5 font-bold text-sm hover:bg-electric-blue/90 shadow-lg shadow-electric-blue/20 transition-all flex items-center justify-center gap-2"
+            >
+              {saving ? <RefreshCw className="animate-spin" size={16} /> : <Plus size={16} />}
+              {saving ? "Salvataggio..." : "Aggiungi al Piano"}
+            </button>
+          </div>
         </form>
       )}
 
       {/* Tabella articoli */}
 
-      {/* Vista Calendario Multipagina (Versione semplificata per Anno/Mese corrente) */}
+      {/* Vista Calendario Multipagina */}
       {viewMode === "calendar" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 20 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {MONTH_NAMES.map((name, i) => {
             const m = i + 1;
             const curArticles = articles.filter(a => 
@@ -910,20 +958,33 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             if (curArticles.length === 0 && filter.month === "all") return null;
 
             return (
-              <div key={m} style={{ background: "var(--color-background-secondary,#f9fafb)", border: "1px solid var(--color-border-secondary,#e5e7eb)", borderRadius: 12, padding: 12, minHeight: 200 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, borderBottom: "1px solid #e5e7eb", paddingBottom: 6 }}>
-                  {name} {filter.year !== "all" ? filter.year : ""}
+              <div key={m} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[300px]">
+                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                  <span className="font-bold text-sm text-deep-space font-inter uppercase tracking-wider">{name}</span>
+                  <span className="text-[10px] font-bold text-slate-400">{filter.year !== "all" ? filter.year : ""}</span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                   {curArticles.map(a => (
-                    <div key={a.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 8, fontSize: 11, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{decodeHTML(a.title)}</div>
-                      <div style={{ display: "flex", gap: 4 }}>
+                    <div key={a.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:border-electric-blue/30 transition-all group">
+                      <div className="font-bold text-[11px] text-deep-space leading-snug mb-2 group-hover:text-electric-blue transition-colors">{decodeHTML(a.title)}</div>
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge text={a.cat} meta={CAT_META} />
-                        <span style={{ opacity: 0.6 }}>{a.diff}</span>
+                        <span className={cn(
+                          "text-[9px] font-bold px-2 py-0.5 rounded",
+                          DIFF_META[a.diff]?.bg || "bg-slate-100",
+                          DIFF_META[a.diff]?.color || "text-slate-600"
+                        )}>
+                          {a.diff ? DIFF_META[a.diff].label : "—"}
+                        </span>
                       </div>
                     </div>
                   ))}
+                  {curArticles.length === 0 && (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-300 opacity-50 space-y-2">
+                       <Calendar size={24} />
+                       <span className="text-[10px] uppercase font-bold tracking-tighter">Nessun articolo</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -933,188 +994,294 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       {/* Tabella articoli */}
       {viewMode === "table" && (
-        <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--color-border-tertiary,#e5e7eb)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "var(--color-background-secondary,#f9fafb)", borderBottom: "1.5px solid var(--color-border-secondary,#e5e7eb)" }}>
-                <th style={{ padding: "10px 12px", textAlign: "left" }}>
-                  <input type="checkbox" 
-                    checked={pageItems.length > 0 && selectedIds.size === pageItems.length} 
-                    onChange={toggleSelectAll}
-                    style={{ cursor: "pointer" }} />
-                </th>
-                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>#</th>
-                <th 
-                  onClick={() => toggleSort("title")}
-                  style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}
-                >
-                  Titolo {sortConfig.key === "title" && (sortConfig.direction === "asc" ? "▲" : "▼")}
-                </th>
-                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Categoria/SEO</th>
-                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Keyword</th>
-                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Difficoltà</th>
-                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Tipo</th>
-                <th 
-                  onClick={() => toggleSort("month")}
-                  style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}
-                >
-                  Mese/Data {sortConfig.key === "month" && (sortConfig.direction === "asc" ? "▲" : "▼")}
-                </th>
-                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Status</th>
-                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Azioni</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.length === 0 && (
-                <tr><td colSpan={10} style={{ textAlign: "center", padding: 40, color: "var(--color-text-secondary)" }}>
-                  Nessun articolo trovato. {articles.length === 0 ? "Importa analisi dal Keyword Researcher o aggiungi manualmente." : "Prova a cambiare i filtri."}
-                </td></tr>
-              )}
-              {pageItems.map((a, idx) => {
-                const isDone = a.status === "pubblicato";
-                const isCheckingSEO = checkingSEO === a.id;
-                const seo = seoResult?.id === a.id ? seoResult : null;
-
-                return (
-                  <tr key={a.id} style={{
-                    borderBottom: "1px solid var(--color-border-tertiary,#f3f4f6)",
-                    background: selectedIds.has(a.id) ? "#f0f7ff" : (isDone ? "var(--color-background-success,#f0fdf4)" : "transparent"),
-                    opacity: isDone ? 0.9 : 1,
-                  }}>
-                    {/* Selezione */}
-                    <td style={{ padding: "8px 12px" }}>
-                      <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)}
-                        style={{ width: 16, height: 16, cursor: "pointer" }} />
-                    </td>
-                    {/* # */}
-                    <td style={{ padding: "8px 12px", color: "var(--color-text-secondary)", fontSize: 11 }}>
-                      {(page-1)*PER_PAGE + idx + 1}
-                    </td>
-                    {/* Titolo */}
-                    <td style={{ padding: "8px 12px", maxWidth: 320 }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                        <div style={{ fontWeight: 500, color: "var(--color-text-primary)" }}>
-                          {decodeHTML(a.title)}
-                        </div>
-                        {duplicateWarnings[a.id] && (
-                          <span 
-                            title={`${duplicateWarnings[a.id].type === 'duplicato' ? 'Duplicato esatto' : duplicateWarnings[a.id].type === 'stessa_kw' ? 'Stessa Keyword' : 'Molto simile'} a: ${duplicateWarnings[a.id].relatedTitle}`}
-                            style={{ cursor: "help", fontSize: 14 }}
-                          >
-                            ⚠️
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                        {a.source === "keyword-researcher" && <span style={{ fontSize: 9, color: "#7c3aed", fontWeight: 600 }}>🔍 KR</span>}
-                        {a.source === "wp-import" && <span style={{ fontSize: 9, color: "#10b981", fontWeight: 600 }}>📥 WP</span>}
-                        {a.existingUrl && (
-                          <a href={a.existingUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: "#0284c7", fontWeight: 600, textDecoration: "none" }}>{a.wpStatus === "programmato" ? "📅 PROGRAMMATO" : "🌐 ONLINE"}</a>
-                        )}
-                        {a.scheduledDate && (
-                           <span style={{ fontSize: 9, color: "#d97706", fontWeight: 600 }}>({new Date(a.scheduledDate).toLocaleDateString()})</span>
-                        )}
-                        <button onClick={() => showLinkSuggestions(a)} style={{ fontSize: 9, color: "#6366f1", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: 0 }}>🔗 LINK</button>
-                      </div>
-                    </td>
-                    {/* Categoria/SEO */}
-                    <td style={{ padding: "8px 12px" }}>
-                      <Badge text={a.cat} meta={CAT_META} />
-                      {isDone && a.existingUrl && (
-                        <div style={{ marginTop: 4 }}>
-                          <button onClick={() => runSEOCheck(a)} disabled={isCheckingSEO} 
-                            style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: seo ? (seo.score > 60 ? "#16a34a" : "#d97706") : "#f3f4f6", color: seo ? "#fff" : "#374151", border: "none", cursor: "pointer" }}>
-                            {isCheckingSEO ? "..." : seo ? `SEO: ${seo.score}%` : "SEO Check"}
-                          </button>
-                        </div>
-                      )}
-                      {!isDone && a.wpStatus === "programmato" && (
-                         <div style={{ marginTop: 4, fontSize: 10, color: "#d97706", fontWeight: 600 }}>In coda su WP</div>
-                      )}
-                    </td>
-                    {/* Keyword */}
-                    <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)", maxWidth: 200 }}>
-                      {a.kw || "—"}
-                    </td>
-                    {/* Difficoltà */}
-                    <td style={{ padding: "8px 12px" }}>
-                      <Badge text={a.diff} meta={DIFF_META} />
-                    </td>
-                    {/* Tipo */}
-                    <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                      {a.tipo || "—"}
-                    </td>
-                    {/* Mese */}
-                    <td style={{ padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
-                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                      {a.month ? `${MONTH_NAMES[a.month - 1]} ${a.year || ""}` : "—"}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-500/10 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-50/50 border-b border-slate-200">
+                  <th className="px-6 py-4">
+                    <input 
+                      type="checkbox" 
+                      checked={pageItems.length > 0 && selectedIds.size === pageItems.length} 
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-slate-300 text-electric-blue focus:ring-electric-blue outline-none cursor-pointer" 
+                    />
+                  </th>
+                  <th className="px-4 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">#</th>
+                  <th 
+                    onClick={() => toggleSort("title")}
+                    className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer group hover:text-electric-blue transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      Titolo
+                      <ArrowUpDown size={14} className={cn("transition-opacity", sortConfig.key === "title" ? "opacity-100 text-electric-blue" : "opacity-0 group-hover:opacity-50")} />
                     </div>
-                    </td>
-                    {/* Status */}
-                    <td style={{ padding: "8px 12px" }}>
-                      <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} />
-                    </td>
-                    {/* Azioni */}
-                    <td style={{ padding: "8px 12px" }}>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                          {a.analysisId ? (
-                               <button onClick={() => onViewResults(a.analysisId)} 
-                                       style={{ border: "1px solid #7c3aed", color: "#7c3aed", background: "none", fontSize: 10, padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>
-                                   Risultati
-                               </button>
-                          ) : (
-                               <button onClick={() => startTransition(() => onAnalyze(a.title, a.id))} 
-                                       disabled={globalLoading}
-                                       style={{ border: "1px solid #6366f1", color: "#6366f1", background: "none", fontSize: 10, padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}>
-                                   {globalLoading ? "..." : "🔍 Analizza"}
-                               </button>
-                          )}
-                          {!isDone && (
-                            <button onClick={() => createWPDraft(a)} title="Crea Bozza WP"
-                              style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14 }}>📝</button>
-                          )}
-                          <button onClick={() => deleteArticle(a.id)}
-                            style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 14 }}
-                            title="Elimina">✕</button>
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Categoria</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Keyword</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Difficoltà</th>
+                  <th 
+                    onClick={() => toggleSort("month")}
+                    className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest cursor-pointer group hover:text-electric-blue transition-colors text-center"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Data
+                      <ArrowUpDown size={14} className={cn("transition-opacity", sortConfig.key === "month" ? "opacity-100 text-electric-blue" : "opacity-0 group-hover:opacity-50")} />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Azioni</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {pageItems.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="p-4 rounded-full bg-slate-50 text-slate-300">
+                          <Search size={48} />
+                        </div>
+                        <div className="text-slate-500 font-medium">Nessun articolo trovato</div>
+                        <p className="text-sm text-slate-400 max-w-xs mx-auto">
+                          {articles.length === 0 
+                            ? "Inizia importando analisi o aggiungendo articoli manualmente." 
+                            : "Prova a regolare i filtri per trovare quello che cerchi."}
+                        </p>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                )}
+                {pageItems.map((a, idx) => {
+                  const isDone = a.status === "pubblicato";
+                  const isCheckingSEO = checkingSEO === a.id;
+                  const seo = seoResult?.id === a.id ? seoResult : null;
+
+                  return (
+                    <tr 
+                      key={a.id} 
+                      className={cn(
+                        "group transition-all hover:bg-slate-50/80",
+                        selectedIds.has(a.id) ? "bg-electric-blue/5" : (isDone ? "bg-emerald-50/30" : "bg-white text-slate-400")
+                      )}
+                    >
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.has(a.id)} 
+                          onChange={() => toggleSelect(a.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-electric-blue focus:ring-electric-blue outline-none cursor-pointer" 
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-xs font-medium text-slate-400">
+                        {(page-1)*PER_PAGE + idx + 1}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1 max-w-xs lg:max-w-md">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "font-bold text-sm font-inter transition-colors",
+                              isDone ? "text-slate-400 line-through" : "text-deep-space"
+                            )}>
+                              {decodeHTML(a.title)}
+                            </span>
+                            {duplicateWarnings[a.id] && (
+                              <div className="relative group/warn">
+                                <AlertTriangle 
+                                  size={16} 
+                                  className="text-amber-500 cursor-help" 
+                                />
+                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover/warn:block z-50 w-64 bg-slate-800 text-white text-[10px] p-2 rounded-lg shadow-xl">
+                                  {duplicateWarnings[a.id].type === 'duplicato' ? 'Duplicato esatto' : duplicateWarnings[a.id].type === 'stessa_kw' ? 'Stessa Keyword' : 'Molto simile'} a: {duplicateWarnings[a.id].relatedTitle}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            {a.source === "keyword-researcher" && (
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-violet-600 uppercase tracking-tighter">
+                                <Search size={10} /> KR
+                              </span>
+                            )}
+                            {a.source === "wp-import" && (
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 uppercase tracking-tighter">
+                                <RefreshCw size={10} /> WP
+                              </span>
+                            )}
+                            {a.existingUrl && (
+                              <a 
+                                href={a.existingUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className={cn(
+                                  "flex items-center gap-1 text-[9px] font-bold uppercase tracking-tighter hover:underline",
+                                  a.wpStatus === "programmato" ? "text-amber-600" : "text-sky-600"
+                                )}
+                              >
+                                <ExternalLink size={10} /> {a.wpStatus === "programmato" ? "Programmato" : "Pubblicato"}
+                              </a>
+                            )}
+                            {a.scheduledDate && (
+                              <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1">
+                                <Calendar size={10} /> {new Date(a.scheduledDate).toLocaleDateString()}
+                              </span>
+                            )}
+                            <button 
+                              onClick={() => showLinkSuggestions(a)} 
+                              className="text-[9px] font-bold text-electric-blue hover:text-electric-blue/80 border-b border-electric-blue/30 border-dotted"
+                            >
+                              LINK CORRELATI
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-2">
+                          <Badge text={a.cat} meta={CAT_META} />
+                          {isDone && a.existingUrl && (
+                            <button 
+                              onClick={() => runSEOCheck(a)} 
+                              disabled={isCheckingSEO}
+                              className={cn(
+                                "inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[9px] font-bold transition-all",
+                                seo 
+                                  ? (seo.score > 60 ? "bg-emerald-500 text-white" : "bg-amber-500 text-white") 
+                                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                              )}
+                            >
+                              {isCheckingSEO ? <RefreshCw size={10} className="animate-spin" /> : (seo ? `SEO: ${seo.score}%` : "CHECK SEO")}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-xs font-semibold text-slate-500 truncate max-w-[120px]" title={a.kw}>
+                        {a.kw || "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge text={a.diff} meta={DIFF_META} />
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-deep-space font-bold text-sm">
+                            {a.month ? MONTH_NAMES[a.month - 1] : "—"}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">{a.year || ""}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {a.analysisId ? (
+                             <button 
+                               onClick={() => onViewResults(a.analysisId)} 
+                               title="Vedi Analisi"
+                               className="p-1.5 rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100"
+                             >
+                               <BarChart3 size={16} />
+                             </button>
+                          ) : (
+                             <button 
+                               onClick={() => startTransition(() => onAnalyze(a.title, a.id))} 
+                               disabled={globalLoading}
+                               title="Esegui Analisi"
+                               className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-50"
+                             >
+                               <Search size={16} />
+                             </button>
+                          )}
+                          {!isDone && (
+                            <button 
+                              onClick={() => createWPDraft(a)} 
+                              title="Crea Bozza WP"
+                              className="p-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200"
+                            >
+                              <Edit3 size={16} />
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => deleteArticle(a.id)}
+                            title="Elimina"
+                            className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* Modal WP Settings */}
       {showWPSettings && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, color: "var(--color-text-primary)" }}>
-          <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: 400, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ marginTop: 0 }}>Impostazioni WordPress</h3>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>URL Sito</label>
-              <input value={wpSettings.url} onChange={e => setWPSettings({...wpSettings, url: e.target.value})} placeholder="https://www.tuosito.it" style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ddd" }} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold font-inter text-deep-space">WordPress Integration</h3>
+              <button 
+                onClick={() => setShowWPSettings(false)}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
+              >
+                <Trash2 size={20} />
+              </button>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>Nome Utente</label>
-              <input value={wpSettings.user} onChange={e => setWPSettings({...wpSettings, user: e.target.value})} style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ddd" }} />
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">URL del Sito</label>
+                <div className="relative">
+                  <ExternalLink size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    value={wpSettings.url} 
+                    onChange={e => setWPSettings({...wpSettings, url: e.target.value})} 
+                    placeholder="https://www.tuosito.it" 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nome Utente</label>
+                <input 
+                  value={wpSettings.user} 
+                  onChange={e => setWPSettings({...wpSettings, user: e.target.value})} 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Application Password</label>
+                <input 
+                  type="password" 
+                  value={wpSettings.pass} 
+                  onChange={e => setWPSettings({...wpSettings, pass: e.target.value})} 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all"
+                />
+                <p className="text-[10px] text-slate-400 mt-2 italic px-1">
+                  Generabile da: Utenti &gt; Profilo &gt; Password applicative su WP.
+                </p>
+              </div>
             </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>Application Password</label>
-              <input type="password" value={wpSettings.pass} onChange={e => setWPSettings({...wpSettings, pass: e.target.value})} style={{ width: "100%", padding: 8, borderRadius: 6, border: "1px solid #ddd" }} />
-              <div style={{ fontSize: 10, color: "#666", marginTop: 4 }}>Generabile da Utenti &gt; Profilo su WordPress</div>
-            </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              <button onClick={saveWPSettings} disabled={saving} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>
-                {saving ? "Salvataggio..." : "Salva"}
+
+            <div className="grid grid-cols-2 gap-4 mt-8">
+              <button 
+                onClick={saveWPSettings} 
+                className="bg-electric-blue text-white rounded-2xl py-3 font-bold text-sm shadow-lg shadow-electric-blue/20 hover:bg-electric-blue/90"
+              >
+                Salva Config
               </button>
               <button 
                 onClick={testWPConnection} 
                 disabled={testingWP}
-                style={{ flex: 1, padding: 10, borderRadius: 8, background: "#ecfdf5", color: "#059669", border: "1px solid #059669", fontWeight: 600, cursor: "pointer" }}>
-                {testingWP ? "Test..." : "Test"}
+                className="bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-2xl py-3 font-bold text-sm hover:bg-emerald-100 disabled:opacity-50"
+              >
+                {testingWP ? "Test in corso..." : "Test Connessione"}
               </button>
-              <button onClick={() => setShowWPSettings(false)} style={{ flex: 1, padding: 10, borderRadius: 8, background: "#f3f4f6", color: "#374151", border: "none", cursor: "pointer" }}>Chiudi</button>
             </div>
           </div>
         </div>
@@ -1222,65 +1389,218 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       )}
 
       {/* Paginazione */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, fontSize: 13, color: "var(--color-text-secondary)" }}>
-        <button disabled={page === 1} onClick={() => setPage(p=>p-1)}
-          style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid var(--color-border-secondary,#d1d5db)", background: "transparent",
-            cursor: page === 1 ? "not-allowed" : "pointer", opacity: page === 1 ? .4 : 1, color: "var(--color-text-primary)" }}>
-          ← Prec
-        </button>
-        <span>Pagina {page} di {totalPages} · {filtered.length} articoli</span>
-        <button disabled={page === totalPages} onClick={() => setPage(p=>p+1)}
-          style={{ padding: "4px 12px", borderRadius: 6, border: "1px solid var(--color-border-secondary,#d1d5db)", background: "transparent",
-            cursor: page === totalPages ? "not-allowed" : "pointer", opacity: page === totalPages ? .4 : 1, color: "var(--color-text-primary)" }}>
-          Succ →
-        </button>
+      <div className="flex items-center justify-between border-t border-slate-200 pt-6 mt-6">
+        <div className="text-sm text-slate-500 font-medium">
+          Pagina <span className="text-deep-space font-bold">{page}</span> di <span className="text-deep-space font-bold">{totalPages}</span>
+          <span className="mx-2 text-slate-300">|</span>
+          <span className="text-slate-400">{filtered.length} articoli trovati</span>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button 
+            disabled={page === 1} 
+            onClick={() => setPage(p=>p-1)}
+            className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold bg-white border border-slate-200 text-slate-600 hover:border-electric-blue hover:text-electric-blue disabled:opacity-40 transition-all"
+          >
+            <ChevronLeft size={16} />
+            Precedente
+          </button>
+          <button 
+            disabled={page === totalPages} 
+            onClick={() => setPage(p=>p+1)}
+            className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold bg-white border border-slate-200 text-slate-600 hover:border-electric-blue hover:text-electric-blue disabled:opacity-40 transition-all"
+          >
+            Successiva
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* FEAT 1: Floating Bulk Action Bar */}
+      {/* Floating Bulk Action Bar */}
       {selectedIds.size > 0 && (
-        <div style={{
-          position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
-          background: "var(--color-primary,#6366f1)", color: "#fff",
-          padding: "12px 24px", borderRadius: 16, display: "flex", alignItems: "center", gap: 20,
-          boxShadow: "0 10px 30px rgba(99, 102, 241, 0.4)", zIndex: 1000,
-          animation: "slideUp 0.3s ease"
-        }}>
-          <span style={{ fontWeight: 600, fontSize: 13 }}>{selectedIds.size} selezionati</span>
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-white px-6 py-4 rounded-[2rem] flex items-center gap-6 shadow-2xl border border-white/10 z-[100] animate-in slide-in-from-bottom-8 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-electric-blue flex items-center justify-center font-bold text-sm">
+              {selectedIds.size}
+            </div>
+            <span className="text-sm font-bold tracking-tight">Articoli selezionati</span>
+          </div>
           
-          <div style={{ height: 20, width: 1, background: "rgba(255,255,255,0.3)" }} />
+          <div className="h-6 w-px bg-white/20" />
           
-          {/* Cambia Stato */}
-          <select 
-            onChange={(e) => bulkUpdate({ status: e.target.value })}
-            style={{ padding: "4px 8px", borderRadius: 6, border: "none", fontSize: 12, background: "rgba(255,255,255,0.2)", color: "#fff", outline: "none" }}
-          >
-            <option value="">Cambia Stato...</option>
-            {Object.entries(STATUS_META).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
+          <div className="flex items-center gap-3">
+            <select 
+              onChange={(e) => bulkUpdate({ status: e.target.value })}
+              className="bg-white/10 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold focus:ring-0 outline-none cursor-pointer hover:bg-white/20 transition-all"
+            >
+              <option value="" className="text-slate-900">Cambia Stato...</option>
+              {Object.entries(STATUS_META).map(([k,v]) => <option key={k} value={k} className="text-slate-900">{v.label}</option>)}
+            </select>
 
-          {/* Cambia Mese */}
-          <select 
-            onChange={(e) => bulkUpdate({ month: Number(e.target.value) })}
-            style={{ padding: "4px 8px", borderRadius: 6, border: "none", fontSize: 12, background: "rgba(255,255,255,0.2)", color: "#fff", outline: "none" }}
-          >
-            <option value="">Sposta Mese...</option>
-            {MONTH_NAMES.map((name, i) => <option key={i} value={i+1}>{name}</option>)}
-          </select>
+            <select 
+              onChange={(e) => bulkUpdate({ month: Number(e.target.value) })}
+              className="bg-white/10 border border-white/10 rounded-xl px-3 py-1.5 text-xs font-bold focus:ring-0 outline-none cursor-pointer hover:bg-white/20 transition-all"
+            >
+              <option value="" className="text-slate-900">Sposta Mese...</option>
+              {MONTH_NAMES.map((name, i) => <option key={i} value={i+1} className="text-slate-900">{name}</option>)}
+            </select>
 
-          <button onClick={bulkDelete} style={{ background: "#ef4444", color: "#fff", border: "none", padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-            Elimina
+            <button 
+              onClick={bulkDelete} 
+              className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg shadow-rose-500/20"
+            >
+              <Trash2 size={14} />
+              Elimina
+            </button>
+          </div>
+
+          <button 
+            onClick={() => setSelectedIds(new Set())}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          >
+            <ChevronRight size={20} className="rotate-90" />
           </button>
-
-          <button onClick={() => setSelectedIds(new Set())} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 16 }}>✕</button>
         </div>
       )}
 
-      <style>{`
-        @keyframes slideUp {
-          from { transform: translate(-50%, 50px); opacity: 0; }
-          to { transform: translate(-50%, 0); opacity: 1; }
-        }
-      `}</style>
+      {/* Link Suggestions Modal */}
+      {suggestions && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-[2rem] w-full max-w-lg shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-300 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold font-inter text-deep-space">Suggerimenti Link Interni</h3>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Correlati a: <span className="text-electric-blue">{suggestions.article.title}</span></p>
+              </div>
+              <button 
+                onClick={() => setSuggestions(null)}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+              {suggestions.items.map(item => (
+                <div key={item.id} className="group p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-electric-blue/30 transition-all">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-deep-space mb-1 leading-tight">{item.title}</div>
+                      <div className="text-[10px] text-slate-400 truncate max-w-[280px]">{item.existingUrl}</div>
+                    </div>
+                    <button 
+                      onClick={() => { navigator.clipboard.writeText(item.existingUrl); }} 
+                      className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[10px] font-bold text-slate-600 hover:border-electric-blue hover:text-electric-blue shadow-sm transition-all active:scale-95"
+                    >
+                      Copia Link
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {suggestions.items.length === 0 && (
+                <div className="py-12 text-center">
+                  <div className="text-slate-300 mb-2 flex justify-center"><ExternalLink size={40} /></div>
+                  <div className="text-sm text-slate-400 font-medium">Nessun articolo correlato trovato online.</div>
+                </div>
+              )}
+            </div>
+            
+            <button 
+              onClick={() => setSuggestions(null)}
+              className="w-full mt-6 bg-slate-100 text-slate-600 rounded-2xl py-3 font-bold text-sm hover:bg-slate-200 transition-all font-inter"
+            >
+              Chiudi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Revisione Duplicati Modal */}
+      {showDuplicateReview && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[120] animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-[2rem] w-full max-w-4xl shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-300 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-bold font-inter text-deep-space">Revisione Conflitti</h3>
+                <p className="text-sm text-slate-500 mt-1">Sono stati identificati <span className="font-bold text-amber-600">{Object.keys(duplicateWarnings).length} articoli</span> con potenziali duplicati o keyword sovrapposte.</p>
+              </div>
+              <button 
+                onClick={() => setShowDuplicateReview(false)}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors"
+              >
+                <Trash2 size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-separate border-spacing-y-2">
+                <thead>
+                  <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="px-4 py-2">Articolo</th>
+                    <th className="px-4 py-2">Problema Rilevato</th>
+                    <th className="px-4 py-2 text-right">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(duplicateWarnings).map(([id, info]) => {
+                    const art = articles.find(a => a.id === id);
+                    if (!art) return null;
+                    return (
+                      <tr key={id} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-4 rounded-l-2xl border-y border-l border-slate-100">
+                          <div className="font-bold text-sm text-deep-space">{art.title}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">Keyword: <span className="font-semibold text-slate-500">{art.kw || "—"}</span></div>
+                        </td>
+                        <td className="px-4 py-4 border-y border-slate-100">
+                          <div className="flex flex-col gap-1">
+                            <span className={cn(
+                              "inline-flex w-fit px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider",
+                              info.type === 'duplicato' ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
+                            )}>
+                              {info.type === 'duplicato' ? 'Duplicato Esatto' : info.type === 'stessa_kw' ? 'Keyword Duplicata' : 'Similitudine Elevata'}
+                            </span>
+                            <div className="text-[10px] text-slate-500 italic">Conflitto con: {info.relatedTitle}</div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 rounded-r-2xl border-y border-r border-slate-100 text-right">
+                          <button 
+                            onClick={() => {
+                              deleteArticle(art.id);
+                              const next = {...duplicateWarnings};
+                              delete next[art.id];
+                              setDuplicateWarnings(next);
+                            }}
+                            className="p-2 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-8 border-t border-slate-100">
+              <button 
+                onClick={bulkDeleteDuplicates} 
+                disabled={saving}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-500 text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20 disabled:opacity-50"
+              >
+                <Trash2 size={18} />
+                {saving ? "Eliminazione..." : `Elimina tutti (${Object.keys(duplicateWarnings).length})`}
+              </button>
+              <button 
+                onClick={() => setShowDuplicateReview(false)}
+                className="w-full sm:w-auto bg-deep-space text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg"
+              >
+                Ho terminato la revisione
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

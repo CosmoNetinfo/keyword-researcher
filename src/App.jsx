@@ -12,6 +12,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
+import Layout from "./components/Layout";
 
 async function loadXLSX() {
   if (window.XLSX) return window.XLSX;
@@ -404,36 +405,7 @@ export default function App() {
   ];
 
   return (
-    <div id="root">
-      <header className="header-main" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40, borderBottom: '1px solid var(--color-border)', paddingBottom: 20 }}>
-        <div>
-          <h1>Keyword Researcher</h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, margin: '4px 0 0' }}>
-            Sito: <strong>{url}</strong> {view !== "piano" && <>· Nicchia: <strong>{finalTopic}</strong></>}
-          </p>
-        </div>
-        <nav className="header-nav" style={{ display: 'flex', gap: 24 }}>
-          <button onClick={() => startTransition(() => setView("history"))} style={{ background: 'none', border: 'none',
-            color: view === 'history' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-            fontWeight: view === 'history' ? 600 : 400, cursor: 'pointer' }}>
-            Storico ({analyses.length})
-          </button>
-          <button onClick={() => startTransition(() => setView("piano"))} style={{ position: 'relative', background: 'none', border: 'none',
-            color: view === 'piano' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-            fontWeight: view === 'piano' ? 600 : 400, cursor: 'pointer' }}>
-            📅 Piano Editoriale
-            {dueCount > 0 && (
-              <span style={{
-                position: 'absolute', top: -8, right: -12, background: '#ef4444', color: '#fff',
-                fontSize: 10, padding: '1px 5px', borderRadius: 10, fontWeight: 700, minWidth: 16
-              }}>
-                {dueCount}
-              </span>
-            )}
-          </button>
-          <button onClick={() => startTransition(() => setView("new"))} style={{ background: 'none', border: 'none', color: view === 'new' ? 'var(--color-primary)' : 'var(--color-text-secondary)', fontWeight: view === 'new' ? 600 : 400, cursor: 'pointer' }}>Analisi</button>
-        </nav>
-      </header>
+    <Layout activeView={view} setView={setView} dueCount={dueCount}>
 
 
 
@@ -701,6 +673,6 @@ export default function App() {
           />
         </main>
       )}
-    </div>
+    </Layout>
   );
 }
