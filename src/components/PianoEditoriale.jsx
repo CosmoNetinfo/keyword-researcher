@@ -299,6 +299,33 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         setSaving(false);
     }
   }
+  async function deleteGhostArticles() {
+    // Troviamo gli articoli che l'app crede siano pubblicati/programmati 
+    // ma che NON hanno un timestamp di sincronizzazione recente (es. ultimi 10 minuti)
+    const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+    const ghosts = articles.filter(a => 
+      (a.status === "pubblicato" || a.status === "programmato") && 
+      (!a.lastSyncedAt || a.lastSyncedAt < tenMinutesAgo)
+    );
+
+    if (ghosts.length === 0) {
+      alert("✅ Nessun articolo fantasma trovato. Tutti i dati sono allineati!");
+      return;
+    }
+
+    if (!window.confirm(`⚠️ Trovati ${ghosts.length} articoli che non risultano più presenti sul sito.\n\nVuoi eliminarli dall'applicazione per allineare i conteggi?`)) return;
+
+    setSaving(true);
+    try {
+      const promises = ghosts.map(g => deleteDoc(doc(db, "piano_editoriale", g.id)));
+      await Promise.all(promises);
+      alert(`✅ Pulizia completata! Rimossi ${ghosts.length} articoli obsoleti.`);
+    } catch (e) {
+      alert("Errore durante la pulizia: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // ── Sorting Logic ────────────────────────────────────────────────────────
   function toggleSort(key) {
@@ -387,21 +414,27 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       let countImported = 0;
       
       // 3. Processiamo gli articoli trovati su WP/Sitemap
+      const syncTimestamp = Date.now();
       for (const found of allFound) {
         const cleanFoundTitle = cleanTitle(found.title);
         
-        // Cerchiamo se esiste già nel piano
-        let existing = articles.find(art => {
-          const cleanArtTitle = cleanTitle(art.title);
-          // Match esatto o inclusivo
-          return (cleanFoundTitle && cleanArtTitle) && (cleanFoundTitle.includes(cleanArtTitle) || cleanArtTitle.includes(cleanFoundTitle));
-        });
+        // Cerchiamo se esiste già nel piano (Priorità: ID WP > URL > Titolo)
+        let existing = articles.find(art => 
+          (found.id && art.wpId === found.id) || 
+          (found.url && art.existingUrl === found.url)
+        );
 
-        // Se non trovato con match "duro", proviamo con la similitudine (fuzzy match)
+        if (!existing) {
+          existing = articles.find(art => {
+            const cleanArtTitle = cleanTitle(art.title);
+            return (cleanFoundTitle && cleanArtTitle) && (cleanFoundTitle.includes(cleanArtTitle) || cleanArtTitle.includes(cleanFoundTitle));
+          });
+        }
+
         if (!existing) {
           existing = articles.find(art => {
             const similarity = calculateSimilarity(cleanFoundTitle, cleanTitle(art.title));
-            return similarity > 0.85; // Alta soglia per evitare falsi positivi
+            return similarity > 0.85;
           });
         }
 
@@ -410,20 +443,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         const updateData = {
           title: found.title,
           existingUrl: found.url,
+          wpId: found.id || null,
           status: isFuture ? "programmato" : "pubblicato",
           wpStatus: isFuture ? "programmato" : "online",
           scheduledDate: isFuture ? found.date : null,
           year: postDate.getFullYear(),
-          month: postDate.getMonth() + 1
+          month: postDate.getMonth() + 1,
+          lastSyncedAt: syncTimestamp
         };
 
         if (existing) {
-          // Aggiorna se non è pubblicato OPPURE se mancano i dati di anno/mese
-          const needsDataFix = !existing.year || !existing.month;
-          if (existing.status !== "pubblicato" || needsDataFix) {
-            await updateDoc(doc(db, "piano_editoriale", existing.id), updateData);
-            countSynced++;
-          }
+          await updateDoc(doc(db, "piano_editoriale", existing.id), updateData);
+          countSynced++;
         } else {
           await addDoc(collection(db, "piano_editoriale"), {
             ...updateData,
@@ -711,21 +742,28 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       {/* Header stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
-          { label: "Totali", val: stats.total,       color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-500" },
-          { label: "Pubblicati",      val: stats.pubblicati,  color: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", accent: "bg-emerald-500" },
-          { label: "Programmati",    val: stats.programmato, color: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", accent: "bg-amber-500" },
-          { label: "In corso",        val: stats.lavorazione, color: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", accent: "bg-blue-500" },
-          { label: "Da scrivere",     val: stats.daFare,      color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-400" },
+          { label: "Totali", val: stats.total,       color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-500", filter: "all" },
+          { label: "Pubblicati",      val: stats.pubblicati,  color: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", accent: "bg-emerald-500", filter: "pubblicato" },
+          { label: "Programmati",    val: stats.programmato, color: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", accent: "bg-amber-500", filter: "programmato" },
+          { label: "In corso",        val: stats.lavorazione, color: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", accent: "bg-blue-500", filter: "in_lavorazione" },
+          { label: "Da scrivere",     val: stats.daFare,      color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-400", filter: "da_scrivere" },
           { label: "Progress",        val: pct + "%",         color: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", accent: "bg-violet-500" },
         ].map(s => (
-          <div key={s.label} className={cn(
-            "relative p-4 rounded-2xl border transition-all hover:shadow-md",
-            s.color, s.border
-          )}>
+          <button 
+            key={s.label} 
+            disabled={!s.filter}
+            onClick={() => s.filter && setFilter(f => ({...f, status: s.filter}))}
+            className={cn(
+              "relative p-4 rounded-2xl border transition-all text-left w-full",
+              s.filter ? "hover:shadow-lg hover:-translate-y-1 cursor-pointer" : "cursor-default",
+              s.color, s.border,
+              filter.status === s.filter && "ring-2 ring-electric-blue ring-offset-2"
+            )}
+          >
             <div className={cn("text-2xl font-bold font-inter", s.text)}>{s.val}</div>
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-1">{s.label}</div>
             <div className={cn("absolute top-0 left-0 w-full h-1 rounded-t-2xl", s.accent)} />
-          </div>
+          </button>
         ))}
       </div>
 
@@ -832,6 +870,15 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             >
               <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
               {refreshing ? "Sincronizzazione..." : "Sincronizza"}
+            </button>
+
+            <button 
+              onClick={deleteGhostArticles}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 transition-all shadow-sm"
+              title="Rimuove articoli segnati come pubblicati ma non trovati sul sito"
+            >
+              <Trash2 size={18} />
+              Pulizia
             </button>
 
             <button 
