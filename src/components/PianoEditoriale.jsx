@@ -1601,8 +1601,22 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                     return (
                       <tr key={id} className="bg-slate-50/50 hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-4 rounded-l-2xl border-y border-l border-slate-100">
-                          <div className="font-bold text-sm text-deep-space">{art.title}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">Keyword: <span className="font-semibold text-slate-500">{art.kw || "—"}</span></div>
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1">
+                              <div className="font-bold text-sm text-deep-space">{art.title}</div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">Keyword: <span className="font-semibold text-slate-500">{art.kw || "—"}</span></div>
+                            </div>
+                            {STATUS_META[art.status] && (
+                              <span className={cn(
+                                "flex-shrink-0 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border",
+                                STATUS_META[art.status].bg,
+                                STATUS_META[art.status].text,
+                                STATUS_META[art.status].border
+                              )}>
+                                {STATUS_META[art.status].label}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-4 border-y border-slate-100">
                           <div className="flex flex-col gap-1">
