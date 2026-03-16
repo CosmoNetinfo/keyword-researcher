@@ -133,6 +133,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [duplicateWarnings, setDuplicateWarnings] = useState({});
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [showDuplicateReview, setShowDuplicateReview] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: "month", direction: "asc" }); // Default: per data (mese)
 
   const PER_PAGE = 50; // Come richiesto nel Fix 1
 
@@ -278,6 +279,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     } finally {
         setSaving(false);
     }
+  }
+
+  // ── Sorting Logic ────────────────────────────────────────────────────────
+  function toggleSort(key) {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
+    }));
   }
 
   // ── Aggiorna col sito (Feed RSS + WordPress API per programmati) ────────────────────────
@@ -588,9 +597,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
-  // ── Filtraggio Memoizzato ───────────────────────────────────────────────────
+  // ── Filtraggio e Ordinamento Memoizzato ───────────────────────────────────
   const filtered = useMemo(() => {
-    return articles.filter(a => {
+    let result = articles.filter(a => {
       const itemDate = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date();
       const itemYear = a.year || itemDate.getFullYear();
       const itemMonth = a.month || (itemDate.getMonth() + 1);
@@ -603,7 +612,29 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                              || (a.kw || "").toLowerCase().includes(filter.q.toLowerCase());
       return yOk && mOk && cOk && sOk && qOk;
     });
-  }, [articles, filter]);
+
+    // Ordinamento
+    result.sort((a, b) => {
+      let valA, valB;
+
+      if (sortConfig.key === "title") {
+        valA = (a.title || "").toLowerCase();
+        valB = (b.title || "").toLowerCase();
+      } else if (sortConfig.key === "month") {
+        // Ordinamento per data: Anno -> Mese -> Day (se presente)
+        const dateA = a.scheduledDate ? new Date(a.scheduledDate) : (a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(a.year || 2024, (a.month || 1) - 1, 1));
+        const dateB = b.scheduledDate ? new Date(b.scheduledDate) : (b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(b.year || 2024, (b.month || 1) - 1, 1));
+        valA = dateA.getTime();
+        valB = dateB.getTime();
+      }
+
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [articles, filter, sortConfig]);
 
   const availableYears = useMemo(() => {
     return [...new Set(articles.map(a => {
@@ -912,13 +943,25 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                     onChange={toggleSelectAll}
                     style={{ cursor: "pointer" }} />
                 </th>
-                {["#","Titolo","Categoria/SEO","Keyword","Difficoltà","Tipo","Mese","Status","Azioni"].map((h,i) => (
-                  <th key={i} style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600,
-                    color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: ".4px",
-                    whiteSpace: "nowrap" }}>
-                    {h}
-                  </th>
-                ))}
+                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>#</th>
+                <th 
+                  onClick={() => toggleSort("title")}
+                  style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  Titolo {sortConfig.key === "title" && (sortConfig.direction === "asc" ? "▲" : "▼")}
+                </th>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Categoria/SEO</th>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Keyword</th>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Difficoltà</th>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Tipo</th>
+                <th 
+                  onClick={() => toggleSort("month")}
+                  style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  Mese/Data {sortConfig.key === "month" && (sortConfig.direction === "asc" ? "▲" : "▼")}
+                </th>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Status</th>
+                <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Azioni</th>
               </tr>
             </thead>
             <tbody>
