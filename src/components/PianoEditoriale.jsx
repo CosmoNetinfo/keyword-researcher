@@ -562,11 +562,15 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
   // FEAT 3: Export CSV
   function exportCSV() {
-    if (filtered.length === 0) return alert("Nessun dato da esportare");
+    const toExport = selectedIds.size > 0 
+      ? articles.filter(a => selectedIds.has(a.id))
+      : filtered;
+
+    if (toExport.length === 0) return alert("Nessun dato da esportare");
     
     // Titolo, Categoria, Keyword, Priorità, Tipo, Mese, Anno, Stato
     const headers = ["Titolo", "Categoria", "Keyword", "Priorità", "Tipo", "Mese", "Anno", "Stato"];
-    const rows = filtered.map(a => [
+    const rows = toExport.map(a => [
       `"${(a.title || "").replace(/"/g, '""')}"`,
       CAT_META[a.cat]?.label || a.cat || "",
       `"${(a.kw || "").replace(/"/g, '""')}"`,
@@ -583,7 +587,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `piano_editoriale_${new Date().toISOString().slice(0, 10)}.csv`);
+    const fileName = selectedIds.size > 0 
+      ? `selezione_piano_${selectedIds.size}_articoli.csv` 
+      : `piano_editoriale_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -780,7 +787,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     <div className="space-y-8">
 
       {/* Header stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
         {[
           { label: "Totali", val: stats.total,       color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-500", filter: "all" },
           { label: "Pubblicati",      val: stats.pubblicati,  color: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", accent: "bg-emerald-500", filter: "pubblicato" },
@@ -794,14 +801,14 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             disabled={!s.filter}
             onClick={() => s.filter && setFilter(f => ({...f, status: s.filter}))}
             className={cn(
-              "relative p-4 rounded-2xl border transition-all text-left w-full",
+              "relative p-3 md:p-4 rounded-2xl border transition-all text-left w-full",
               s.filter ? "hover:shadow-lg hover:-translate-y-1 cursor-pointer" : "cursor-default",
               s.color, s.border,
               filter.status === s.filter && "ring-2 ring-electric-blue ring-offset-2"
             )}
           >
-            <div className={cn("text-2xl font-bold font-inter", s.text)}>{s.val}</div>
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-1">{s.label}</div>
+            <div className={cn("text-xl md:text-2xl font-bold font-inter", s.text)}>{s.val}</div>
+            <div className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5 md:mt-1">{s.label}</div>
             <div className={cn("absolute top-0 left-0 w-full h-1 rounded-t-2xl", s.accent)} />
           </button>
         ))}
@@ -825,160 +832,171 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       </div>
 
       {/* Filtri + Cerca Area */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-500/10 space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-slate-500/10 space-y-4 md:space-y-6">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-              <Calendar size={14} className="text-slate-400" />
-              <select 
-                value={filter.year} 
-                onChange={(e) => { setFilter(f=>({...f,year:e.target.value})); setPage(1); }}
-                className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer"
-              >
-                <option value="all">Tutti gli anni</option>
-                {availableYears.map(y => (
-                  <option key={y} value={String(y)}>{y}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 flex-1 md:flex-none justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-slate-400" />
+                <select 
+                  value={filter.year} 
+                  onChange={(e) => { setFilter(f=>({...f,year:e.target.value})); setPage(1); }}
+                  className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer p-0"
+                >
+                  <option value="all">Anni</option>
+                  {availableYears.map(y => (
+                    <option key={y} value={String(y)}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <ChevronLeft size={14} className="-rotate-90 md:hidden text-slate-400" />
             </div>
 
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-              <Filter size={14} className="text-slate-400" />
-              <select 
-                value={filter.month} 
-                onChange={(e) => { setFilter(f=>({...f,month:e.target.value})); setPage(1); }}
-                className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer"
-              >
-                <option value="all">Tutti i mesi</option>
-                {MONTH_NAMES.map((name, i) => (
-                  <option key={name} value={String(i + 1)}>{name}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 flex-1 md:flex-none justify-between">
+              <div className="flex items-center gap-2">
+                <Filter size={14} className="text-slate-400" />
+                <select 
+                  value={filter.month} 
+                  onChange={(e) => { setFilter(f=>({...f,month:e.target.value})); setPage(1); }}
+                  className="bg-transparent border-none text-sm font-bold text-slate-700 focus:ring-0 cursor-pointer p-0"
+                >
+                  <option value="all">Mesi</option>
+                  {MONTH_NAMES.map((name, i) => (
+                    <option key={name} value={String(i + 1)}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              <ChevronLeft size={14} className="-rotate-90 md:hidden text-slate-400" />
             </div>
             
             <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block" />
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Main Categories Buttons */}
-              {["all", "ai", "oss", "gaming", "linux"].map(c => (
-                <button 
-                  key={c} 
-                  onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
-                  className={cn(
-                    "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
-                    filter.cat === c
-                      ? "bg-electric-blue text-white border-electric-blue shadow-lg shadow-electric-blue/20"
-                      : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue hover:text-electric-blue"
-                  )}
-                >
-                  {c === "all" ? "Tutte" : allCategories[c]?.label || c}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              {/* Category Buttons - Hidden on very small screens, use a select instead or scroll */}
+              <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide no-scrollbar -mx-1 px-1">
+                {["all", "ai", "oss", "gaming", "linux"].map(c => (
+                  <button 
+                    key={c} 
+                    onClick={() => { setFilter(f=>({...f,cat:c})); setPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border whitespace-nowrap",
+                      filter.cat === c
+                        ? "bg-electric-blue text-white border-electric-blue shadow-lg shadow-electric-blue/20"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue hover:text-electric-blue"
+                    )}
+                  >
+                    {c === "all" ? "Tutte" : allCategories[c]?.label || c}
+                  </button>
+                ))}
 
-              {/* Other Categories Dropdown */}
-              <div className="relative">
-                <select
-                  value={(!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)) ? filter.cat : "other"}
-                  onChange={(e) => {
-                    if (e.target.value !== "other") {
-                      setFilter(f => ({ ...f, cat: e.target.value }));
-                      setPage(1);
-                    }
-                  }}
-                  className={cn(
-                    "px-3 py-1.5 rounded-xl text-xs font-bold border appearance-none pr-8 cursor-pointer focus:ring-0",
-                    (!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat))
-                      ? "bg-electric-blue text-white border-electric-blue shadow-lg shadow-electric-blue/20"
-                      : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue"
-                  )}
-                  style={{ width: 'auto', minWidth: '120px' }}
-                >
-                  <option value="other" disabled={!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)}>Altre...</option>
-                  {Object.keys(allCategories).filter(c => !["ai", "oss", "gaming", "linux"].includes(c)).map(c => (
-                    <option key={c} value={c} className="text-slate-900 bg-white">
-                      {allCategories[c].label}
-                    </option>
-                  ))}
-                </select>
-                <div className={cn(
-                  "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none",
-                  (!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)) ? "text-white" : "text-slate-400"
-                )}>
-                  <ChevronLeft size={14} className="-rotate-90" />
+                {/* Other Categories Dropdown */}
+                <div className="relative">
+                  <select
+                    value={(!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)) ? filter.cat : "other"}
+                    onChange={(e) => {
+                      if (e.target.value !== "other") {
+                        setFilter(f => ({ ...f, cat: e.target.value }));
+                        setPage(1);
+                      }
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-xs font-bold border appearance-none pr-7 cursor-pointer focus:ring-0 whitespace-nowrap",
+                      (!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat))
+                        ? "bg-electric-blue text-white border-electric-blue shadow-lg shadow-electric-blue/20"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-electric-blue"
+                    )}
+                    style={{ width: 'auto', minWidth: '100px' }}
+                  >
+                    <option value="other" disabled={!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)}>Altre...</option>
+                    {Object.keys(allCategories).filter(c => !["ai", "oss", "gaming", "linux"].includes(c)).map(c => (
+                      <option key={c} value={c} className="text-slate-900 bg-white">
+                        {allCategories[c].label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className={cn(
+                    "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none",
+                    (!["all", "ai", "oss", "gaming", "linux"].includes(filter.cat)) ? "text-white" : "text-slate-400"
+                  )}>
+                    <ChevronLeft size={12} className="-rotate-90" />
+                  </div>
                 </div>
               </div>
             </div>
-
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-electric-blue transition-colors" size={18} />
             <input
               id="piano-search-input"
               value={filter.q}
               onChange={e => { setFilter(f=>({...f,q:e.target.value})); setPage(1); }}
-              placeholder="Cerca titolo o keyword... (Ctrl+K)"
+              placeholder="Cerca... (Ctrl+K)"
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue transition-all"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button 
-              onClick={() => setShowForm(v => !v)}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-electric-blue/20",
-                showForm 
-                  ? "bg-slate-800 text-white" 
-                  : "bg-electric-blue text-white hover:bg-electric-blue/90"
-              )}
-            >
-              <Plus size={18} />
-              {showForm ? "Chiudi" : "Aggiungi"}
-            </button>
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-2 flex-1 md:flex-none">
+              <button 
+                onClick={() => setShowForm(v => !v)}
+                className={cn(
+                  "flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-electric-blue/20",
+                  showForm 
+                    ? "bg-slate-800 text-white" 
+                    : "bg-electric-blue text-white hover:bg-electric-blue/90"
+                )}
+              >
+                <Plus size={18} />
+                <span className="md:inline">{showForm ? "Chiudi" : "Aggiungi"}</span>
+              </button>
 
-            <button 
-              onClick={refreshFromSite} 
-              disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-slate-700 hover:border-electric-blue hover:text-electric-blue transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
-              {refreshing ? "Sincronizzazione..." : "Sincronizza"}
-            </button>
+              <button 
+                onClick={refreshFromSite} 
+                disabled={refreshing}
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-slate-700 hover:border-electric-blue hover:text-electric-blue transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+                <span className="hidden sm:inline">{refreshing ? "..." : "Sync"}</span>
+              </button>
+            </div>
 
-            <button 
-              onClick={deleteGhostArticles}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 transition-all shadow-sm"
-              title="Rimuove articoli segnati come pubblicati ma non trovati sul sito"
-            >
-              <Trash2 size={18} />
-              Pulizia
-            </button>
+            <div className="flex items-center gap-2 flex-1 md:flex-none">
+              <button 
+                onClick={deleteGhostArticles}
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 transition-all shadow-sm"
+                title="Pulizia"
+              >
+                <Trash2 size={18} />
+                <span className="hidden sm:inline">Pulizia</span>
+              </button>
 
-            <button 
-              onClick={() => setViewMode(v => v === "table" ? "calendar" : "table")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-slate-700 hover:border-violet-500 hover:text-violet-500 transition-all"
-            >
-              {viewMode === "table" ? <Calendar size={18} /> : <BarChart3 size={18} />}
-              {viewMode === "table" ? "Calendario" : "Tabella"}
-            </button>
+              <button 
+                onClick={() => setViewMode(v => v === "table" ? "calendar" : "table")}
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-slate-700 hover:border-violet-500 hover:text-violet-500 transition-all"
+              >
+                {viewMode === "table" ? <Calendar size={18} /> : <BarChart3 size={18} />}
+                <span className="hidden sm:inline">{viewMode === "table" ? "Cal" : "Tab"}</span>
+              </button>
+            </div>
 
-            <div className="h-8 w-px bg-slate-200 mx-1" />
+            <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block" />
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end">
               <button 
                 onClick={exportCSV}
                 title="Esporta CSV"
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-500 transition-all"
+                className="flex-1 md:flex-none flex items-center justify-center p-2.5 rounded-xl bg-white border border-slate-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-500 transition-all"
               >
                 <ExternalLink size={18} />
               </button>
               
               <button 
                 onClick={() => setShowWPSettings(true)}
-                title="Impostazioni WordPress"
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-800 transition-all"
+                title="WordPress"
+                className="flex-1 md:flex-none flex items-center justify-center p-2.5 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-800 transition-all"
               >
                 <MoreVertical size={18} />
               </button>
@@ -986,11 +1004,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               <button 
                 onClick={checkDuplicates} 
                 disabled={checkingDuplicates}
-                title="Controlla Duplicati"
+                title="Duplicati"
                 className={cn(
-                  "p-2.5 rounded-xl transition-all border",
+                  "flex-1 md:flex-none flex items-center justify-center p-2.5 rounded-xl transition-all border",
                   checkingDuplicates 
-                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                    ? "bg-slate-100 text-slate-400 border-slate-200" 
                     : "bg-white border-slate-200 text-amber-500 hover:bg-amber-50 hover:border-amber-500"
                 )}
               >

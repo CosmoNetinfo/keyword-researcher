@@ -17,7 +17,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-const Sidebar = ({ activeView, setView, dueCount }) => {
+const Sidebar = ({ activeView, setView, dueCount, isOpen, onClose }) => {
   const menuItems = [
     { id: 'piano', label: 'Piano Editoriale', icon: Calendar, badge: dueCount },
     { id: 'new', label: 'Nuova Analisi', icon: Search },
@@ -25,14 +25,23 @@ const Sidebar = ({ activeView, setView, dueCount }) => {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[280px] bg-[#0F172A] text-white hidden md:flex flex-col z-50 border-r border-slate-800 shadow-2xl">
-      <div className="p-8 pb-12">
+    <aside className={cn(
+      "fixed left-0 top-0 h-screen w-[280px] bg-[#0F172A] text-white flex flex-col z-[60] border-r border-slate-800 shadow-2xl transition-transform duration-300 md:translate-x-0",
+      isOpen ? "translate-x-0" : "-translate-x-full"
+    )}>
+      <div className="p-8 pb-12 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3 text-white">
           <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
             <LayoutDashboard size={24} />
           </div>
           <span>KR <span className="text-slate-400 font-light italic">Pro</span></span>
         </h1>
+        <button 
+          onClick={onClose}
+          className="md:hidden p-2 hover:bg-slate-800 rounded-lg text-slate-400"
+        >
+          <X size={24} />
+        </button>
       </div>
 
       <nav className="flex-1 px-4 space-y-1.5">
