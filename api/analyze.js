@@ -45,6 +45,10 @@ export default async function handler(req, res) {
 Sito: "${url}"
 Nicchia: "${finalTopic}"
 
+DATA ATTUALE: Marzo 2026.
+OBIETTIVO CRITICO: I contenuti suggeriti devono essere focalizzati sul 2026, sulle tendenze attuali e future. 
+NON suggerire articoli, guide o notizie relative al 2024 o 2025 (sono considerate obsolete).
+
 Ho già i risultati di ricerca Google per gli articoli esistenti su questo sito. Riepilogo qui:
 ${googleData}
 
@@ -58,8 +62,8 @@ Restituisci l'analisi in ESCLUSIVAMENTE formato JSON valido, senza introdurre te
 
 Richieste di volumi:
 - 15 Keyword in focus.
-- 8 Nuovi Articoli da produrre.
-- 4 Articoli da aggiornare.`;
+- 8 Nuovi Articoli da produrre per il 2026.
+- 4 Articoli da aggiornare alle ultime novità del 2026.`;
 
     let content = "";
 
