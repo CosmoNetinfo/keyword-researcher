@@ -26,18 +26,19 @@ const Layout = ({ children, activeView, setView, dueCount }) => {
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <div className="flex-1 md:ml-[280px] flex flex-col min-h-screen relative">
-        <header className="md:hidden flex items-center justify-between p-4 bg-[#0F172A] text-white sticky top-0 z-40">
-           <div className="font-bold text-white text-xl">KR Pro</div>
+      <div className="flex-1 flex flex-col min-h-screen relative w-full overflow-x-hidden md:ml-[280px]">
+        <header className="md:hidden flex items-center justify-between p-4 bg-[#0F172A] text-white sticky top-0 z-[45] w-full border-b border-slate-800">
+           <div className="font-bold text-white text-xl tracking-tight">KR Pro</div>
            <button 
              onClick={() => setIsSidebarOpen(true)}
-             className="p-2 hover:bg-slate-700 rounded-lg"
+             className="p-2 hover:bg-slate-800 rounded-xl transition-colors"
+             aria-label="Apri menu"
            >
-             <Menu size={24} />
+             <Menu size={24} className="text-white" />
            </button>
         </header>
 
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-10 max-w-[1400px] w-full mx-auto">
+        <main className="flex-1 px-4 py-6 md:px-8 md:py-10 max-w-full w-full mx-auto overflow-x-hidden">
           {children}
         </main>
         

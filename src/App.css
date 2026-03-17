@@ -29,6 +29,13 @@ body {
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+#root {
+  width: 100%;
+  overflow-x: hidden;
 }
 
 code, .font-mono {
@@ -68,8 +75,11 @@ code, .font-mono {
     display: none;
   }
   .main-content {
-    margin-left: 0;
+    margin-left: 0 !important;
     padding: 24px 16px;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 }
 

@@ -801,7 +801,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             disabled={!s.filter}
             onClick={() => s.filter && setFilter(f => ({...f, status: s.filter}))}
             className={cn(
-              "relative p-3 md:p-4 rounded-2xl border transition-all text-left w-full",
+              "relative p-3 md:p-4 rounded-2xl border transition-all text-left w-full sm:w-auto md:w-full",
               s.filter ? "hover:shadow-lg hover:-translate-y-1 cursor-pointer" : "cursor-default",
               s.color, s.border,
               filter.status === s.filter && "ring-2 ring-electric-blue ring-offset-2"
@@ -833,9 +833,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       {/* Filtri + Cerca Area */}
       <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-slate-500/10 space-y-4 md:space-y-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 flex-1 md:flex-none justify-between">
+        <div className="flex flex-col gap-4 w-full">
+          <div className="flex flex-wrap items-center gap-3 w-full">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 flex-1 sm:flex-none justify-between">
               <div className="flex items-center gap-2">
                 <Calendar size={14} className="text-slate-400" />
                 <select 
@@ -1140,9 +1140,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       {/* Tabella articoli */}
       {viewMode === "table" && (
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-500/10 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-500/10 overflow-hidden w-full max-w-full">
+          <div className="overflow-x-auto w-full scrollbar-thin">
+            <table className="w-full border-collapse text-left min-w-[1000px]">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
                   <th className="px-6 py-4">
