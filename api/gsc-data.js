@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { access_token, startDate, endDate, rowLimit = 50 } = req.body || {};
+  const { access_token, startDate, endDate, rowLimit = 150 } = req.body || {};
   if (!access_token) return res.status(401).json({ error: 'Missing access_token' });
 
   try {

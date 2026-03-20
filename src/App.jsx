@@ -410,10 +410,10 @@ export default function App() {
         if (kws.length === 0) {
           alert("Nessuna keyword valida trovata nel file.");
         } else {
-          const limitedKws = kws.slice(0, 50);
+          const limitedKws = kws.slice(0, 150);
           setImportedKeywords(limitedKws);
-          if (kws.length > 50) {
-            alert(`Caricate le prime 50 keyword (su ${kws.length} trovate).`);
+          if (kws.length > 150) {
+            alert(`Caricate le prime 150 keyword (su ${kws.length} trovate).`);
           } else {
             alert(`Caricate ${kws.length} keyword con successo.`);
           }

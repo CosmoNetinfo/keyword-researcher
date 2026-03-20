@@ -48,8 +48,8 @@ export default function GSCInsights() {
     try {
       const startDate = getDateNDaysAgo(parseInt(dateRange));
       const [kwRes, pgRes] = await Promise.all([
-        fetch('/api/gsc-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: accessToken, rowLimit: 50, startDate }) }),
-        fetch('/api/gsc-pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: accessToken, rowLimit: 25, startDate }) }),
+        fetch('/api/gsc-data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: accessToken, rowLimit: 150, startDate }) }),
+        fetch('/api/gsc-pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: accessToken, rowLimit: 150, startDate }) }),
       ]);
       const kwData = await kwRes.json();
       const pgData = await pgRes.json();
