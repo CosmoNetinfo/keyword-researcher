@@ -18,10 +18,16 @@ ${category ? `Categoria: ${category}` : ''}
 Testo narrativo in italiano di 150-250 parole che includa:
 - Contesto e rilevanza dell'argomento nel 2026
 - Struttura consigliata (sezioni chiave da trattare)
-- Dati, statistiche o fatti tecnici specifici da includere
+- Dati, statistiche o fatti tecnici da includere SOLO se verificabili
+  da fonti ufficiali (siti ufficiali del progetto, documentazione,
+  benchmark pubblici). Se non disponibili, descrivere qualitativamente
+  senza inventare numeri o percentuali
 - Casi d'uso concreti per sviluppatori e utenti Linux
 - Confronto con alternative/competitor se pertinente
 - Conclusione con implicazioni future per il lettore
+
+VINCOLO: non inventare mai statistiche, percentuali o benchmark non
+documentati. Usare formule qualitative se i dati non sono verificabili.
 
 Scrivi SOLO il testo del brief. Inizia con "Scrivi un articolo...".`;
 
