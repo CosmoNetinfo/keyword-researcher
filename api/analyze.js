@@ -68,10 +68,11 @@ Richieste di volumi:
     let content = "";
 
     if (provider === "groq") {
+      const groqKey = env.GROQ_API_KEY || env.VITE_GROQ_API_KEY;
       const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${env.GROQ_API_KEY}`,
+          "Authorization": `Bearer ${groqKey}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
