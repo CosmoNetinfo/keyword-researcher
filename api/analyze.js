@@ -7,10 +7,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { url, finalTopic, provider } = req.body;
+    const { url, finalTopic, provider, customKeywords } = req.body;
 
     if (!url || !finalTopic || !provider) {
       return res.status(400).json({ error: 'Missing parameters' });
+    }
+
+    if (customKeywords && (!Array.isArray(customKeywords) || customKeywords.some(kw => typeof kw !== 'string' || kw.trim() === ''))) {
+      return res.status(400).json({ error: 'Invalid customKeywords format. Must be an array of non-empty strings.' });
     }
 
     // 1. Serper.dev Google Search integration
@@ -60,9 +64,11 @@ export default async function handler(req, res) {
     const prompt = `Sei un Esperto SEO italiano. Analizza il sito web e la nicchia forniti.
 Sito: "${url}"
 Nicchia: "${finalTopic}"
+${customKeywords?.length > 0 ? `KEYWORD SPECIFICHE DA ANALIZZARE: ${customKeywords.join(", ")}` : ""}
 
 DATA ATTUALE: Marzo 2026.
 OBIETTIVO CRITICO: I contenuti suggeriti devono essere focalizzati sul 2026, sulle tendenze attuali e future. 
+${customKeywords?.length > 0 ? "IMPORTANTISSIMO: Analizza prioritariamente le KEYWORD SPECIFICHE fornite sopra, determinandone difficoltà, intento e volume stimato nel 2026." : ""}
 EVITA ASSOLUTAMENTE LA RIPETIZIONE: Se hai già suggerito certi argomenti in precedenza (basati sulla nicchia), cerca angolazioni nuove, sotto-nicchie specifiche e trend emergenti. Massima varietà e originalità.
 NON suggerire articoli, guide o notizie relative al 2024 o 2025 (sono considerate obsolete).
 
@@ -80,7 +86,7 @@ Restituisci l'analisi in ESCLUSIVAMENTE formato JSON valido, senza introdurre te
 ${trendingContext}
 
 Richieste di volumi:
-- 30 Keyword in focus (coprendo diversi intenti e sotto-argomenti).
+- ${customKeywords?.length > 0 ? `${customKeywords.length} Keyword specifica/e fornite più altre` : "30"} Keyword in focus (coprendo diversi intenti e sotto-argomenti).
 - 20 Nuovi Articoli da produrre per il 2026 (diversificati: guide, news, tutorial, opinioni).
 - 10 Articoli da aggiornare alle ultime novità del 2026.`;
 

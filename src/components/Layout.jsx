@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import { Menu } from 'lucide-react';
 
 const Layout = ({ children, activeView, setView, dueCount }) => {
+  console.log("Layout component rendering", { activeView, childrenCount: React.Children.count(children) });
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   return (

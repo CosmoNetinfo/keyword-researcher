@@ -188,8 +188,10 @@ async function _exportWord(analysis) {
   link.click();
 }
 
+console.log("App component initialization started");
 export default function App() {
-  const [view, setView] = useState("piano"); // Default to piano editoriale
+  console.log("App function executing");
+  const [view, setView] = useState("new"); // Debuuging: default to new
   const [url, setUrl] = useState("cosmonet.info");
   const [topic, setTopic] = useState(TOPICS[0]);
   const [customTopic, setCustomTopic] = useState("");
@@ -200,6 +202,7 @@ export default function App() {
   const [analyses, setAnalyses] = useState([]);
   const [currentId, setCurrentId] = useState(null);
   const [pianoItems, setPianoItems] = useState([]);
+  const [importedKeywords, setImportedKeywords] = useState([]);
 
   // FEAT 4: Dynamic Browser Tab Title
   useEffect(() => {
@@ -385,6 +388,50 @@ export default function App() {
     if (currentId === id) setCurrentId(null); 
   }
 
+  async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    try {
+      const XLSX = await loadXLSX();
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        
+        // Extract keywords from the first column of each row
+        const kws = data
+          .map(row => row[0])
+          .filter(val => typeof val === 'string' && val.trim() !== '')
+          .map(val => val.trim());
+
+        if (kws.length === 0) {
+          alert("Nessuna keyword valida trovata nel file.");
+        } else {
+          const limitedKws = kws.slice(0, 50);
+          setImportedKeywords(limitedKws);
+          if (kws.length > 50) {
+            alert(`Caricate le prime 50 keyword (su ${kws.length} trovate).`);
+          } else {
+            alert(`Caricate ${kws.length} keyword con successo.`);
+          }
+        }
+        setLoading(false);
+      };
+      reader.readAsBinaryString(file);
+    } catch (err) {
+      console.error("Errore caricamento file:", err);
+      alert("Errore durante il caricamento del file.");
+      setLoading(false);
+    }
+    // Reset input
+    e.target.value = '';
+  }
+
   async function runResearch(overrideTopic, pianoId) {
     const targetTopic = overrideTopic || finalTopic;
     if (!url || !targetTopic) return;
@@ -401,7 +448,7 @@ export default function App() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, finalTopic: targetTopic, provider }),
+        body: JSON.stringify({ url, finalTopic: targetTopic, provider, customKeywords: importedKeywords }),
       });
 
       setPhaseIndex(2);
@@ -458,354 +505,410 @@ export default function App() {
 
   return (
     <Layout activeView={view} setView={setView} dueCount={dueCount}>
-
-
-
-      {view === "new" && (
-        <main className="max-w-[1000px] mx-auto">
-          <section className="card-premium animate-fade-up border-slate-200/60 shadow-xl shadow-slate-200/40" style={{ marginBottom: 40 }}>
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                <Search className="text-indigo-600" size={20} />
-              </div>
-              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Nuova Ricerca Strategica</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Il tuo sito</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <ExternalLink size={16} className="text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
-                  </div>
-                  <input 
-                    value={url} 
-                    onChange={e => setUrl(e.target.value)} 
-                    placeholder="cosmonet.info" 
-                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
-                  />
-                  <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest pointer-events-none">target</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Argomento / Nicchia</label>
-                <select 
-                  value={topic} 
-                  onChange={e => setTopic(e.target.value)}
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-bold focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none appearance-none cursor-pointer"
-                >
-                  {TOPICS.map(t => <option key={t}>{t}</option>)}
-                  <option value="Personalizzato">Personalizzato...</option>
-                </select>
-              </div>
-            </div>
-
-            {topic === "Personalizzato" && (
-              <div className="mb-8 animate-fade-up">
-                <input 
-                  value={customTopic} 
-                  onChange={e => setCustomTopic(e.target.value)} 
-                  placeholder="Es: Domotica per la casa, Fotografia Digitale..." 
-                  className="w-full px-5 py-3.5 bg-indigo-50/30 border border-indigo-100 rounded-2xl text-indigo-900 font-bold placeholder:text-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
-                />
-              </div>
-            )}
-            
-            <div className="space-y-2 mb-10">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Modello di Intelligenza Artificiale</label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {[
-                  { id: 'groq', name: 'Groq LLaMA 3.3', speed: 'Ultra Veloce', color: 'indigo' },
-                  { id: 'gemini', name: 'Google Gemini 2.0', speed: 'Smart & Link', color: 'emerald' },
-                  { id: 'claude', name: 'Claude 3.5 Sonnet', speed: 'Qualità Massima', color: 'amber' }
-                ].map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setProvider(p.id)}
-                    className={cn(
-                      "flex flex-col items-start p-4 rounded-2xl border-2 transition-all",
-                      provider === p.id 
-                        ? "bg-white border-indigo-600 shadow-md ring-4 ring-indigo-50" 
-                        : "bg-slate-50 border-transparent hover:border-slate-200"
-                    )}
-                  >
-                    <span className={cn("text-xs font-bold mb-1", provider === p.id ? "text-indigo-600" : "text-slate-600")}>{p.name}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">{p.speed}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button 
-              onClick={() => runResearch()} 
-              disabled={loading} 
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-2xl font-extrabold text-lg shadow-xl shadow-indigo-600/30 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="animate-spin" size={24} />
-                  <span>Elaborazione Strategica...</span>
-                </>
-              ) : (
-                <>
-                  <span>Avvia Analisi Strategica</span>
-                  <Search size={20} strokeWidth={3} />
-                </>
-              )}
-            </button>
-          </section>
-
-          {loading && (
-            <div className="insights-box">
-               <div style={{ fontWeight: 600, marginBottom: 12 }}>Avanzamento:</div>
-               {PHASES.map((p, i) => (
-                 <div key={i} style={{ opacity: i <= phaseIndex ? 1 : 0.4, display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
-                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: i < phaseIndex ? '#137333' : (i === phaseIndex ? 'var(--color-primary)' : '#dadce0') }}></div>
-                   <span style={{ fontSize: 13 }}>{p}</span>
-                 </div>
-               ))}
-            </div>
-          )}
-
-          {error && <div className="insights-box" style={{ background: '#fce8e6', borderLeftColor: '#c5221f', color: '#c5221f' }}>{error}</div>}
-
-          {current && result && (
-            <div style={{ marginTop: 40, animation: "fadeUp 0.3s ease" }}>
-              {result.insights && <div className="insights-box">{result.insights}</div>}
-              
-              <div className="tabs-container" style={{ display: 'flex', gap: 32, borderBottom: '1px solid #e2e8f0', marginBottom: 32, overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: 2 }}>
-                {tabs.map(t => (
-                  <button key={t.key} onClick={() => startTransition(() => setActiveTab(t.key))} style={{ background: 'none', border: 'none', padding: '12px 0', fontSize: 14, fontWeight: activeTab === t.key ? 700 : 500, color: activeTab === t.key ? 'var(--color-primary)' : '#64748b', borderBottom: activeTab === t.key ? '3px solid var(--color-primary)' : '3px solid transparent', cursor: 'pointer', outline: 'none' }}>
-                    {t.label} <span style={{ opacity: 0.6, fontSize: '0.8em', marginLeft: 4 }}>{t.count}</span>
-                  </button>
-                ))}
-              </div>
-
-
-              {activeTab === "articles" && newArticles.length > 0 && (
-                <div className="animate-[fadeUp_0.3s_ease]">
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
-                        <Plus className="text-indigo-600" size={18} />
-                      </div>
-                      Nuovi Contenuti Suggeriti
-                    </h3>
-                    <button onClick={() => startTransition(() => addAllToPiano())}
-                            className="bg-electric-blue text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-electric-blue/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2">
-                       <Plus size={18} strokeWidth={3} /> Aggiungi tutti al Piano ({newArticles.length})
-                    </button>
-                  </div>
-                  
-                  <SectionTable
-                    headers={["#", "Titolo Articolo", "Descrizione Strategica", "Keyword", "Diff", "Azioni"]}
-                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[35%] text-slate-500 italic text-[13px] leading-relaxed", "w-[15%]", "w-[100px] text-center", "w-[180px] text-right"]}
-                    rows={newArticles.map((a, i) => {
-                      const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
-                      return [
-                        i + 1,
-                        decodeHTML(a.title),
-                        a.description,
-                        <div className="flex flex-wrap gap-1">{(a.keywords || []).slice(0, 3).map(k => <span key={k} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold border border-slate-200 uppercase">{k}</span>)}</div>,
-                        <div className="flex justify-center"><Pill text={a.priority} map={DIFF_COLORS} /></div>,
-                        <div className="flex items-center justify-end gap-3">
-                          {exists ? (
-                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold border border-emerald-100 italic">
-                               <Check size={14} strokeWidth={3} /> In Piano
-                             </div>
-                          ) : (
-                            <button onClick={() => startTransition(() => addToPiano(a, "nuovo"))}
-                                    className="px-4 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-bold border border-slate-200 hover:border-electric-blue hover:text-electric-blue transition-all shadow-sm">
-                              + Aggiungi
-                            </button>
-                          )}
-                        </div>
-                      ];
-                    })}
-                  />
-                </div>
-              )}
-
-
-              {activeTab === "updates" && (
-                <div className="animate-[fadeUp_0.3s_ease]">
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
-                    <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
-                      <RefreshCw className="text-amber-600" size={18} />
-                    </div>
-                    Contenuti da Ottimizzare
-                  </h3>
-                  <SectionTable
-                    headers={["#", "Pagina Corrente", "Strategia SEO", "Link", "Diff", "Azione"]}
-                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[35%] text-slate-500 italic text-[13px] leading-relaxed", "w-[15%]", "w-[100px] text-center", "w-[180px] text-right"]}
-                    rows={updateArticles.map((a, i) => {
-                      return [
-                        i + 1,
-                        decodeHTML(a.title),
-                        a.update_reason || a.description,
-                        <a href={a.existing_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-bold border border-slate-200 hover:bg-white hover:text-electric-blue transition-all">
-                          <ExternalLink size={12} /> Visita
-                        </a>,
-                        <div className="flex justify-center"><Pill text={a.priority} map={DIFF_COLORS} /></div>,
-                        <div className="flex items-center justify-end">
-                          <button onClick={() => startTransition(() => addToPiano(a, "aggiornare"))}
-                                  className="px-4 py-1.5 bg-white text-slate-600 rounded-xl text-xs font-bold border border-slate-200 hover:border-electric-blue hover:text-electric-blue transition-all shadow-sm">
-                            + Piano
-                          </button>
-                        </div>
-                      ];
-                    })}
-                  />
-                </div>
-              )}
-
-
-              {activeTab === "keywords" && (
-                <div className="animate-[fadeUp_0.3s_ease]">
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
-                      <Search className="text-indigo-600" size={18} />
-                    </div>
-                    Ricerca Keyword & Trend
-                  </h3>
-                  <SectionTable
-                    headers={["#", "Parola Chiave", "AI Diff", "Real Diff", "Ads", "Intento", "Vol / Mese"]}
-                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[15%] text-center", "w-[15%] text-center", "w-[10%] text-center", "w-[15%] text-center", "w-[15%] text-right font-mono text-[13px] text-slate-600"]}
-                    rows={result.keywords?.map((kw, i) => [
-                      i + 1,
-                      kw.keyword,
-                      <div className="flex justify-center"><Pill text={kw.difficulty} map={DIFF_COLORS} /></div>,
-                      <div className="flex justify-center"><Pill text={kw.difficulty_real || kw.difficulty} map={DIFF_COLORS} /></div>,
-                      <span className={cn("text-xs font-bold", kw.serper_ads > 2 ? "text-rose-500" : "text-slate-400")}>
-                        {kw.serper_ads !== undefined ? `${kw.serper_ads} ads` : '—'}
-                      </span>,
-                      <div className="flex justify-center"><Pill text={kw.intent} map={INTENT_COLORS} /></div>,
-                      kw.volume || '~100'
-                    ])}
-                  />
-                </div>
-              )}
-
-
-              {activeTab === "competitors" && (
-                <div className="animate-[fadeUp_0.3s_ease]">
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
-                    <div className="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center">
-                      <BarChart3 className="text-rose-600" size={18} />
-                    </div>
-                    Analisi dei Competitor
-                  </h3>
-                  <SectionTable
-                    headers={["#", "Sito / Competitor", "URL / Link Esterno", "Focus Strategico"]}
-                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[25%] font-bold text-slate-900", "w-[30%] font-mono text-[11px]", "w-[40%] text-slate-500 text-[13px] leading-relaxed"]}
-                    rows={result.competitors?.map((c, i) => [
-                      i + 1,
-                      c.name,
-                      <a href={c.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-bold border border-slate-200 hover:bg-white hover:text-electric-blue transition-all">
-                        <ExternalLink size={12} /> Visita Sito
-                      </a>,
-                      c.strength
-                    ])}
-                  />
-                </div>
-              )}
-
-              {activeTab === "existing" && (
-                <div className="animate-[fadeUp_0.3s_ease]">
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-6">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
-                      <CheckCircle2 className="text-emerald-600" size={18} />
-                    </div>
-                    Contenuti Già Pubblicati
-                  </h3>
-                  <SectionTable
-                    headers={["#", "Titolo Pagina", "Argomento", "Link", "Stato SEO"]}
-                    columnClasses={["w-[50px] text-center font-bold text-slate-400", "w-[40%] font-bold text-slate-900", "w-[20%] text-slate-400", "w-[15%]", "w-[150px] text-center"]}
-                    rows={result.existing_articles?.map((a, i) => {
-                      const exists = pianoItems.some(p => p.title?.toLowerCase() === a.title?.toLowerCase());
-                      return [
-                        i + 1,
-                        decodeHTML(a.title),
-                        a.topic,
-                        <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[11px] font-bold border border-slate-200 hover:bg-white hover:text-electric-blue transition-all">
-                          <ExternalLink size={12} /> Apri
-                        </a>,
-                        <div className="flex flex-col items-center gap-1">
-                          <Pill text={a.status === "aggiornare" ? "media" : "bassa"} map={DIFF_COLORS} />
-                          {exists && <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-tighter">In Piano</span>}
-                        </div>
-                      ];
-                    })}
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end mt-8">
-                <button onClick={() => exportCSV(current)} className="bg-slate-50 text-slate-600 px-5 py-2 rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-100 transition-all flex items-center gap-2">
-                  <BarChart3 size={16} /> Esporta Risultati (.xlsx)
-                </button>
-              </div>
-
-            </div>
-          )}
-        </main>
-      )}
-
       {view === "history" && (
-        <main className="max-w-5xl mx-auto animate-[fadeUp_0.3s_ease]">
-          <div className="flex justify-between items-center mb-10">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Cronologia Analisi</h2>
-              <p className="text-slate-500 mt-1">Gestisci e consulta le tue ricerche SEO precedenti</p>
+              <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Cronologia Analisi</h1>
+              <p className="text-slate-500 mt-1">Gestisci e consulta le tue ricerche strategiche passate</p>
             </div>
           </div>
-
-          <SectionTable
-            headers={["Data", "Sito / Target", "Nicchia Analizzata", "Keyword Trovate", "Azioni"]}
-            columnClasses={["w-[150px] text-slate-500", "w-[30%] font-bold text-slate-900", "w-[25%] font-medium text-slate-600", "w-[15%] text-center", "w-[200px] text-right"]}
-            rows={analyses.length === 0 ? [] : analyses.map(a => [
-              new Date(a.date).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }),
-              <div className="flex flex-col">
-                <span className="font-bold">{a.url}</span>
-              </div>,
-              a.topic,
-              <div className="flex justify-center"><span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold border border-indigo-100">{a.result?.keywords?.length || 0}</span></div>,
-              <div className="flex justify-end gap-3">
-                <button onClick={() => startTransition(() => { setCurrentId(a.id); setView("new"); })} 
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Apri Analisi">
-                  <Search size={18} />
-                </button>
-                <button onClick={() => { if (window.confirm("Eliminare definitivamente?")) deleteAnalysis(a.id); }} 
-                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all" title="Elimina">
-                  <Plus size={18} className="rotate-45" />
-                </button>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {analyses.map((a) => (
+              <div key={a.id} 
+                onClick={() => { setCurrentId(a.id); setView("new"); }}
+                className="group bg-white rounded-3xl p-6 shadow-sm border border-slate-200 hover:border-primary/30 hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); if(confirm("Eliminare questa analisi?")) deleteAnalysis(a.id); }}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors rounded-xl"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                    <History className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 line-clamp-1">{a.topic}</h3>
+                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">{a.url}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 text-sm text-slate-500 mb-6">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <span>{new Date(a.date).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-50">
+                  <div className="bg-slate-50 rounded-2xl p-3 text-center">
+                    <div className="text-lg font-bold text-slate-900">{a.result?.keywords?.length || 0}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Keyword</div>
+                  </div>
+                  <div className="bg-slate-50 rounded-2xl p-3 text-center">
+                    <div className="text-lg font-bold text-slate-900">{(a.result?.articles || []).filter(art => art.type === "nuovo").length}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Articoli</div>
+                  </div>
+                </div>
               </div>
-            ])}
-          />
-        </main>
-      )}
-      {view === "trend" && (
-        <main className="max-w-7xl mx-auto animate-[fadeUp_0.3s_ease]">
-          <TrendMonitor />
-        </main>
+            ))}
+          </div>
+        </div>
       )}
 
+      {view === "trend" && (
+        <TrendMonitor onAction={(topic) => { setCustomTopic(topic); setTopic("Personalizzato"); setView("new"); }} />
+      )}
 
       {view === "piano" && (
-        <main>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <h2 style={{ margin: 0 }}>📅 Piano Editoriale</h2>
-            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-              Sync real-time con Firestore · aggiornato in automatico
-            </span>
+        <PianoEditoriale onGenerateAnalysis={(topic, id) => {
+          setUrl("cosmonet.info");
+          setTopic("Personalizzato");
+          setCustomTopic(topic);
+          runResearch(topic, id);
+        }} />
+      )}
+
+      {view === "new" && (
+        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+            
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-bold mb-6">
+                <Search className="w-4 h-4" />
+                AI Content Strategist
+              </div>
+              
+              <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Nuova Ricerca <span className="text-primary italic">Strategica</span>
+              </h1>
+              <p className="text-lg text-slate-500 max-w-2xl mb-12">
+                Inserisci un dominio e un argomento per generare un'analisi SEO completa basata sui dati reali del mercato.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700 ml-2 uppercase tracking-wider">Sito Web Target</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                      <ExternalLink className="h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    </div>
+                    <input
+                      type="text"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="block w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-primary/20 focus:bg-white text-slate-900 text-lg rounded-3xl transition-all outline-none"
+                      placeholder="es. cosmonet.info"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700 ml-2 uppercase tracking-wider">Argomento Principale</label>
+                  <div className="flex gap-3">
+                    <select
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      className="block flex-1 pl-6 pr-12 py-5 bg-slate-50 border-2 border-transparent focus:border-primary/20 focus:bg-white text-slate-900 text-lg rounded-3xl transition-all outline-none appearance-none"
+                    >
+                      {TOPICS.map(t => <option key={t} value={t}>{t}</option>)}
+                      <option value="Personalizzato">Altro...</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {topic === "Personalizzato" && (
+                <div className="mt-8 animate-in zoom-in-95 duration-300">
+                  <input
+                    type="text"
+                    value={customTopic}
+                    onChange={(e) => setCustomTopic(e.target.value)}
+                    className="block w-full px-8 py-5 bg-slate-50 border-2 border-primary/10 focus:border-primary/30 focus:bg-white text-slate-900 text-lg rounded-3xl transition-all outline-none"
+                    placeholder="Esempio: Strategie SEO per il 2024"
+                  />
+                </div>
+              )}
+
+              <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-8 pt-12 border-t border-slate-100">
+                <div className="flex items-center gap-6">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Modello AI</span>
+                    <div className="flex p-1.5 bg-slate-100 rounded-2xl">
+                      <button 
+                        onClick={() => setProvider("groq")}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                          provider === "groq" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+                        )}
+                      >Groq (Llama 3)</button>
+                      <button 
+                        onClick={() => setProvider("gemini")}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                          provider === "gemini" ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+                        )}
+                      >Gemini 2.0</button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Importa Keyword (CSV/XLSX)</span>
+                    <div className="flex items-center gap-3">
+                      <label 
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border-2",
+                          importedKeywords.length > 0 
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                            : "bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200"
+                        )}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        {importedKeywords.length > 0 ? `${importedKeywords.length} Keyword Caricate` : "Carica File"}
+                        <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileUpload} />
+                      </label>
+                      {importedKeywords.length > 0 && (
+                        <button 
+                          onClick={() => setImportedKeywords([])}
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          title="Rimuovi keyword"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  disabled={loading || !url || (topic === "Personalizzato" && !customTopic)}
+                  onClick={() => runResearch()}
+                  className={cn(
+                    "relative group overflow-hidden px-10 py-5 rounded-[2rem] font-bold text-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto",
+                    "bg-primary text-white shadow-xl shadow-primary/30 hover:shadow-2xl hover:shadow-primary/40"
+                  )}
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+                  <div className="relative flex items-center justify-center gap-3">
+                    {loading ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin" />
+                        <span>Analisi in corso...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Avvia Analisi Strategica</span>
+                        <Search className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </div>
+                </button>
+              </div>
+
+              {loading && (
+                <div className="mt-8 space-y-4 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-primary font-bold">{PHASES[phaseIndex]}</span>
+                    <span className="text-slate-400 text-sm font-medium">{Math.round(((phaseIndex + 1) / PHASES.length) * 100)}%</span>
+                  </div>
+                  <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden p-1">
+                    <div 
+                      className="h-full bg-primary rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+                      style={{ width: `${((phaseIndex + 1) / PHASES.length) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="mt-8 p-6 bg-red-50 border border-red-100 text-red-600 rounded-3xl flex items-center gap-4 animate-in slide-in-from-top-4 duration-300">
+                  <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <X className="w-5 h-5" />
+                  </div>
+                  <p className="font-bold">{error}</p>
+                </div>
+              )}
+            </div>
           </div>
-          <PianoEditoriale 
-            onAnalyze={(title, id) => runResearch(title, id)} 
-            onViewResults={(id) => startTransition(() => { setCurrentId(id); setView("new"); })}
-            loading={loading}
-          />
-        </main>
+
+          {result && (
+            <div className="space-y-12 pb-24 animate-in fade-in duration-1000">
+              {/* Header Risultati */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Risultati dell'Analisi</h2>
+                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-100">
+                      Successo
+                    </span>
+                  </div>
+                  <p className="text-slate-500 font-medium">Strategia generata per <span className="text-primary">{current.url}</span> su <span className="font-bold text-slate-700">{current.topic}</span></p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <button onClick={() => exportCSV(current)} className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
+                    <ExternalLink className="w-4 h-4" /> Esporta Excel
+                  </button>
+                  <button onClick={addAllToPiano} className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200">
+                    <Plus className="w-4 h-4" /> Aggiungi Tutti al Piano
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabs Moderni */}
+              <div className="px-4">
+                <div className="flex p-2 bg-slate-100/80 backdrop-blur-sm rounded-[2rem] border border-slate-200/50 w-full overflow-x-auto no-scrollbar">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={cn(
+                        "flex items-center gap-3 px-8 py-4 rounded-[1.5rem] font-bold text-sm transition-all whitespace-nowrap",
+                        activeTab === tab.key 
+                          ? "bg-white text-primary shadow-md shadow-slate-200" 
+                          : "text-slate-500 hover:text-slate-900"
+                      )}
+                    >
+                      {tab.label}
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-lg text-[10px]",
+                        activeTab === tab.key ? "bg-primary/10 text-primary" : "bg-slate-200 text-slate-500"
+                      )}>{tab.count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Contenuto Tab */}
+              <div className="space-y-8 px-4">
+                {activeTab === "articles" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {newArticles.map((art, i) => (
+                      <div key={i} className="group bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 hover:border-primary/20 transition-all duration-500 relative flex flex-col">
+                        <div className="flex items-start justify-between mb-6">
+                          <Pill text={art.priority} map={DIFF_COLORS} />
+                          <button 
+                            onClick={() => addToPiano(art, "nuovo")}
+                            className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all shadow-inner group-hover:scale-110"
+                          >
+                            <Plus className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 mb-3 leading-tight group-hover:text-primary transition-colors">{art.title}</h3>
+                        <p className="text-slate-500 text-sm leading-relaxed mb-6 flex-grow">{art.description}</p>
+                        <div className="flex flex-wrap gap-2 pt-6 border-t border-slate-50">
+                          {art.keywords?.map(k => (
+                            <span key={k} className="px-3 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-xl border border-slate-100 flex items-center gap-1.5">
+                              <Search className="w-3 h-3 text-slate-300" /> {k}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {activeTab === "updates" && (
+                  <SectionTable 
+                    headers={["Articolo", "Keyword", "Diff.", "Azioni"]}
+                    columnClasses={["w-1/2", "w-1/4", "w-1/8", "w-1/8 text-right"]}
+                    rows={updateArticles.map((art, i) => [
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-900 group-hover:text-primary transition-colors">{art.title}</span>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase mt-1">Slug: {art.slug || '—'}</span>
+                      </div>,
+                      <div className="flex flex-wrap gap-1">
+                        {art.keywords?.map(k => <span key={k} className="text-[10px] text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">{k}</span>)}
+                      </div>,
+                      <Pill text={art.priority} map={DIFF_COLORS} />,
+                      <button onClick={() => addToPiano(art, "aggiornamento")} className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all">
+                        <Plus className="w-5 h-5" />
+                      </button>
+                    ])}
+                  />
+                )}
+
+                {activeTab === "keywords" && (
+                  <SectionTable 
+                    headers={["Keyword", "Volume", "Intento", "Difficoltà", "AdWords", "Real Diff."]}
+                    columnClasses={["w-1/3 font-bold", "w-1/12", "w-1/6", "w-1/6", "w-1/12", "w-1/12"]}
+                    rows={(result.keywords || []).map((kw, i) => [
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-primary/40"></div>
+                        {kw.keyword}
+                      </div>,
+                      <span className="font-mono text-xs font-bold text-slate-600">{kw.volume || "—"}</span>,
+                      <Pill text={kw.intent} map={INTENT_COLORS} />,
+                      <Pill text={kw.difficulty} map={DIFF_COLORS} />,
+                      <span className="text-xs text-slate-500">{kw.cpc ? `$${kw.cpc}` : "—"}</span>,
+                      <div className="flex items-center gap-1">
+                        <div className={cn(
+                          "w-12 h-2 rounded-full bg-slate-100 overflow-hidden",
+                        )}>
+                          <div className={cn(
+                            "h-full rounded-full",
+                            kw.real_difficulty > 60 ? "bg-red-500" : kw.real_difficulty > 30 ? "bg-amber-500" : "bg-emerald-500"
+                          )} style={{ width: `${kw.real_difficulty || 0}%` }}></div>
+                        </div>
+                        <span className="text-[10px] font-bold">{kw.real_difficulty || "—"}</span>
+                      </div>
+                    ])}
+                  />
+                )}
+
+                {activeTab === "competitors" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {(result.competitors || []).map((c, i) => (
+                      <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                            <ExternalLink className="w-6 h-6" />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">#{i+1} Competitor</span>
+                        </div>
+                        <h3 className="font-black text-slate-900 mb-1 truncate">{c.url}</h3>
+                        <p className="text-xs text-slate-400 font-medium uppercase tracking-tight mb-4">{c.domain}</p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Rilevanza</span>
+                            <span className="font-bold text-slate-900">{c.relevance}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${c.relevance}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {activeTab === "existing" && (
+                  <SectionTable 
+                    headers={["Articolo", "URL", "Argomento", "Data"]}
+                    columnClasses={["w-1/2", "w-1/4", "w-1/8", "w-1/8"]}
+                    rows={(result.existing_articles || []).map((art, i) => [
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-900">{art.title}</span>
+                      </div>,
+                      <a href={art.url} target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
+                        Apri <ExternalLink className="w-3 h-3" />
+                      </a>,
+                      <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg">{art.topic || "N/A"}</span>,
+                      <span className="text-xs text-slate-400">{art.date || "N/A"}</span>
+                    ])}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </Layout>
   );
