@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ExternalLink, RefreshCw, Rss, Globe, TrendingUp } from "lucide-react";
+import { ExternalLink, RefreshCw, Rss, Globe, TrendingUp, Copy, Check } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -54,15 +54,24 @@ function SkeletonCard() {
 
 // ─── Trend Card ───────────────────────────────────────────────────────────────
 function TrendCard({ item }) {
+  const [copied, setCopied] = useState(false);
   const colors = CAT_COLORS[item.cat] || CAT_COLORS["tech-en"];
   const ago = timeAgo(item.date);
+
+  const handleCopy = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(item.title);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <a
       href={item.url}
       target="_blank"
       rel="noreferrer"
-      className="group block bg-white rounded-2xl border border-slate-100 p-4 hover:border-indigo-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+      className="group block bg-white rounded-2xl border border-slate-100 p-4 hover:border-indigo-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative"
     >
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <span className={cn(
@@ -72,11 +81,23 @@ function TrendCard({ item }) {
           <span className={cn("w-1.5 h-1.5 rounded-full", colors.dot)} />
           {item.sourceName}
         </span>
-        {ago && (
-          <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap flex-shrink-0">{ago}</span>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopy}
+            className={cn(
+              "p-1.5 rounded-lg transition-all",
+              copied ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-indigo-50 hover:text-indigo-600"
+            )}
+            title="Copia titolo"
+          >
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+          </button>
+          {ago && (
+            <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap flex-shrink-0">{ago}</span>
+          )}
+        </div>
       </div>
-      <p className="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-3 group-hover:text-indigo-700 transition-colors">
+      <p className="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-3 group-hover:text-indigo-700 transition-colors pr-2">
         {item.title}
       </p>
       <div className="mt-3 flex items-center gap-1 text-[10px] text-slate-400 font-medium">
