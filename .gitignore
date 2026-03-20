@@ -27,3 +27,9 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Workspace files
+*.code-workspace
+
+# CSV / test data files
+*.csv
