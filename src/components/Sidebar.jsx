@@ -6,6 +6,7 @@ import {
   Search, 
   PlusCircle,
   BarChart3,
+  BarChart2,
   Menu,
   X,
   TrendingUp
@@ -23,6 +24,7 @@ const Sidebar = ({ activeView, setView, dueCount, isOpen, onClose }) => {
     { id: 'new',    label: 'Nuova Analisi',    icon: Search },
     { id: 'trend',  label: 'Trend Monitor',    icon: TrendingUp },
     { id: 'history',label: 'Cronologia',       icon: History },
+    { id: 'gsc',    label: 'GSC Insights',     icon: BarChart2 },
   ];
 
   return (

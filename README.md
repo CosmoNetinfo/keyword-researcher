@@ -32,7 +32,15 @@ Resta sempre un passo avanti ai competitor:
 - **AI Enrichment**: Le ultime notizie dei competitor vengono iniettate nel prompt dell'analisi per suggerimenti sempre attuali.
 - **Filtri Rapidi**: Navigazione fluida tra nicchie italiane e internazionali.
 
-### 🤖 4. Multi-Engine AI Support
+### 📊 4. GSC Insights (Google Search Console)
+
+Dati reali e gratuiti per una strategia basata sui fatti:
+
+- **Integrazione Diretta**: Connessione sicura tramite OAuth2 alle API di Google Search Console.
+- **KPI Performance**: Visualizzazione istantanea di Click, Impressioni, CTR e Posizione Media.
+- **Analisi Query & Pagine**: Scopri quali keyword portano traffico e quali pagine performano meglio per cosmonet.info.
+
+### 🤖 5. Multi-Engine AI Support
 
 Utilizza il meglio della tecnologia LLM:
 
@@ -48,7 +56,7 @@ Utilizza il meglio della tecnologia LLM:
 - **Styling**: Vanilla CSS Premium con utility [Tailwind CSS 4](https://tailwindcss.com/)
 - **Database**: [Firebase Firestore](https://firebase.google.com/docs/firestore) (Real-time)
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **Backend API**: Node.js Serverless (Vercel)
+- **Backend API**: Node.js Serverless (Vercel) + **Google APIs**
 
 ---
 
@@ -58,12 +66,14 @@ Utilizza il meglio della tecnologia LLM:
 keyword-researcher/
 ├── api/                # Cloud Functions (Backend Serverless)
 │   ├── analyze.js      # Orchestrazione della ricerca tramite AI + RSS Context
+│   ├── gsc-data.js     # Recupero dati keyword da Search Console
+│   ├── gsc-pages.js    # Recupero dati pagine da Search Console
 │   ├── rss-trends.js   # Endpoint per il recupero dei trend dai competitor
 │   ├── rss-feeds.js    # Catalogo e parser per i feed RSS/Atom
 │   ├── wp-fetch.js     # Ponte sicuro con l'API WordPress 
 │   └── ...
 ├── src/                # Sorgenti Applicazione
-│   ├── components/     # UI Components (Piano Editoriale, Sidebar, Layout...)
+│   ├── components/     # UI Components (Piano Editoriale, Sidebar, GSCInsights...)
 │   ├── App.jsx         # Logica principale e visualizzazione Analisi
 │   ├── App.css         # Styling Premium e Design System
 │   └── firebase.js     # Connessione al database real-time
@@ -96,6 +106,7 @@ GROQ_API_KEY=...
 GEMINI_API_KEY=...
 ANTHROPIC_API_KEY=...
 SERPER_API_KEY=... # Necessario per la ricerca Google dei competitor
+VITE_GSC_CLIENT_ID=... # Client ID per l'integrazione Google Search Console
 ```
 
 ### 4. Avvio Sviluppo
@@ -106,7 +117,7 @@ Per il solo frontend:
 npm run dev
 ```
 
-Per testare le API (WordPress, SEO Check, AI) è necessario usare Vercel CLI:
+Per testare le API (WordPress, SEO Check, AI, GSC) è necessario usare Vercel CLI:
 
 ```bash
 vercel dev
@@ -118,10 +129,10 @@ vercel dev
 
 L'ultima versione include un redesign completo:
 
-- **Layout Nuova Analisi**: Una dashboard pulita e strutturata per avviare le ricerche con URL target pre-impostato.
+- **GSC Insights**: Nuovo tab dedicato per l'analisi delle performance organiche reali.
 - **Trend Monitor**: Una nuova vista dedicata per lo scouting delle notizie in tempo reale.
 - **Ottimizzazione Categorie**: Un sistema di filtraggio bilanciato che mostra le categorie principali come tasti rapidi.
-- **Micro-animazioni**: Feedback visivi fluidi durante la navigazione e il caricamento delle analisi.
+- **Fix di Produzione**: Risolti i ReferenceError e gli errori di build riscontrati in precedenza.
 
 ---
 

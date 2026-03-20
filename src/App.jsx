@@ -1,4 +1,4 @@
-import { useState, useEffect, startTransition, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from "./firebase";
 import { 
   collection, 
@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
 import TrendMonitor from "./components/TrendMonitor";
+import GSCInsights from "./components/GSCInsights";
 import Layout from "./components/Layout";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -26,7 +27,10 @@ import {
   Plus,
   RefreshCw,
   Clock,
-  Check
+  Check,
+  Trash2,
+  History,
+  X
 } from "lucide-react";
 
 function cn(...inputs) {
@@ -60,12 +64,6 @@ function prioritaToDiff(priority) {
   return "bassa";
 }
 
-function decodeHTML(str) {
-  if (!str) return "";
-  const txt = document.createElement('textarea');
-  txt.innerHTML = str;
-  return txt.value;
-}
 
 function topicToCat(topic) {
   if (!topic) return "ai";
@@ -575,6 +573,10 @@ export default function App() {
         }} />
       )}
 
+      {view === "gsc" && (
+        <GSCInsights />
+      )}
+
       {view === "new" && (
         <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
@@ -819,7 +821,7 @@ export default function App() {
                   <SectionTable 
                     headers={["Articolo", "Keyword", "Diff.", "Azioni"]}
                     columnClasses={["w-1/2", "w-1/4", "w-1/8", "w-1/8 text-right"]}
-                    rows={updateArticles.map((art, i) => [
+                    rows={updateArticles.map((art) => [
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-900 group-hover:text-primary transition-colors">{art.title}</span>
                         <span className="text-[10px] text-slate-400 font-medium uppercase mt-1">Slug: {art.slug || '—'}</span>
@@ -839,7 +841,7 @@ export default function App() {
                   <SectionTable 
                     headers={["Keyword", "Volume", "Intento", "Difficoltà", "AdWords", "Real Diff."]}
                     columnClasses={["w-1/3 font-bold", "w-1/12", "w-1/6", "w-1/6", "w-1/12", "w-1/12"]}
-                    rows={(result.keywords || []).map((kw, i) => [
+                    rows={(result.keywords || []).map((kw) => [
                       <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary/40"></div>
                         {kw.keyword}
@@ -893,7 +895,7 @@ export default function App() {
                   <SectionTable 
                     headers={["Articolo", "URL", "Argomento", "Data"]}
                     columnClasses={["w-1/2", "w-1/4", "w-1/8", "w-1/8"]}
-                    rows={(result.existing_articles || []).map((art, i) => [
+                    rows={(result.existing_articles || []).map((art) => [
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-900">{art.title}</span>
                       </div>,
