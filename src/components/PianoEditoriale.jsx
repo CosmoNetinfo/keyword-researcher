@@ -844,26 +844,26 @@ Scrivi SOLO il testo del brief. Inizia con "Scrivi un articolo...".`;
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
         {[
           { label: "Totali", val: stats.total,       color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-500", filter: "all" },
-          { label: "Pubblicati",      val: stats.pubblicati,  color: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", accent: "bg-emerald-500", filter: "pubblicato" },
-          { label: "Programmati",    val: stats.programmato, color: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", accent: "bg-amber-500", filter: "programmato" },
-          { label: "In corso",        val: stats.lavorazione, color: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", accent: "bg-blue-500", filter: "in_lavorazione" },
-          { label: "Da scrivere",     val: stats.daFare,      color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-400", filter: "da_scrivere" },
-          { label: "Progress",        val: pct + "%",         color: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", accent: "bg-violet-500" },
+          { label: "Pubblicati",  val: stats.pubblicati,  color: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", accent: "bg-emerald-500", filter: "pubblicato" },
+          { label: "Programmati", val: stats.programmato, color: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", accent: "bg-amber-500", filter: "programmato" },
+          { label: "In corso",    val: stats.lavorazione, color: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", accent: "bg-blue-500", filter: "in_lavorazione" },
+          { label: "Da scrivere", val: stats.daFare,      color: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", accent: "bg-slate-400", filter: "da_scrivere" },
+          { label: "Progress",    val: pct + "%",         color: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", accent: "bg-violet-500" },
         ].map(s => (
           <button 
             key={s.label} 
             disabled={!s.filter}
             onClick={() => s.filter && setFilter(f => ({...f, status: s.filter}))}
             className={cn(
-              "relative p-3 md:p-4 rounded-2xl border transition-all text-left w-full sm:w-auto md:w-full",
-              s.filter ? "hover:shadow-lg hover:-translate-y-1 cursor-pointer" : "cursor-default",
+              "relative px-2 py-1.5 rounded-lg border transition-all text-left w-full sm:w-auto md:w-full",
+              s.filter ? "hover:shadow-sm hover:-translate-y-0.5 cursor-pointer" : "cursor-default",
               s.color, s.border,
-              filter.status === s.filter && "ring-2 ring-electric-blue ring-offset-2"
+              filter.status === s.filter && "ring-2 ring-electric-blue ring-offset-1"
             )}
           >
-            <div className={cn("text-xl md:text-2xl font-bold font-inter", s.text)}>{s.val}</div>
-            <div className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5 md:mt-1">{s.label}</div>
-            <div className={cn("absolute top-0 left-0 w-full h-1 rounded-t-2xl", s.accent)} />
+            <div className={cn("text-base font-bold font-inter leading-tight", s.text)}>{s.val}</div>
+            <div className="text-[7px] font-bold uppercase tracking-wider text-slate-500 mt-0.5">{s.label}</div>
+            <div className={cn("absolute top-0 left-0 w-full h-0.5 rounded-t-lg", s.accent)} />
           </button>
         ))}
       </div>
