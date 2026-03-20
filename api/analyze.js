@@ -89,6 +89,10 @@ ${trendingContext}
 Richieste di volumi:
 - ${customKeywords?.length > 0 ? `${customKeywords.length} Keyword specifica/e fornite più altre` : "30"} Keyword in focus (coprendo diversi intenti e sotto-argomenti).
 - 20 Nuovi Articoli da produrre per il 2026 (diversificati: guide, news, tutorial, opinioni).
+- VINCOLO TOPIC: suggerisci SOLO argomenti realmente esistenti e verificabili. 
+  Non inventare prodotti, distribuzioni, tool o software che non esistono o 
+  non sono pertinenti alla nicchia. Ogni titolo suggerito deve riferirsi a 
+  qualcosa che esiste concretamente nel 2026.
 - 10 Articoli da aggiornare alle ultime novità del 2026.`;
 
     let content = "";
@@ -104,7 +108,7 @@ Richieste di volumi:
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [{ role: "user", content: prompt }],
-          temperature: 0.7,
+          temperature: 0.4,
           response_format: { type: "json_object" }
         })
       });
@@ -121,7 +125,7 @@ Richieste di volumi:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, responseMimeType: "application/json" }
+            generationConfig: { temperature: 0.4, responseMimeType: "application/json" }
           })
         }
       );
