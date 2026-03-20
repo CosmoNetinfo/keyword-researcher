@@ -93,6 +93,10 @@ Richieste di volumi:
   Non inventare prodotti, distribuzioni, tool o software che non esistono o 
   non sono pertinenti alla nicchia. Ogni titolo suggerito deve riferirsi a 
   qualcosa che esiste concretamente nel 2026.
+  In particolare: ogni software, tool o applicazione citata nel titolo 
+  deve avere una versione nativa o ufficialmente supportata su Linux. 
+  Non suggerire mai app mobile-only, Windows-only o SaaS web-only 
+  spacciandole per strumenti Linux.
 - 10 Articoli da aggiornare alle ultime novità del 2026.`;
 
     let content = "";
