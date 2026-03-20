@@ -154,6 +154,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [showDuplicateReview, setShowDuplicateReview] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: "month", direction: "asc" }); // Default: per data (mese)
   const [wpCategories, setWPCategories] = useState([]);
+  const [briefStatus, setBriefStatus] = useState({});
 
   const PER_PAGE = 50; // Come richiesto nel Fix 1
 
@@ -501,6 +502,57 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       alert("Errore durante il refresh: " + e.message);
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  // ── Genera e Copia Brief SEO ──────────────────────────────────────────────
+  async function handleCopyBrief(article) {
+    setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
+    try {
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+      if (!apiKey) throw new Error("Manca VITE_GROQ_API_KEY");
+
+      const prompt = `Sei un editor SEO esperto di cosmonet.info, blog tech italiano.
+Scrivi un brief dettagliato per un articolo su: ${article.title}
+
+Testo narrativo in italiano di 150-250 parole che includa:
+- Contesto e rilevanza dell'argomento nel 2026
+- Struttura consigliata (sezioni chiave da trattare)
+- Dati, statistiche o fatti tecnici specifici da includere
+- Casi d'uso concreti per sviluppatori e utenti Linux
+- Confronto con alternative/competitor se pertinente
+- Conclusione con implicazioni future per il lettore
+
+Scrivi SOLO il testo del brief. Inizia con "Scrivi un articolo...".`;
+
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+           model: "llama-3.3-70b-versatile",
+           messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      if (!response.ok) throw new Error("Errore API Groq");
+      const data = await response.json();
+      const text = data.choices[0]?.message?.content;
+      if (!text) throw new Error("Nessun testo restituito");
+
+      await navigator.clipboard.writeText(text);
+      setBriefStatus(prev => ({ ...prev, [article.id]: 'success' }));
+      setTimeout(() => {
+        setBriefStatus(prev => ({ ...prev, [article.id]: null }));
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      setBriefStatus(prev => ({ ...prev, [article.id]: 'error' }));
+      setTimeout(() => {
+        setBriefStatus(prev => ({ ...prev, [article.id]: null }));
+      }, 3000);
     }
   }
 
@@ -1336,6 +1388,27 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                                <Search size={16} />
                              </button>
                           )}
+                          <button
+                            onClick={() => handleCopyBrief(a)}
+                            disabled={briefStatus[a.id] === 'loading'}
+                            title="Copia Brief"
+                            className={cn(
+                              "flex items-center gap-1 p-1.5 rounded-lg transition-all text-[10px] font-bold whitespace-nowrap",
+                              briefStatus[a.id] === 'error' ? "bg-red-50 text-red-600" :
+                              briefStatus[a.id] === 'success' ? "bg-emerald-50 text-emerald-600" :
+                              "bg-slate-50 text-slate-600 hover:bg-slate-200"
+                            )}
+                          >
+                            {briefStatus[a.id] === 'loading' ? (
+                              <><RefreshCw size={14} className="animate-spin" /> Generando...</>
+                            ) : briefStatus[a.id] === 'success' ? (
+                              <><CheckCircle2 size={14} /> Copiato!</>
+                            ) : briefStatus[a.id] === 'error' ? (
+                              <><AlertTriangle size={14} /> Errore, riprova</>
+                            ) : (
+                              <><FileText size={16} /> Copia Brief</>
+                            )}
+                          </button>
                           {!isDone && (
                             <button 
                               onClick={() => createWPDraft(a)} 
