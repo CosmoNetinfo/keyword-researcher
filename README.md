@@ -1,138 +1,71 @@
-# 🚀 Keyword Researcher & Piano Editoriale AI
+# 🚀 CosmoNet Keyword Researcher & Editorial Suite
 
-**Keyword Researcher Pro** è una potente suite "All-in-One" progettata per SEO, Content Manager e Copywriter. Automatizza l'intero processo editoriale: dalla scoperta di keyword alla generazione di idee, fino alla gestione di un piano editoriale sincronizzato in tempo reale con WordPress.
+**Keyword Researcher Pro** è una suite avanzata per SEO e Content Strategy, progettata per massimizzare il traffico organico di `cosmonet.info`. Automatizza l'intero workflow: dalla scoperta di opportunità reali in Google Search Console alla creazione di brief ottimizzati tramite AI.
 
 ---
 
-## 💎 Caratteristiche Principali
+## 🎯 Miglioramenti Traffico SEO (Update Marzo 2026)
 
-### 🔍 1. Nuova Analisi (AI Research)
+L'ultima versione introduce una sinergia profonda tra dati reali di traffico e intelligenza artificiale:
 
-Trasforma un semplice URL e un argomento in una strategia completa:
+### 1. 📊 GSC Insights ↔ Nuova Analisi
+Non limitarti a guardare i dati: trasformali in azioni.
+- **Badge QW (Quick Win):** Identifica keyword in posizione 5-20 con alto potenziale.
+- **Analisi Istantanea:** Lancia un'analisi AI dedicata direttamente da una keyword GSC con un click.
 
-- **Analisi Competitor**: Scansione automatica per identificare i principali player della nicchia.
-- **Content Gap Analysis**: Identifica cosa manca al tuo sito rispetto ai competitor.
-- **Keyword Blueprint**: Genera liste di parole chiave con volumi, difficoltà AI e intento di ricerca.
-- **Ideazione Contenuti**: Suggerisce nuovi articoli e aggiornamenti per massimizzare il ROI del traffico.
+### 2. 🎯 Filtro Quick Win nel Piano Editoriale
+Prioritizza i contenuti che possono portarti in Top 3 più velocemente.
+- **Filtro Intelligente:** Un toggle riorganizza il piano editoriale mostrando prima gli articoli con alto volume e posizionamento scalabile.
+- **Badge QW ai Titoli:** Riconoscimento immediato degli articoli ad alto potenziale nel calendario.
 
-### 📅 2. Piano Editoriale Premium
+### 3. 🤖 Modalità AI "Quick Win"
+Quando l'analisi parte da una keyword GSC, l'AI adatta il suo comportamento:
+- **Focus Ottimizzazione:** Invece di suggerire nuovi argomenti, l'AI si concentra sull'approfondimento e l'aggiornamento per superare i competitor in Top 3.
+- **Banner Stato:** Indicazione chiara in UI quando la modalità ottimizzata è attiva.
 
-Un centro di controllo per il tuo calendario di pubblicazione:
+### 4. 📡 Trend Monitor → Piano Editoriale
+Cogli le notizie al volo e pianificale subito.
+- **Integrazione "One-Click":** Aggiungi qualsiasi trend dai competitor direttamente al Piano Editoriale come articolo "Da scrivere".
+- **Feedback Real-time:** Conferma immediata dell'aggiunta con stato sincronizzato.
 
-- **Sincronizzazione WordPress**: Importazione bidirezionale di articoli pubblicati e programmati tramite API REST.
-- **Filtri Intelligenti**: Organizzazione dei contenuti per anno, mese e categorie (con filtro rapido per le categorie principali).
-- **Vista Calendario & Tabella**: Passa da una visualizzazione tabellare dettagliata a una panoramica mensile.
-- **Check SEO On-Page**: Verifica istantaneamente la salute SEO dei tuoi articoli online.
+---
 
-### 📡 3. Trend Monitor (Real-time RSS)
+## 💎 Caratteristiche Core
 
-Resta sempre un passo avanti ai competitor:
-
-- **Multi-Source Feed**: Monitoraggio di oltre 60 sorgenti (Linux, AI, Gaming, Tech) in tempo reale.
-- **AI Enrichment**: Le ultime notizie dei competitor vengono iniettate nel prompt dell'analisi per suggerimenti sempre attuali.
-- **Filtri Rapidi**: Navigazione fluida tra nicchie italiane e internazionali.
-
-### 📊 4. GSC Insights (Google Search Console)
-
-Dati reali e gratuiti per una strategia basata sui fatti:
-
-- **Integrazione Diretta**: Connessione sicura tramite OAuth2 alle API di Google Search Console.
-- **KPI Performance**: Visualizzazione istantanea di Click, Impressioni, CTR e Posizione Media.
-- **Analisi Query & Pagine**: Scopri quali keyword portano traffico e quali pagine performano meglio per cosmonet.info.
-
-### 🤖 5. Multi-Engine AI Support
-
-Utilizza il meglio della tecnologia LLM:
-
-- **Groq (LLaMA 3.3)**: Velocità estrema per analisi istantanee.
-- **Google Gemini 2.0**: Accuratezza e profondità di ragionamento.
-- **Anthropic Claude 3.5**: Eccellente per la generazione di testi e descrizioni creative.
+- **Analisi AI Multi-Engine**: Supporto per Groq (Llama 3.3), Gemini 2.0 e Claude 3.5.
+- **Sincronizzazione WordPress**: Importazione automatica di articoli pubblicati/programmati e generazione di bozze.
+- **SEO Check Integrato**: Verifica on-page dei parametri critici (Titolo, H1, Meta Description).
+- **Trend Monitor RSS**: Monitoraggio di oltre 60 fonti tech, AI e Linux in tempo reale.
 
 ---
 
 ## 🛠 Stack Tecnologico
 
-- **Frontend**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
-- **Styling**: Vanilla CSS Premium con utility [Tailwind CSS 4](https://tailwindcss.com/)
-- **Database**: [Firebase Firestore](https://firebase.google.com/docs/firestore) (Real-time)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Backend API**: Node.js Serverless (Vercel) + **Google APIs**
+- **Frontend**: React 19 + Vite + Tailwind CSS
+- **Database**: Firebase Firestore (Real-time sync)
+- **Backend**: Node.js Serverless (Vercel)
+- **APIs**: Google Search Console, Serper.dev, Groq, Gemini, WordPress.
 
 ---
 
-## 📁 Struttura del Progetto
+## 🛠 Installazione e Sviluppo
 
-```text
-keyword-researcher/
-├── api/                # Cloud Functions (Backend Serverless)
-│   ├── analyze.js      # Orchestrazione della ricerca tramite AI + RSS Context
-│   ├── gsc-data.js     # Recupero dati keyword da Search Console
-│   ├── gsc-pages.js    # Recupero dati pagine da Search Console
-│   ├── rss-trends.js   # Endpoint per il recupero dei trend dai competitor
-│   ├── rss-feeds.js    # Catalogo e parser per i feed RSS/Atom
-│   ├── wp-fetch.js     # Ponte sicuro con l'API WordPress 
-│   └── ...
-├── src/                # Sorgenti Applicazione
-│   ├── components/     # UI Components (Piano Editoriale, Sidebar, GSCInsights...)
-│   ├── App.jsx         # Logica principale e visualizzazione Analisi
-│   ├── App.css         # Styling Premium e Design System
-│   └── firebase.js     # Connessione al database real-time
-├── public/             # Asset statici (loghi, manifest PWA)
-└── .env                # Configurazioni sensibili (API Keys)
-```
+1. **Installazione**: `npm install`
+2. **Ambiente Locale**: `npm run dev`
+3. **Sviluppo API**: `vercel dev` (richiede Vercel CLI)
 
----
-
-## 🚀 Guida Rapida alla Configurazione
-
-### 1. Prerequisiti
-
-Assicurati di avere [Node.js 20.x](https://nodejs.org/) installato.
-
-### 2. Installazione
-
-```bash
-npm install
-```
-
-### 3. Variabili d'Ambiente
-
-Crea un file `.env` nella root del progetto e inserisci le tue chiavi:
-
+### Variabili .env richieste
 ```env
 VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_PROJECT_ID=...
 GROQ_API_KEY=...
-GEMINI_API_KEY=...
-ANTHROPIC_API_KEY=...
-SERPER_API_KEY=... # Necessario per la ricerca Google dei competitor
-VITE_GSC_CLIENT_ID=... # Client ID per l'integrazione Google Search Console
-```
-
-### 4. Avvio Sviluppo
-
-Per il solo frontend:
-
-```bash
-npm run dev
-```
-
-Per testare le API (WordPress, SEO Check, AI, GSC) è necessario usare Vercel CLI:
-
-```bash
-vercel dev
+SERPER_API_KEY=...
+VITE_GSC_CLIENT_ID=...
 ```
 
 ---
 
-## 🌟 Note sulla Versione "Premium UI"
-
-L'ultima versione include un redesign completo:
-
-- **GSC Insights**: Nuovo tab dedicato per l'analisi delle performance organiche reali.
-- **Trend Monitor**: Una nuova vista dedicata per lo scouting delle notizie in tempo reale.
-- **Ottimizzazione Categorie**: Un sistema di filtraggio bilanciato che mostra le categorie principali come tasti rapidi.
-- **Fix di Produzione**: Risolti i ReferenceError e gli errori di build riscontrati in precedenza.
+*Prodotto con ❤️ per CosmoNet info.*
+di Produzione**: Risolti i ReferenceError e gli errori di build riscontrati in precedenza.
 
 ---
 

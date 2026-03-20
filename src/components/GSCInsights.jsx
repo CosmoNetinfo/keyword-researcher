@@ -15,7 +15,7 @@ function formatNum(n) {
 function pct(n) { return (!n && n !== 0) ? '—' : (n * 100).toFixed(1) + '%'; }
 function pos(n) { return (!n && n !== 0) ? '—' : n.toFixed(1); }
 
-export default function GSCInsights() {
+export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLoaded }) {
   const [accessToken, setAccessToken] = useState(() => {
     if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
       const params = new URLSearchParams(window.location.hash.replace('#', ''));
@@ -56,6 +56,7 @@ export default function GSCInsights() {
       if (kwData.error) throw new Error(kwData.error);
       setKeywords(kwData.rows || []);
       setPages(pgData.rows || []);
+      onKeywordsLoaded?.(kwData.rows || []);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   }, [accessToken, dateRange]);
@@ -142,6 +143,7 @@ export default function GSCInsights() {
                     <th className="text-right px-4 py-3">Impressioni</th>
                     <th className="text-right px-4 py-3">CTR</th>
                     <th className="text-right px-4 py-3">Posizione</th>
+                    {activeTab === 'keywords' && <th className="text-right px-4 py-3">Azione</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -151,7 +153,30 @@ export default function GSCInsights() {
                       <td className="px-4 py-3 text-right text-green-400 font-semibold">{formatNum(row.clicks)}</td>
                       <td className="px-4 py-3 text-right text-blue-400">{formatNum(row.impressions)}</td>
                       <td className="px-4 py-3 text-right text-yellow-400">{pct(row.ctr)}</td>
-                      <td className="px-4 py-3 text-right text-gray-300">{pos(row.position)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {activeTab === 'keywords' && row.position >= 5 && row.position <= 20 && (
+                            <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold">
+                              QW
+                            </span>
+                          )}
+                          <span className="text-gray-300">{pos(row.position)}</span>
+                        </div>
+                      </td>
+                      {activeTab === 'keywords' && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => {
+                              setPrefilledKeyword(row.keys?.[0] || '');
+                              setView('new');
+                            }}
+                            title="Lancia analisi AI su questa keyword"
+                            className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold px-2 py-1 rounded-lg hover:bg-indigo-900/30 transition-all font-sans"
+                          >
+                            → Analizza
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

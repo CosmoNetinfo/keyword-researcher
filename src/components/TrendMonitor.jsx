@@ -53,8 +53,9 @@ function SkeletonCard() {
 }
 
 // ─── Trend Card ───────────────────────────────────────────────────────────────
-function TrendCard({ item }) {
+function TrendCard({ item, onAddToPiano }) {
   const [copied, setCopied] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
   const colors = CAT_COLORS[item.cat] || CAT_COLORS["tech-en"];
   const ago = timeAgo(item.date);
 
@@ -83,6 +84,28 @@ function TrendCard({ item }) {
         </span>
         <div className="flex items-center gap-2">
           <button
+            onClick={async (e) => {
+              e.preventDefault(); e.stopPropagation();
+              await onAddToPiano({
+                titolo: item.title,
+                link_fonte: item.url,
+                fonte: item.sourceName,
+                categoria: item.cat === "ai" ? "ai" : (item.cat === "gaming" ? "gaming" : "oss")
+              });
+              setIsAdded(true);
+            }}
+            disabled={isAdded}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all border",
+              isAdded 
+                ? "bg-emerald-50 text-emerald-600 border-emerald-200" 
+                : "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-600 hover:text-white"
+            )}
+          >
+            {isAdded ? "✓ Aggiunto" : "+ Piano"}
+          </button>
+          
+          <button
             onClick={handleCopy}
             className={cn(
               "p-1.5 rounded-lg transition-all",
@@ -109,7 +132,7 @@ function TrendCard({ item }) {
 }
 
 // ─── Componente principale ────────────────────────────────────────────────────
-export default function TrendMonitor() {
+export default function TrendMonitor({ onAddToPiano }) {
   const [activecat, setActiveCat] = useState("all");
   const [items, setItems]         = useState([]);
   const [loading, setLoading]     = useState(false);
@@ -224,7 +247,7 @@ export default function TrendMonitor() {
                 <p className="text-sm mt-1">I feed potrebbero essere temporaneamente offline</p>
               </div>
             )
-            : items.map((item, i) => <TrendCard key={`${item.url}-${i}`} item={item} />)
+            : items.map((item, i) => <TrendCard key={`${item.url}-${i}`} item={item} onAddToPiano={onAddToPiano} />)
         }
       </div>
 

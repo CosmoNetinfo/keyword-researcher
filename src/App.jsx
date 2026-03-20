@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { db } from "./firebase";
 import { 
   collection, 
@@ -201,6 +201,9 @@ export default function App() {
   const [currentId, setCurrentId] = useState(null);
   const [pianoItems, setPianoItems] = useState([]);
   const [importedKeywords, setImportedKeywords] = useState([]);
+  const [prefilledKeyword, setPrefilledKeyword] = useState("");
+  const [isQuickWinMode, setIsQuickWinMode] = useState(false);
+  const [sharedGscKeywords, setSharedGscKeywords] = useState([]);
 
   // FEAT 4: Dynamic Browser Tab Title
   useEffect(() => {
@@ -261,6 +264,15 @@ export default function App() {
     });
   }, []);
 
+  // Miglioramento 3a: Pre-popolare argomento con prefilledKeyword
+  useEffect(() => {
+    if (prefilledKeyword) {
+      setTopic("Personalizzato");
+      setCustomTopic(prefilledKeyword);
+      setIsQuickWinMode(true);
+    }
+  }, [prefilledKeyword]);
+
 
 
   const [provider, setProvider] = useState("groq");
@@ -320,6 +332,29 @@ export default function App() {
       if (!silent) alert("Errore durante l'aggiunta: " + e.message);
     }
   }
+
+  const addArticoloToPiano = useCallback(async (articolo) => {
+    try {
+      const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
+      await addDoc(collection(db, "piano_editoriale"), {
+        title: articolo.titolo || articolo.title,
+        cat: articolo.categoria || "Tech",
+        diff: articolo.priorita === "Alta" ? "alta" : (articolo.priorita === "Bassa" ? "bassa" : "media"),
+        status: "da_scrivere",
+        source: "trend-monitor",
+        sourceName: articolo.fonte || "",
+        sourceUrl: articolo.link_fonte || "",
+        note: articolo.note || "",
+        createdAt: serverTimestamp(),
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+      });
+      alert("Articolo aggiunto al Piano Editoriale ✓");
+    } catch (e) {
+      console.error("Errore:", e);
+      alert("Errore durante l'aggiunta al Piano.");
+    }
+  }, []);
 
   async function addAllToPiano() {
     if (!newArticles.length) return;
@@ -446,7 +481,14 @@ export default function App() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, finalTopic: targetTopic, provider, customKeywords: importedKeywords }),
+        body: JSON.stringify({ 
+          url, 
+          finalTopic: targetTopic, 
+          provider, 
+          customKeywords: importedKeywords,
+          isQuickWin: isQuickWinMode,
+          targetKeyword: prefilledKeyword
+        }),
       });
 
       setPhaseIndex(2);
@@ -560,21 +602,29 @@ export default function App() {
         </div>
       )}
 
-      {view === "trend" && (
-        <TrendMonitor onAction={(topic) => { setCustomTopic(topic); setTopic("Personalizzato"); setView("new"); }} />
-      )}
 
       {view === "piano" && (
-        <PianoEditoriale onGenerateAnalysis={(topic, id) => {
-          setUrl("cosmonet.info");
-          setTopic("Personalizzato");
-          setCustomTopic(topic);
-          runResearch(topic, id);
-        }} />
+        <PianoEditoriale 
+          onGenerateAnalysis={(topic, id) => {
+            setUrl("cosmonet.info");
+            setTopic("Personalizzato");
+            setCustomTopic(topic);
+            runResearch(topic, id);
+          }} 
+          gscKeywords={sharedGscKeywords}
+        />
       )}
 
       {view === "gsc" && (
-        <GSCInsights />
+        <GSCInsights 
+          setView={setView} 
+          setPrefilledKeyword={setPrefilledKeyword}
+          onKeywordsLoaded={setSharedGscKeywords}
+        />
+      )}
+
+      {view === "trend" && (
+        <TrendMonitor onAddToPiano={addArticoloToPiano} />
       )}
 
       {view === "new" && (
@@ -688,6 +738,26 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Miglioramento 3c: Banner Quick Win */}
+                {isQuickWinMode && prefilledKeyword && (
+                  <div className="mt-8 flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-[1.5rem] px-6 py-4 animate-in slide-in-from-left-4 duration-500">
+                    <span className="text-amber-400 text-xl">🎯</span>
+                    <div>
+                      <p className="text-amber-500 font-bold text-sm">Modalità Quick Win attiva</p>
+                      <p className="text-amber-700/70 text-xs font-medium">
+                        Analisi ottimizzata per scalare "{prefilledKeyword}" dalla posizione attuale alla top 5
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setIsQuickWinMode(false); setPrefilledKeyword(""); }}
+                      className="ml-auto p-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-xl transition-colors"
+                      title="Disattiva modalità Quick Win"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
 
                 <button
                   disabled={loading || !url || (topic === "Personalizzato" && !customTopic)}

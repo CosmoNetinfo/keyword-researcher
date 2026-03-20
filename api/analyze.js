@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { url, finalTopic, provider, customKeywords } = req.body;
+    const { url, finalTopic, provider, customKeywords, isQuickWin, targetKeyword } = req.body;
 
     if (!url || !finalTopic || !provider) {
       return res.status(400).json({ error: 'Missing parameters' });
@@ -64,6 +64,7 @@ export default async function handler(req, res) {
     const prompt = `Sei un Esperto SEO italiano. Analizza il sito web e la nicchia forniti.
 Sito: "${url}"
 Nicchia: "${finalTopic}"
+${isQuickWin ? `\nOBIETTIVO QUICK WIN: Ottimizzare il posizionamento per la keyword "${targetKeyword}". L'utente è già in posizione 5-20, dobbiamo portarlo in TOP 3. Suggerisci articoli che approfondiscono questo specifico argomento o aggiornamenti di contenuti esistenti correlati.` : ""}
 ${customKeywords?.length > 0 ? `KEYWORD SPECIFICHE DA ANALIZZARE: ${customKeywords.join(", ")}` : ""}
 
 DATA ATTUALE: Marzo 2026.

@@ -1,4 +1,4 @@
-import { useState, useEffect, startTransition, useMemo } from "react";
+import { useState, useEffect, startTransition, useMemo, useCallback } from "react";
 import { db } from "../firebase";
 import {
   collection,
@@ -129,9 +129,9 @@ function StatusBtn({ status, onChange, className }) {
 
 // ─── Componente principale ────────────────────────────────────────────────────
 
-export default function PianoEditoriale({ onAnalyze, onViewResults, loading: globalLoading }) {
+export default function PianoEditoriale({ onAnalyze, onViewResults, loading: globalLoading, gscKeywords = [] }) {
   const [articles, setArticles] = useState([]);
-  const [filter, setFilter]     = useState({ year: "all", month: "all", cat: "all", status: "all", q: "" });
+  const [filter, setFilter]     = useState({ year: "all", month: "all", cat: "all", status: "all", q: "", quickWin: false });
   const [page, setPage]         = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState({ 
@@ -155,6 +155,22 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [sortConfig, setSortConfig] = useState({ key: "month", direction: "asc" }); // Default: per data (mese)
   const [wpCategories, setWPCategories] = useState([]);
   const [briefStatus, setBriefStatus] = useState({});
+
+  const quickWinKeywords = useMemo(() => new Set(
+    gscKeywords
+      .filter(r => r.position >= 5 && r.position <= 20 && r.impressions >= 50)
+      .map(r => r.keys?.[0]?.toLowerCase())
+      .filter(Boolean)
+  ), [gscKeywords]);
+
+  const isQuickWin = useCallback((articolo) => {
+    if (quickWinKeywords.size === 0) return false;
+    const titleLower = (articolo.title || "").toLowerCase();
+    const kwLower = (articolo.kw || "").toLowerCase();
+    return [...quickWinKeywords].some(kw => 
+      titleLower.includes(kw) || kwLower.includes(kw) || kw.includes(kwLower)
+    );
+  }, [quickWinKeywords]);
 
   const PER_PAGE = 50; // Come richiesto nel Fix 1
 
@@ -727,8 +743,17 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       const sOk  = filter.status === "all" || a.status === filter.status;
       const qOk  = !filter.q || a.title.toLowerCase().includes(filter.q.toLowerCase())
                              || (a.kw || "").toLowerCase().includes(filter.q.toLowerCase());
-      return yOk && mOk && cOk && sOk && qOk;
+      const qwOk = !filter.quickWin || isQuickWin(a);
+      return yOk && mOk && cOk && sOk && qOk && qwOk;
     });
+
+    if (filter.quickWin) {
+      result.sort((a, b) => {
+        const scoreA = isQuickWin(a) ? 1 : 0;
+        const scoreB = isQuickWin(b) ? 1 : 0;
+        return scoreB - scoreA;
+      });
+    }
 
     // Ordinamento
     result.sort((a, b) => {
@@ -751,7 +776,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     });
 
     return result;
-  }, [articles, filter, sortConfig]);
+  }, [articles, filter, sortConfig, isQuickWin]);
 
   const availableYears = useMemo(() => {
     return [...new Set(articles.map(a => {
@@ -969,6 +994,23 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <div className="flex items-center gap-2 flex-1 md:flex-none">
+              <button 
+                onClick={() => { setFilter(f => ({ ...f, quickWin: !f.quickWin })); setPage(1); }}
+                className={cn(
+                  "flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl font-bold text-sm transition-all border",
+                  filter.quickWin
+                    ? "bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20"
+                    : "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"
+                )}
+              >
+                🎯 <span className="hidden sm:inline">Quick Win</span>
+                {quickWinKeywords.size > 0 && filter.quickWin && (
+                   <span className="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">
+                     {articles.filter(isQuickWin).length}
+                   </span>
+                )}
+              </button>
+
               <button 
                 onClick={() => setShowForm(v => !v)}
                 className={cn(
@@ -1259,6 +1301,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                             )}>
                               {decodeHTML(a.title)}
                             </span>
+                            {isQuickWin(a) && (
+                              <span className="shrink-0 text-[10px] bg-amber-500/20 text-amber-500 border border-amber-500/30 px-1.5 py-0.5 rounded font-black tracking-tighter flex items-center gap-0.5">
+                                🎯 QW
+                              </span>
+                            )}
                             {duplicateWarnings[a.id] && (
                               <div className="relative group/warn">
                                 <AlertTriangle 
