@@ -13,6 +13,7 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
+import TrendMonitor from "./components/TrendMonitor";
 import Layout from "./components/Layout";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -203,9 +204,10 @@ export default function App() {
   // FEAT 4: Dynamic Browser Tab Title
   useEffect(() => {
     const titles = {
-      history: "Storico — cosmonet.info",
-      new: "Analisi — cosmonet.info",
-      piano: "Piano Editoriale — cosmonet.info"
+      history: "Cronologia — cosmonet.info",
+      new:     "Analisi — cosmonet.info",
+      trend:   "Trend Monitor — cosmonet.info",
+      piano:   "Piano Editoriale — cosmonet.info"
     };
     document.title = titles[view] || "Keyword Researcher — cosmonet.info";
   }, [view]);
@@ -471,7 +473,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Sito Web Target</label>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest ml-1">Il tuo sito</label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <ExternalLink size={16} className="text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
@@ -479,9 +481,10 @@ export default function App() {
                   <input 
                     value={url} 
                     onChange={e => setUrl(e.target.value)} 
-                    placeholder="esempio.it" 
+                    placeholder="cosmonet.info" 
                     className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-medium placeholder:text-slate-300 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
                   />
+                  <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest pointer-events-none">target</span>
                 </div>
               </div>
 
@@ -780,6 +783,11 @@ export default function App() {
               </div>
             ])}
           />
+        </main>
+      )}
+      {view === "trend" && (
+        <main className="max-w-7xl mx-auto animate-[fadeUp_0.3s_ease]">
+          <TrendMonitor />
         </main>
       )}
 

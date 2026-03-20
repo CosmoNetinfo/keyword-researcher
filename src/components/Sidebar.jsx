@@ -4,11 +4,11 @@ import {
   Calendar, 
   History, 
   Search, 
-  Settings,
   PlusCircle,
   BarChart3,
   Menu,
-  X
+  X,
+  TrendingUp
 } from 'lucide-react';
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -19,9 +19,10 @@ function cn(...inputs) {
 
 const Sidebar = ({ activeView, setView, dueCount, isOpen, onClose }) => {
   const menuItems = [
-    { id: 'piano', label: 'Piano Editoriale', icon: Calendar, badge: dueCount },
-    { id: 'new', label: 'Nuova Analisi', icon: Search },
-    { id: 'history', label: 'Cronologia', icon: History },
+    { id: 'piano',  label: 'Piano Editoriale', icon: Calendar,    badge: dueCount },
+    { id: 'new',    label: 'Nuova Analisi',    icon: Search },
+    { id: 'trend',  label: 'Trend Monitor',    icon: TrendingUp },
+    { id: 'history',label: 'Cronologia',       icon: History },
   ];
 
   return (

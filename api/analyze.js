@@ -1,3 +1,6 @@
+/* global process */
+import { getFeedsByTopic, fetchFeeds } from './rss-feeds.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -40,7 +43,20 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2. Prompt logic
+    // 2. Fetch headline recenti dai competitor RSS
+    let trendingContext = "";
+    try {
+      const relevantFeeds = getFeedsByTopic(finalTopic).slice(0, 6); // max 6 feed
+      const headlines = await fetchFeeds(relevantFeeds, 4);           // max 4 per feed
+      if (headlines.length > 0) {
+        const lines = headlines.slice(0, 20).map(h => `- ${h.sourceName}: "${h.title}"`).join("\n");
+        trendingContext = `\n\nTREND RECENTI DAI COMPETITOR (ultimi articoli pubblicati):\n${lines}\nUsa questi trend come ispirazione per suggerire contenuti pertinenti e attuali.`;
+      }
+    } catch (e) {
+      console.warn("RSS enrichment failed (non critico):", e.message);
+    }
+
+    // 3. Prompt logic
     const prompt = `Sei un Esperto SEO italiano. Analizza il sito web e la nicchia forniti.
 Sito: "${url}"
 Nicchia: "${finalTopic}"
@@ -59,6 +75,8 @@ Prendi spunto da questi competitor se pertinenti:
 - International: itsfoss.com, linuxhint.com, makeuseof.com, howtogeek.com, techradar.com, venturebeat.com, 9to5linux.com, omgubuntu.co.uk, linuxinsider.com, phoronix.com, unixmen.com, tech2geek.net, desdelinux.net.
 Restituisci l'analisi in ESCLUSIVAMENTE formato JSON valido, senza introdurre testo, markdown backticks o descrizioni umane. Il JSON deve rispettare questa esatta struttura:
 {"existing_articles":[{"title":"TITOLO","url":"URL","topic":"TOPIC DEDOTTO","status":"ok_o_aggiornare"}],"competitors":[{"name":"NOME","url":"URL","strength":"PUNTO DI FORZA"}],"keywords":[{"keyword":"KEYWORD","difficulty":"bassa_media_alta","intent":"informazionale_transazionale","volume":"~VOLUME/mese"}],"articles":[{"type":"nuovo_oppure_aggiornamento","title":"TITOLO","description":"DESCRIZIONE_E_STRUTTURA","existing_url":null_O_URL_SU_CUI_AGGIORNARE,"update_reason":"MOTIVAZIONE","keywords":["KEYWORD_PRINCIPALE"],"priority":"bassa_media_alta"}],"insights":"FRASE_DI_COACHING_SEO"}
+
+${trendingContext}
 
 Richieste di volumi:
 - 15 Keyword in focus.
