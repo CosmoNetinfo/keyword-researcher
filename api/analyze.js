@@ -63,6 +63,7 @@ Nicchia: "${finalTopic}"
 
 DATA ATTUALE: Marzo 2026.
 OBIETTIVO CRITICO: I contenuti suggeriti devono essere focalizzati sul 2026, sulle tendenze attuali e future. 
+EVITA ASSOLUTAMENTE LA RIPETIZIONE: Se hai già suggerito certi argomenti in precedenza (basati sulla nicchia), cerca angolazioni nuove, sotto-nicchie specifiche e trend emergenti. Massima varietà e originalità.
 NON suggerire articoli, guide o notizie relative al 2024 o 2025 (sono considerate obsolete).
 
 Ho già i risultati di ricerca Google per gli articoli esistenti su questo sito. Riepilogo qui:
@@ -79,9 +80,9 @@ Restituisci l'analisi in ESCLUSIVAMENTE formato JSON valido, senza introdurre te
 ${trendingContext}
 
 Richieste di volumi:
-- 15 Keyword in focus.
-- 8 Nuovi Articoli da produrre per il 2026.
-- 4 Articoli da aggiornare alle ultime novità del 2026.`;
+- 30 Keyword in focus (coprendo diversi intenti e sotto-argomenti).
+- 20 Nuovi Articoli da produrre per il 2026 (diversificati: guide, news, tutorial, opinioni).
+- 10 Articoli da aggiornare alle ultime novità del 2026.`;
 
     let content = "";
 
@@ -96,7 +97,7 @@ Richieste di volumi:
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [{ role: "user", content: prompt }],
-          temperature: 0.2,
+          temperature: 0.7,
           response_format: { type: "json_object" }
         })
       });
@@ -113,7 +114,7 @@ Richieste di volumi:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, responseMimeType: "application/json" }
+            generationConfig: { temperature: 0.7, responseMimeType: "application/json" }
           })
         }
       );
