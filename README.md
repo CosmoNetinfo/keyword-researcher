@@ -1,72 +1,79 @@
 # 🚀 CosmoNet Keyword Researcher & Editorial Suite
 
-**Keyword Researcher Pro** è una suite avanzata per SEO e Content Strategy, progettata per massimizzare il traffico organico di `cosmonet.info`. Automatizza l'intero workflow: dalla scoperta di opportunità reali in Google Search Console alla creazione di brief ottimizzati tramite AI.
+**CosmoNet Keyword Researcher Pro** è una suite di intelligenza artificiale avanzata per SEO e Content Strategy, progettata per massimizzare il traffico organico del blog `cosmonet.info`.
+Il tool automatizza l'intero workflow editoriale: dalla scoperta di keyword tramite Google Search Console e Trend (RSS), alla generazione di brief ottimizzati tramite LLM (Llama 3.3, Gemini 2.0, Claude 3.5), fino alla sincronizzazione con WordPress.
 
 ---
 
-## 🎯 Miglioramenti Traffico SEO (Update Marzo 2026)
+## 🌟 Funzionalità Principali
 
-L'ultima versione introduce una sinergia profonda tra dati reali di traffico e intelligenza artificiale:
+### 📊 Integrazione Google Search Console (GSC)
+- **Analisi del Traffico**: Visualizza click, impressioni, CTR e posizione media.
+- **Identificazione "Quick Win"**: Badge automatico per le keyword posizionate tra il 5° e il 20° posto.
+- **Azione Rapida**: Lancia un'analisi AI ottimizzata direttamente da una keyword GSC per scalare le posizioni in Top 3.
 
-### 1. 📊 GSC Insights ↔ Nuova Analisi
-Non limitarti a guardare i dati: trasformali in azioni.
-- **Badge QW (Quick Win):** Identifica keyword in posizione 5-20 con alto potenziale.
-- **Analisi Istantanea:** Lancia un'analisi AI dedicata direttamente da una keyword GSC con un click.
+### 🤖 Analisi AI Multimodello
+- **Motori Supportati**: Groq (Llama-3.3-70b-versatile), Gemini 2.0 Flash, Claude 3.5 Sonnet.
+- **Modalità Quick Win**: Ottimizza i prompt per aggiornare e migliorare contenuti esistenti piuttosto che crearne di nuovi da zero.
+- **Zero Allucinazioni**: Vincoli di prompt stringenti per garantire che l'elaborazione si basi su trend reali del 2026 e dati verificabili.
 
-### 2. 🎯 Filtro Quick Win nel Piano Editoriale
-Prioritizza i contenuti che possono portarti in Top 3 più velocemente.
-- **Filtro Intelligente:** Un toggle riorganizza il piano editoriale mostrando prima gli articoli con alto volume e posizionamento scalabile.
-- **Badge QW ai Titoli:** Riconoscimento immediato degli articoli ad alto potenziale nel calendario.
+### 📡 Trend Monitor RSS
+- **Aggiornamenti in Tempo Reale**: Monitoraggio di oltre 60 fonti feed RSS dal mondo Tech, AI e Linux.
+- **Add to Plan**: Aggiungi istantaneamente una notizia di tendenza al tuo Piano Editoriale con un solo click.
 
-### 3. 🤖 Modalità AI "Quick Win"
-Quando l'analisi parte da una keyword GSC, l'AI adatta il suo comportamento:
-- **Focus Ottimizzazione:** Invece di suggerire nuovi argomenti, l'AI si concentra sull'approfondimento e l'aggiornamento per superare i competitor in Top 3.
-- **Banner Stato:** Indicazione chiara in UI quando la modalità ottimizzata è attiva.
-
-### 4. 📡 Trend Monitor → Piano Editoriale
-Cogli le notizie al volo e pianificale subito.
-- **Integrazione "One-Click":** Aggiungi qualsiasi trend dai competitor direttamente al Piano Editoriale come articolo "Da scrivere".
-- **Feedback Real-time:** Conferma immediata dell'aggiunta con stato sincronizzato.
-
----
-
-## 💎 Caratteristiche Core
-
-- **Analisi AI Multi-Engine**: Supporto per Groq (Llama 3.3), Gemini 2.0 e Claude 3.5.
-- **Sincronizzazione WordPress**: Importazione automatica di articoli pubblicati/programmati e generazione di bozze.
-- **SEO Check Integrato**: Verifica on-page dei parametri critici (Titolo, H1, Meta Description).
-- **Trend Monitor RSS**: Monitoraggio di oltre 60 fonti tech, AI e Linux in tempo reale.
+### 📅 Gestione Piano Editoriale
+- **Kanban / Tabella**: Organizza gli articoli da scrivere, in lavorazione e completati.
+- **Sincronizzazione WordPress**: Importa lo stato degli articoli (pubblicati, programmati, bozze) direttamente dal CMS.
+- **Brief Generator**: Ottieni un brief SEO dettagliato generato dall'AI pronto da copiare.
 
 ---
 
 ## 🛠 Stack Tecnologico
 
 - **Frontend**: React 19 + Vite + Tailwind CSS
-- **Database**: Firebase Firestore (Real-time sync)
-- **Backend**: Node.js Serverless (Vercel)
-- **APIs**: Google Search Console, Serper.dev, Groq, Gemini, WordPress.
+- **Database**: Firebase Firestore (Real-time data sync)
+- **Backend / API**: Node.js Serverless Functions (deploy su Vercel)
+- **Integrazioni Esterne**: API Google Search Console, API WordPress REST, Serper.dev (Google Search API), API LLM (Groq, Anthropic, Google).
 
 ---
 
-## 🛠 Installazione e Sviluppo
+## 🚀 Setup e Sviluppo Locale
 
-1. **Installazione**: `npm install`
-2. **Ambiente Locale**: `npm run dev`
-3. **Sviluppo API**: `vercel dev` (richiede Vercel CLI)
+### Prerequisiti
+- Node.js (v18+)
+- Vercel CLI (per testare le API serverless in locale)
 
-### Variabili .env richieste
-```env
-VITE_FIREBASE_API_KEY=...
-GROQ_API_KEY=...
-SERPER_API_KEY=...
-VITE_GSC_CLIENT_ID=...
+### Installazione
+
+1. Clona la repository.
+2. Installa le dipendenze:
+   ```bash
+   npm install
+   ```
+
+3. Crea un file `.env.local` nella root del progetto basandoti su `.env.example` (assicurati di non committarlo!):
+   ```env
+   VITE_FIREBASE_API_KEY="la-tua-chiave-firebase"
+   GROQ_API_KEY="la-tua-chiave-groq"
+   GEMINI_API_KEY="la-tua-chiave-gemini"
+   ANTHROPIC_API_KEY="la-tua-chiave-anthropic"
+   SERPER_API_KEY="la-tua-chiave-serper"
+   VITE_GSC_CLIENT_ID="id-client-google-cloud"
+   WP_APPLICATION_PASSWORD="password-app-wordpress"
+   ```
+
+### Avvio
+
+Per avviare solo il frontend:
+```bash
+npm run dev
+```
+
+Per testare correttamente l'applicazione completa (Frontend + Serverless Functions via proxy Vercel), usa:
+```bash
+vercel dev
 ```
 
 ---
 
-*Prodotto con ❤️ per CosmoNet info.*
-di Produzione**: Risolti i ReferenceError e gli errori di build riscontrati in precedenza.
-
----
-
-*Prodotto con ❤️ dal team di sviluppo CosmoNet Pro.*
+*Prodotto con ❤️ dal team di sviluppo CosmoNet Pro per il web di domani.*
