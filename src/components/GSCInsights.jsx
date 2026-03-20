@@ -17,10 +17,20 @@ function pos(n) { return (!n && n !== 0) ? '—' : n.toFixed(1); }
 
 export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLoaded }) {
   const [accessToken, setAccessToken] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
-      const params = new URLSearchParams(window.location.hash.replace('#', ''));
-      const token = params.get('access_token');
-      if (token) { window.history.replaceState(null, '', window.location.pathname); return token; }
+    if (typeof window !== 'undefined') {
+      // 1. Controlla se c'è il token nel hash (prima autenticazione)
+      if (window.location.hash.includes('access_token')) {
+        const params = new URLSearchParams(window.location.hash.replace('#', ''));
+        const token = params.get('access_token');
+        if (token) {
+          window.history.replaceState(null, '', window.location.pathname);
+          sessionStorage.setItem('gsc_access_token', token);
+          return token;
+        }
+      }
+      // 2. Recupera da sessionStorage (reload)
+      const saved = sessionStorage.getItem('gsc_access_token');
+      if (saved) return saved;
     }
     return null;
   });
@@ -95,7 +105,7 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
           <button onClick={fetchData} disabled={loading} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-xl transition-all text-sm">
             {loading ? 'Caricamento...' : '⟳ Aggiorna'}
           </button>
-          <button onClick={() => setAccessToken(null)} className="text-gray-500 hover:text-gray-300 text-sm px-3 py-2">Disconnetti</button>
+          <button onClick={() => { sessionStorage.removeItem('gsc_access_token'); setAccessToken(null); }} className="text-gray-500 hover:text-gray-300 text-sm px-3 py-2">Disconnetti</button>
         </div>
       </div>
 
