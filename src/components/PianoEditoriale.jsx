@@ -136,6 +136,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState({ 
     title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", 
+    day: "",
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear()
   });
@@ -243,6 +244,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     });
     setForm({ 
       title: "", kw: "", cat: "ai", diff: "bassa", tipo: "Tutorial", 
+      day: "",
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear()
     });
@@ -485,7 +487,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           wpId: found.id || null,
           status: isFuture ? "programmato" : "pubblicato",
           wpStatus: isFuture ? "programmato" : "online",
-          scheduledDate: isFuture ? found.date : null,
+          scheduledDate: found.date || null,
           year: postDate.getFullYear(),
           month: postDate.getMonth() + 1,
           lastSyncedAt: syncTimestamp,
@@ -1127,7 +1129,15 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pianificazione</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <input 
+                type="number" 
+                placeholder="Day" 
+                min="1" max="31"
+                value={form.day}
+                onChange={e => setForm(f=>({...f,day:e.target.value ? Number(e.target.value) : ""}))}
+                className="w-full bg-white border border-slate-200 rounded-xl px-2 py-2.5 text-xs focus:ring-2 focus:ring-electric-blue/20 focus:border-electric-blue outline-none transition-all"
+              />
               <select 
                 value={form.month} 
                 onChange={e => setForm(f=>({...f,month:Number(e.target.value)}))}
@@ -1190,53 +1200,44 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
                   const articlesByDay = {};
+                  const unscheduled = [];
                   filtered.forEach(a => {
-                    let day = 1;
+                    let day = null;
                     if (a.scheduledDate) {
-                      day = new Date(a.scheduledDate).getDate();
-                    } else if (a.createdAt?.seconds) {
-                      const d = new Date(a.createdAt.seconds * 1000);
+                      const d = new Date(a.scheduledDate);
                       if ((!a.year || a.year === d.getFullYear()) && (!a.month || a.month === d.getMonth() + 1)) {
-                        day = d.getDate();
+                         day = d.getDate();
                       }
-                    } else {
-                      day = 1; // Default
+                    } else if (a.day) {
+                      day = a.day;
                     }
-                    if (!articlesByDay[day]) articlesByDay[day] = [];
-                    articlesByDay[day].push(a);
+                    
+                    if (day && day >= 1 && day <= daysInMonth) {
+                      if (!articlesByDay[day]) articlesByDay[day] = [];
+                      articlesByDay[day].push(a);
+                    } else {
+                      unscheduled.push(a);
+                    }
                   });
 
-                  return daysArray.map(day => {
-                    const dayArticles = articlesByDay[day] || [];
-                    const isToday = new Date().getDate() === day && new Date().getMonth() + 1 === m && new Date().getFullYear() === y;
-
-                    return (
-                      <div key={day} className={cn("flex flex-col md:flex-row group transition-colors", isToday ? "bg-electric-blue/5" : "hover:bg-slate-50/50")}>
-                        {/* Box Data Sinistra */}
-                        <div className="md:w-48 p-4 md:p-6 md:border-r border-slate-100 flex flex-row md:flex-col items-center md:items-start md:justify-center gap-4 md:gap-1 shrink-0">
-                          <span className={cn(
-                            "font-black text-3xl font-inter", 
-                            isToday ? "text-electric-blue" : "text-slate-700"
-                          )}>
-                            {day}
-                          </span>
-                          <span className={cn(
-                            "text-xs font-bold uppercase tracking-widest",
-                            isToday ? "text-electric-blue/70" : "text-slate-400"
-                          )}>
-                            {new Date(y, m - 1, day).toLocaleDateString('it-IT', { weekday: 'long' })}
-                          </span>
-                        </div>
-                        
-                        {/* Articoli a Destra */}
-                        <div className="flex-1 p-4 md:p-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
-                          {dayArticles.length === 0 ? (
-                            <div className="flex items-center text-sm text-slate-400 font-medium italic opacity-0 group-hover:opacity-100 transition-opacity col-span-full">
-                              Nessun articolo programmato
-                            </div>
-                          ) : (
-                            dayArticles.map(a => (
-                              <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-electric-blue/50 hover:shadow-md transition-all flex flex-col gap-3">
+                  return (
+                    <>
+                      {unscheduled.length > 0 && (
+                        <div className="flex flex-col md:flex-row group bg-amber-50/30 border-b border-slate-200">
+                          {/* Box Data Sinistra */}
+                          <div className="md:w-48 p-4 md:p-6 flex flex-row md:flex-col items-center md:items-start md:justify-center gap-4 md:gap-1 shrink-0">
+                            <span className="font-black text-2xl font-inter text-amber-600">
+                              Mese
+                            </span>
+                            <span className="text-xs font-bold uppercase tracking-widest text-amber-500">
+                              Senza Giorno
+                            </span>
+                          </div>
+                          
+                          {/* Articoli a Destra */}
+                          <div className="flex-1 p-4 md:p-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                            {unscheduled.map(a => (
+                              <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-amber-500/50 hover:shadow-md transition-all flex flex-col gap-3">
                                 <div className="flex justify-between items-start gap-3">
                                   <div className="font-bold text-sm text-deep-space leading-snug break-words">
                                     {decodeHTML(a.title)}
@@ -1259,12 +1260,72 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                                   </div>
                                 </div>
                               </div>
-                            ))
-                          )}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  });
+                      )}
+
+                      {daysArray.map(day => {
+                        const dayArticles = articlesByDay[day] || [];
+                        const isToday = new Date().getDate() === day && new Date().getMonth() + 1 === m && new Date().getFullYear() === y;
+
+                        return (
+                          <div key={day} className={cn("flex flex-col md:flex-row group transition-colors", isToday ? "bg-electric-blue/5" : "hover:bg-slate-50/50")}>
+                            {/* Box Data Sinistra */}
+                            <div className="md:w-48 p-4 md:p-6 md:border-r border-slate-100 flex flex-row md:flex-col items-center md:items-start md:justify-center gap-4 md:gap-1 shrink-0">
+                              <span className={cn(
+                                "font-black text-3xl font-inter", 
+                                isToday ? "text-electric-blue" : "text-slate-700"
+                              )}>
+                                {day}
+                              </span>
+                              <span className={cn(
+                                "text-xs font-bold uppercase tracking-widest",
+                                isToday ? "text-electric-blue/70" : "text-slate-400"
+                              )}>
+                                {new Date(y, m - 1, day).toLocaleDateString('it-IT', { weekday: 'long' })}
+                              </span>
+                            </div>
+                            
+                            {/* Articoli a Destra */}
+                            <div className="flex-1 p-4 md:p-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                              {dayArticles.length === 0 ? (
+                                <div className="flex items-center text-sm text-slate-400 font-medium italic opacity-0 group-hover:opacity-100 transition-opacity col-span-full">
+                                  Nessun articolo programmato
+                                </div>
+                              ) : (
+                                dayArticles.map(a => (
+                                  <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-electric-blue/50 hover:shadow-md transition-all flex flex-col gap-3">
+                                    <div className="flex justify-between items-start gap-3">
+                                      <div className="font-bold text-sm text-deep-space leading-snug break-words">
+                                        {decodeHTML(a.title)}
+                                      </div>
+                                      <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} className="scale-90 origin-top-right shrink-0" />
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 mt-auto">
+                                      <div className="flex items-center gap-2">
+                                        <Badge text={a.cat} meta={allCategories} />
+                                        <span className={cn(
+                                          "text-[10px] font-bold px-2 py-0.5 rounded",
+                                          DIFF_META[a.diff]?.bg || "bg-slate-100",
+                                          DIFF_META[a.diff]?.color || "text-slate-600"
+                                        )}>
+                                          {a.diff ? DIFF_META[a.diff].label : "—"}
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-slate-500 font-medium border border-slate-200 px-2.5 py-1 rounded-lg truncate max-w-[150px]" title={a.kw}>
+                                        {a.kw || "Nessuna KW"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  );
                 })()}
               </div>
             </div>
