@@ -1164,48 +1164,111 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       {/* Vista Calendario Multipagina */}
       {viewMode === "calendar" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {MONTH_NAMES.map((name, i) => {
-            const m = i + 1;
-            const curArticles = articles.filter(a => 
-              (filter.year === "all" || String(a.year) === filter.year) && 
-              a.month === m
-            );
-            if (filter.month !== "all" && String(m) !== filter.month) return null;
-            if (curArticles.length === 0 && filter.month === "all") return null;
-
-            return (
-              <div key={m} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[300px]">
-                <div className="bg-slate-50 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                  <span className="font-bold text-sm text-deep-space font-inter uppercase tracking-wider">{name}</span>
-                  <span className="text-[10px] font-bold text-slate-400">{filter.year !== "all" ? filter.year : ""}</span>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                  {curArticles.map(a => (
-                    <div key={a.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 hover:border-electric-blue/30 transition-all group">
-                      <div className="font-bold text-[11px] text-deep-space leading-snug mb-2 group-hover:text-electric-blue transition-colors">{decodeHTML(a.title)}</div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge text={a.cat} meta={allCategories} />
-                        <span className={cn(
-                          "text-[9px] font-bold px-2 py-0.5 rounded",
-                          DIFF_META[a.diff]?.bg || "bg-slate-100",
-                          DIFF_META[a.diff]?.color || "text-slate-600"
-                        )}>
-                          {a.diff ? DIFF_META[a.diff].label : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {curArticles.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-300 opacity-50 space-y-2">
-                       <Calendar size={24} />
-                       <span className="text-[10px] uppercase font-bold tracking-tighter">Nessun articolo</span>
-                    </div>
-                  )}
-                </div>
+        <div className="w-full">
+          {filter.month === "all" ? (
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 bg-blue-50 text-electric-blue rounded-full flex items-center justify-center mb-6 shadow-inner">
+                <Calendar size={32} />
               </div>
-            );
-          })}
+              <h3 className="text-xl font-bold text-deep-space mb-2 font-inter">Seleziona un Mese</h3>
+              <p className="text-slate-500 max-w-sm text-sm">
+                Per visualizzare l'agenda giornaliera, seleziona un mese specifico dal filtro in alto.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 className="font-bold text-lg text-deep-space font-inter uppercase tracking-wider">
+                  Agenda - {MONTH_NAMES[Number(filter.month) - 1]} {filter.year !== "all" ? filter.year : new Date().getFullYear()}
+                </h3>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {(() => {
+                  const y = filter.year === "all" ? new Date().getFullYear() : Number(filter.year);
+                  const m = Number(filter.month);
+                  const daysInMonth = new Date(y, m, 0).getDate();
+                  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+                  const articlesByDay = {};
+                  filtered.forEach(a => {
+                    let day = 1;
+                    if (a.scheduledDate) {
+                      day = new Date(a.scheduledDate).getDate();
+                    } else if (a.createdAt?.seconds) {
+                      const d = new Date(a.createdAt.seconds * 1000);
+                      if ((!a.year || a.year === d.getFullYear()) && (!a.month || a.month === d.getMonth() + 1)) {
+                        day = d.getDate();
+                      }
+                    } else {
+                      day = 1; // Default
+                    }
+                    if (!articlesByDay[day]) articlesByDay[day] = [];
+                    articlesByDay[day].push(a);
+                  });
+
+                  return daysArray.map(day => {
+                    const dayArticles = articlesByDay[day] || [];
+                    const isToday = new Date().getDate() === day && new Date().getMonth() + 1 === m && new Date().getFullYear() === y;
+
+                    return (
+                      <div key={day} className={cn("flex flex-col md:flex-row group transition-colors", isToday ? "bg-electric-blue/5" : "hover:bg-slate-50/50")}>
+                        {/* Box Data Sinistra */}
+                        <div className="md:w-48 p-4 md:p-6 md:border-r border-slate-100 flex flex-row md:flex-col items-center md:items-start md:justify-center gap-4 md:gap-1 shrink-0">
+                          <span className={cn(
+                            "font-black text-3xl font-inter", 
+                            isToday ? "text-electric-blue" : "text-slate-700"
+                          )}>
+                            {day}
+                          </span>
+                          <span className={cn(
+                            "text-xs font-bold uppercase tracking-widest",
+                            isToday ? "text-electric-blue/70" : "text-slate-400"
+                          )}>
+                            {new Date(y, m - 1, day).toLocaleDateString('it-IT', { weekday: 'long' })}
+                          </span>
+                        </div>
+                        
+                        {/* Articoli a Destra */}
+                        <div className="flex-1 p-4 md:p-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                          {dayArticles.length === 0 ? (
+                            <div className="flex items-center text-sm text-slate-400 font-medium italic opacity-0 group-hover:opacity-100 transition-opacity col-span-full">
+                              Nessun articolo programmato
+                            </div>
+                          ) : (
+                            dayArticles.map(a => (
+                              <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-electric-blue/50 hover:shadow-md transition-all flex flex-col gap-3">
+                                <div className="flex justify-between items-start gap-3">
+                                  <div className="font-bold text-sm text-deep-space leading-snug break-words">
+                                    {decodeHTML(a.title)}
+                                  </div>
+                                  <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} className="scale-90 origin-top-right shrink-0" />
+                                </div>
+                                <div className="flex flex-wrap items-center justify-between gap-2 mt-auto">
+                                  <div className="flex items-center gap-2">
+                                    <Badge text={a.cat} meta={allCategories} />
+                                    <span className={cn(
+                                      "text-[10px] font-bold px-2 py-0.5 rounded",
+                                      DIFF_META[a.diff]?.bg || "bg-slate-100",
+                                      DIFF_META[a.diff]?.color || "text-slate-600"
+                                    )}>
+                                      {a.diff ? DIFF_META[a.diff].label : "—"}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-slate-500 font-medium border border-slate-200 px-2.5 py-1 rounded-lg truncate max-w-[150px]" title={a.kw}>
+                                    {a.kw || "Nessuna KW"}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
