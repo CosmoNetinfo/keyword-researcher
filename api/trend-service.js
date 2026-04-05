@@ -20,17 +20,28 @@ export default async function handler(req, res) {
   try {
     // ─── 1. RADAR TRENDS (GitHub & Hugging Face) ────────────────────────────
     if (action === 'radar') {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const dateFormatted = sevenDaysAgo.toISOString().split('T')[0];
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const dateFormatted = thirtyDaysAgo.toISOString().split('T')[0];
       const ghQuery = `created:>${dateFormatted} topic:ai OR topic:linux OR topic:open-source`;
       const ghUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(ghQuery)}&sort=stars&order=desc&per_page=10`;
       
-      const ghRes = await fetch(ghUrl, { headers: GITHUB_TOKEN ? { Authorization: `token ${GITHUB_TOKEN}` } : {} });
-      const ghData = await ghRes.json();
-      const githubTrends = (ghData.items || []).map(repo => ({
-        type: 'github', title: repo.name, url: repo.html_url, stars: repo.stargazers_count, author: repo.owner.login
-      }));
+      let githubTrends = [];
+      try {
+        const ghRes = await fetch(ghUrl, { 
+          headers: GITHUB_TOKEN ? { Authorization: `token ${GITHUB_TOKEN}` } : { "User-Agent": "CosmoNet-App" } 
+        });
+        const ghData = await ghRes.json();
+        if (ghData.items) {
+          githubTrends = ghData.items.map(repo => ({
+            type: 'github', title: repo.name, url: repo.html_url, stars: repo.stargazers_count, author: repo.owner.login
+          }));
+        } else {
+          console.error("GitHub API Logic Error or Rate Limit:", ghData);
+        }
+      } catch (e) {
+        console.error("GitHub Fetch Error:", e);
+      }
 
       const hfUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=5';
       const hfRes = await fetch(hfUrl);
