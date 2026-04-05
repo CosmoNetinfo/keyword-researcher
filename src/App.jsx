@@ -1002,9 +1002,10 @@ export default function App() {
                         </div>
                         <h3 
                           onClick={() => window.open(c.url || `https://${c.domain}`, '_blank')}
-                          className="font-black text-slate-900 mb-1 truncate cursor-pointer hover:text-primary transition-colors"
+                          className="font-black text-slate-900 mb-1 truncate cursor-pointer hover:text-primary transition-colors pr-2"
+                          title={c.url}
                         >
-                          {c.url}
+                          {c.domain || c.url.replace(/^(https?:\/\/)?(www\.)?/, "").split('/')[0]}
                         </h3>
                         <p className="text-xs text-slate-400 font-medium uppercase tracking-tight mb-4">{c.domain}</p>
                         <div className="space-y-2">
