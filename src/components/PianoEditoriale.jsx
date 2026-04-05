@@ -165,6 +165,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [imageStatus, setImageStatus] = useState({}); // { id: 'loading' | 'success' | 'error' }
   const [socialStatus, setSocialStatus] = useState({});
   const [activeSocial, setActiveSocial] = useState(null); // { id, data }
+  const [previewImage, setPreviewImage] = useState(null); // { url, title }
   const [radarData, setRadarData] = useState([]);
   const [growthAdvice, setGrowthAdvice] = useState(null);
   const [loadingRadar, setLoadingRadar] = useState(false);
@@ -1484,6 +1485,79 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       )}
 
       {/* Vista Calendario */}
+      {viewMode === "gallery" && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+           <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold font-inter text-deep-space">Galleria AI ✨</h2>
+              <p className="text-sm text-slate-500 font-medium">{articles.filter(a => a.imageUrl).length} Media Generati</p>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {articles.filter(a => a.imageUrl || imageStatus[a.id] === 'loading').length === 0 ? (
+                <div className="col-span-full py-20 bg-slate-50 rounded-[3rem] border border-slate-200 border-dashed flex flex-col items-center gap-4">
+                   <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-300 flex items-center justify-center">
+                      <ImageIcon size={32} />
+                   </div>
+                   <div className="text-slate-500 font-bold">Nessuna immagine generata</div>
+                   <p className="text-xs text-slate-400 max-w-xs text-center">Inizia a generare immagini per i tuoi articoli dalla Tabella per vederle apparire qui.</p>
+                </div>
+              ) : (
+                articles.filter(a => a.imageUrl || imageStatus[a.id] === 'loading').map(a => (
+                  <div key={a.id} className="group relative bg-white p-3 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all overflow-hidden">
+                     <div className="relative aspect-video rounded-[1.5rem] overflow-hidden bg-slate-100">
+                        {imageStatus[a.id] === 'loading' ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-100">
+                             <RefreshCw className="animate-spin text-electric-blue" size={24} />
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generando...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <img 
+                              src={a.imageUrl} 
+                              alt={a.title} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            />
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                               <button 
+                                 onClick={() => setPreviewImage({ url: a.imageUrl, title: a.title })}
+                                 className="p-3 rounded-xl bg-white text-slate-900 hover:scale-110 active:scale-95 transition-all shadow-lg"
+                                 title="Ingrandisci"
+                               >
+                                 <Search size={20} />
+                               </button>
+                               <button 
+                                 onClick={() => handleGenerateImage(a)}
+                                 className="p-3 rounded-xl bg-violet-600 text-white hover:scale-110 active:scale-95 transition-all shadow-lg"
+                                 title="Rigenera"
+                               >
+                                 <RefreshCw size={20} />
+                               </button>
+                            </div>
+                          </>
+                        )}
+                     </div>
+                     <div className="p-3 space-y-2">
+                        <div className="flex items-center gap-2 mb-1">
+                           <Badge text={a.cat} meta={allCategories} />
+                           <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">AI MEDIA</span>
+                        </div>
+                        <h4 className="font-bold text-sm text-deep-space line-clamp-2 leading-tight group-hover:text-electric-blue transition-colors">
+                           {decodeHTML(a.title)}
+                        </h4>
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-2">
+                           <span className="text-[10px] text-slate-400 font-medium">Flux Flux.1</span>
+                           <div className="flex gap-1">
+                              <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} className="scale-75 origin-right" />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                ))
+              )}
+           </div>
+        </div>
+      )}
+
       {viewMode === "calendar" && (
         <div className="bg-white rounded-3xl shadow-sm border border-slate-500/10 overflow-hidden">
           <div className="divide-y divide-slate-100">
@@ -1536,8 +1610,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                             dayArticles.map(a => (
                               <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-electric-blue/50 hover:shadow-md transition-all flex flex-col gap-3">
                                 <div className="flex justify-between items-start gap-3">
-                                  <div className="font-bold text-sm text-deep-space leading-snug break-words">
-                                    {decodeHTML(a.title)}
+                                  <div className="flex items-center gap-2">
+                                    {a.imageUrl && (
+                                       <button 
+                                         onClick={() => setPreviewImage({ url: a.imageUrl, title: a.title })}
+                                         className="shrink-0 w-8 h-8 rounded-lg overflow-hidden border border-slate-200 hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                       >
+                                         <img src={a.imageUrl} alt="AI" className="w-full h-full object-cover" />
+                                       </button>
+                                    )}
+                                    <div className="font-bold text-sm text-deep-space leading-snug break-words">
+                                      {decodeHTML(a.title)}
+                                    </div>
                                   </div>
                                   <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} className="scale-90 origin-top-right shrink-0" />
                                 </div>
@@ -2196,6 +2280,58 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           </div>
         </div>
       )}
+      {/* Preview Immagine Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl flex items-center justify-center z-[200] p-4 animate-in fade-in duration-300"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div 
+            className="relative max-w-5xl w-full flex flex-col items-center gap-6 animate-in zoom-in-95 duration-300"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="absolute -top-12 left-0 right-0 flex justify-between items-center text-white">
+              <h3 className="text-lg font-bold truncate max-w-md">{previewImage.title}</h3>
+              <button onClick={() => setPreviewImage(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <Trash2 size={24} />
+              </button>
+            </div>
+            
+            <div className="relative group bg-white p-2 rounded-[2.5rem] shadow-2xl overflow-hidden">
+               <img 
+                 src={previewImage.url} 
+                 alt={previewImage.title} 
+                 className="max-h-[75vh] w-auto rounded-[2rem] object-contain shadow-inner" 
+               />
+               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-8">
+                  <a 
+                    href={previewImage.url} 
+                    download={`ai-image-${previewImage.title.slice(0, 20)}.png`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="bg-white text-slate-900 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:scale-105 transition-all shadow-xl"
+                  >
+                    <Download size={18} /> Scarica Immagine
+                  </a>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+\n                             {a.imageUrl && (
+                                <button 
+                                  onClick={() => setPreviewImage({ url: a.imageUrl, title: a.title })}
+                                  className="shrink-0 w-8 h-8 rounded-lg overflow-hidden border border-slate-200 hover:ring-2 hover:ring-electric-blue/30 transition-all group/img mr-2"
+                                >
+                                  <img src={a.imageUrl} alt="AI" className="w-full h-full object-cover group-hover/img:scale-110 transition-transform" />
+                                </button>
+                             )}
+                             <span className={cn(
+                               "font-bold text-sm font-inter transition-colors",
+                               isDone ? "text-slate-400 line-through" : "text-deep-space"
+                             )}>
+                               {decodeHTML(a.title)}
+                             </span>
