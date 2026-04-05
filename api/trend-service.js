@@ -21,10 +21,13 @@ export default async function handler(req, res) {
   try {
     // ─── 0. COMPETITOR SCANNER (NEW) ──────────────────────────────────────
     if (action === "scan-competitor") {
-      const { domain } = req.body;
-      if (!domain) return res.status(400).json({ error: "Missing domain" });
+      const domain = req.body?.domain || req.query?.domain;
+      if (!domain) {
+        console.error("Scan Competitor Error: Missing domain in", req.body, req.query);
+        return res.status(400).json({ error: "Missing domain" });
+      }
 
-      const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
+      const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, "").split('/')[0];
       const base = `https://${cleanDomain}`;
       
       const potentialFeeds = [

@@ -1019,7 +1019,7 @@ export default function App() {
 
                         {/* --- NEW: SPY BUTTON --- */}
                         <button 
-                          onClick={(e) => { e.stopPropagation(); scanCompetitor(c.domain, i); }}
+                          onClick={(e) => { e.stopPropagation(); scanCompetitor(c.domain || c.url, i); }}
                           className="mt-4 w-full py-3 bg-slate-50 hover:bg-primary/5 text-slate-500 hover:text-primary text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-100 transition-all flex items-center justify-center gap-2"
                         >
                           {expandingCompId === i ? <X size={14} /> : <Zap size={14} />}
