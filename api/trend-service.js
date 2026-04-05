@@ -44,13 +44,25 @@ export default async function handler(req, res) {
       }
 
       const hfUrl = 'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=5';
-      const hfRes = await fetch(hfUrl);
+      const hfRes = await fetch(hfUrl, { headers: { "User-Agent": "CosmoNet-App" } });
       const hfData = await hfRes.json();
-      const hfTrends = (hfData || []).map(model => ({
-        type: 'huggingface', title: model.modelId, url: `https://huggingface.co/${model.modelId}`, downloads: model.downloads
+      const hfTrends = (hfData || []).slice(0, 5).map(model => ({
+        type: 'huggingface', 
+        title: model.modelId || model.id || "Unknown Model", 
+        url: `https://huggingface.co/${model.modelId || model.id}`, 
+        downloads: model.downloads || 0
       }));
 
-      return res.status(200).json({ success: true, trends: [...githubTrends, ...hfTrends] });
+      // --- FAIL-SAFE DATA (Se tutto il resto fallisce) ---
+      let finalTrends = [...githubTrends, ...hfTrends];
+      if (finalTrends.length === 0) {
+        finalTrends = [
+          { type: 'github', title: 'torvalds/linux', url: 'https://github.com/torvalds/linux', stars: 170000, author: 'torvalds' },
+          { type: 'huggingface', title: 'meta-llama/Meta-Llama-3-8B', url: 'https://huggingface.co/meta-llama/Meta-Llama-3-8B', downloads: 1200000 }
+        ];
+      }
+
+      return res.status(200).json({ success: true, trends: finalTrends });
     }
 
     // ─── 2. RSS FEED SCANNER ───────────────────────────────────────────────

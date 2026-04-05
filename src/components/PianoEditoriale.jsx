@@ -1417,26 +1417,34 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8">
                   <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-6 flex items-center gap-2">🚀 Nuovi Modelli AI (Hugging Face)</h4>
                   <div className="space-y-4">
-                    {radarData.filter(i => i.type === 'huggingface').map((m, i) => (
-                      <div key={i} className="flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0">
-                        <a href={m.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">{m.title}</a>
-                        <div className="text-[10px] text-slate-400 font-medium">{m.description}</div>
-                      </div>
-                    ))}
+                    {radarData.filter(i => i.type === 'huggingface').length > 0 ? (
+                      radarData.filter(i => i.type === 'huggingface').map((m, i) => (
+                        <div key={i} className="flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0">
+                          <a href={m.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">{m.title}</a>
+                          <div className="text-[10px] text-slate-400 font-medium whitespace-nowrap overflow-hidden">🚀 {m.downloads ? `${(m.downloads/1000).toFixed(0)}k downloads` : "Nuovo modello"}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-[10px] text-slate-400 italic">Nessun modello AI trovato per questo periodo.</p>
+                    )}
                   </div>
                 </div>
                 <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8">
                   <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-6 flex items-center gap-2">📦 Trending Repos (GitHub)</h4>
                   <div className="space-y-4">
-                    {radarData.filter(i => i.type === 'github').map((r, i) => (
-                      <div key={i} className="flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0">
-                        <a href={r.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">{r.title}</a>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
-                          <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold">⭐ {r.stars}</span>
-                          <span className="truncate">by {r.author}</span>
+                    {radarData.filter(i => i.type === 'github').length > 0 ? (
+                      radarData.filter(i => i.type === 'github').map((r, i) => (
+                        <div key={i} className="flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0">
+                          <a href={r.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">{r.title}</a>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold">⭐ {r.stars}</span>
+                            <span className="truncate">by {r.author}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-[10px] text-slate-400 italic">Nessun repository trovato. Verifica il GitHub Token su Vercel.</p>
+                    )}
                   </div>
                 </div>
               </div>
