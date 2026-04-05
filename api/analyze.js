@@ -159,11 +159,21 @@ Richieste di volumi:
       throw new Error(`Provider sconosciuto: ${provider}`);
     }
 
-    if (content.startsWith("```")) {
-        content = content.trim().replace(/^```json|^```|```$/g, "").trim();
-    }
+    if (!content) throw new Error("Risposta AI vuota");
 
-    const resultObj = JSON.parse(content);
+    // Pulizia profonda del JSON (rimozione markdown e spazi superflui)
+    let cleanContent = content.trim();
+    if (cleanContent.startsWith("```")) {
+        cleanContent = cleanContent.replace(/^```json|^```|```$/g, "").trim();
+    }
+    
+    let resultObj;
+    try {
+        resultObj = JSON.parse(cleanContent);
+    } catch {
+        console.error("FALIED TO PARSE AI JSON. CONTENT:", cleanContent);
+        throw new Error("Errore nel formato dati restituito dall'IA. Riprova tra un istante.");
+    }
 
     // FEATURE 1: Arricchimento Keyword via Serper (Dati reali)
     if (serperKey && resultObj.keywords && resultObj.keywords.length > 0) {
