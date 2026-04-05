@@ -211,7 +211,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function fetchRadar() {
     setLoadingRadar(true);
     try {
-      const res = await fetch("/api/trend-radar");
+      const res = await fetch("/api/trend-service?action=radar");
       const data = await res.json();
       if (data.success) setRadarData(data.trends);
     } catch (e) {
@@ -225,8 +225,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     const token = sessionStorage.getItem('gsc_access_token');
     if (!token) return;
     try {
-      const res = await fetch("/api/growth-intelligence", {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch("/api/gsc-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "growth", access_token: token })
       });
       const data = await res.json();
       if (data.success) setGrowthAdvice(data);
@@ -574,10 +576,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleCopyBrief(article) {
     setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/generate-brief', {
+      const res = await fetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: article.title, category: article.cat })
+        body: JSON.stringify({ action: 'brief', title: article.title, category: article.cat })
       });
 
       const data = await res.json();
@@ -633,10 +635,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleGenerateImage(article) {
     setImageStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/generate-image', {
+      const res = await fetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: `Pro-grade editorial illustration for a tech blog post titled "${article.title}". Style: clean, modern, digital art, vibrant colors, technology theme.` })
+        body: JSON.stringify({ action: 'image', prompt: `Pro-grade editorial illustration for a tech blog post titled "${article.title}". Style: clean, modern, digital art, vibrant colors, technology theme.` })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -656,10 +658,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleGenerateSocial(article) {
     setSocialStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/generate-social', {
+      const res = await fetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: article.title, brief: article.lastBrief })
+        body: JSON.stringify({ action: 'social', title: article.title, brief: article.lastBrief })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -678,10 +680,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     if (!article.lastPosition || !article.prevPosition) return;
     setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/generate-recovery-brief', {
+      const res = await fetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
+          action: 'recovery',
           title: article.title, 
           currentPosition: article.lastPosition, 
           prevPosition: article.prevPosition 
@@ -720,10 +723,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       // Recupero suggerimenti link interni se disponibili (sicuro)
       const suggestionsLinks = article.internalLinks || [];
       
-      const res = await fetch("/api/wp-draft", {
+      const res = await fetch("/api/wp-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "draft",
           wpUrl: wpSettings.url,
           username: wpSettings.user,
           appPassword: wpSettings.pass,
@@ -842,10 +846,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function testWPConnection() {
     setTestingWP(true);
     try {
-      const res = await fetch("/api/wp-fetch", {
+      const res = await fetch("/api/wp-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "fetch",
           wpUrl: wpSettings.url,
           username: wpSettings.user,
           appPassword: wpSettings.pass
