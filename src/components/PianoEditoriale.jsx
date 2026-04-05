@@ -30,6 +30,8 @@ import {
   ChevronRight,
   Filter,
   ArrowUpDown,
+  ArrowUpRight,
+  Zap,
   Image as ImageIcon,
   Share2,
   Copy,
@@ -677,8 +679,8 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
     setSaving(true);
     try {
-      // Recupero suggerimenti link interni se disponibili
-      const suggestions = allLinks[article.id] || [];
+      // Recupero suggerimenti link interni se disponibili (sicuro)
+      const suggestionsLinks = article.internalLinks || [];
       
       const res = await fetch("/api/wp-draft", {
         method: "POST",

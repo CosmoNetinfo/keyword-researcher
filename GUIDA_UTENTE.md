@@ -1,68 +1,74 @@
-# 📖 CosmoNet Keyword Researcher Pro - Guida all'Uso
+# 🚀 CosmoNet Pro 5.0 — Manuale Utente Definitivo
 
-Benvenuto nella guida utente per **CosmoNet Keyword Researcher Pro**. 
-Questo strumento è stato progettato per semplificare e automatizzare il flusso SEO del blog *cosmonet.info*, integrando i dati di Google Search Console, feed RSS di tendenza e l'Intelligenza Artificiale Generativa.
-
----
-
-## 🧭 Navigazione Principale
-
-L'interfaccia si divide in tre sezioni principali:
-1. **🚀 Analisi Keyword**: Per trovare nuove idee di contenuto analizzando la nicchia.
-2. **📈 GSC Insights**: Per monitorare il traffico attuale e identificare opportunità di miglioramento (Quick Wins).
-3. **📅 Piano Editoriale**: Per la gestione Kanban degli articoli in lavorazione.
-4. **📡 Trend Monitor**: Per analizzare i feed RSS dei competitor e trovare notizie calde in tempo reale.
+Benvenuto nella documentazione ufficiale di **CosmoNet Keyword Researcher Pro**. Questa suite non è solo un tool di analisi, ma un **assistente SEO proattivo** che lavora al tuo fianco per dominare i motori di ricerca.
 
 ---
 
-## 🕹 Flusso di Lavoro Consigliato (Workflow)
-
-### 1. Trovare Argomenti Caldi (Trend Monitor)
-Inizia la tua giornata editoriale scoprendo di cosa parla il mondo tech:
-1. Vai su **Trend Monitor** dalla barra laterale.
-2. Clicca su **Aggiorna Feed** per scaricare gli ultimi articoli (Linux, AI, Tech, ecc.).
-3. Scorri le notizie più rilevanti.
-4. Hai trovato uno spunto interessante? Clicca sul pulsante **"Aggiungi a Piano"** per inserirlo immediatamente come "Da scrivere" nel tuo Piano Editoriale.
-
-### 2. Sfruttare le Opportunità GSC (Quick Wins)
-L'ottimizzazione del traffico esistente garantisce risultati più veloci della creazione di nuovi contenuti:
-1. Vai su **GSC Insights**.
-2. Clicca sul pulsante **Carica Dati GSC**. (Il tool autenticherà il tuo account Google e scaricherà i dati sulle prestazioni degli ultimi 28 giorni).
-3. Cerca tra le keyword quelle marchiate con il **badge blu "Quick Win"**. Queste sono le parole chiave attualmente posizionate tra il 5° e 20° posto su Google con alte impressioni.
-4. Clicca sull'icona della **scintilla (Analizza con AI)** accanto a una keyword "Quick Win". 
-   - Questo pre-compilerà il form di "Analisi Keyword" in "Modalità Quick Win".
-   - L'AI (es. Groq/Llama 3.3) non ti suggerirà articoli generici, ma strategie avanzate per scalare in Top 3.
-
-### 3. Analisi Keyword Profonda
-Se vuoi dominare una nuova nicchia o espandere un topic esistente:
-1. Vai su **Analisi Keyword**.
-2. Inserisci l'URL target (predefinito: *cosmonet.info*) e il **Topic** (es. "Ubuntu 24.04").
-3. Scegli il provider AI (consigliato: **Groq** per bilanciamento costi/velocità, **Gemini 2.0** per velocità, o **Claude 3.5** per precisione logica estrema).
-4. *(Opzionale)* Inserisci keyword specifiche che vuoi che l'AI consideri.
-5. Clicca **Analizza Sito**. Il sistema contatterà Google (Serper), leggerà gli ultimi Trend RSS per non suggerirti argomenti vecchi e ti restituirà:
-   - Competitor italiani e internazionali.
-   - Keyword a bassa difficoltà/alto volume.
-   - Idee di articoli divisi tra "Nuovi" e "Da aggiornare".
-6. Clicca l'icona "+" su un'idea di articolo per aggiungerla al tuo **Piano Editoriale**.
-
-### 4. Organizzazione nel Piano Editoriale
-Questa è la tua Dashboard Kanban operativa.
-1. Vai su **Piano Editoriale**.
-2. Passa alla **Vista Tabella** o mantieni la **Vista Cards** (Kanban).
-3. Puoi filtrare la tabella attivando l'interruttore **"Solo Quick Wins"** (per concentrarti prima sugli articoli ad alto impatto).
-4. **Sincronizza WordPress**: Clicca su "Sync WP" per importare le bozze e capire cosa è già schedulato o pubblicato nel CMS reale.
-
-### 5. Generazione del Brief AI
-Quando sei pronto a passare un articolo a un Copywriter o a scriverlo tu stesso:
-1. Nel Piano Editoriale, espandi i dettagli di una card "Da Scrivere".
-2. Clicca sul pulsante **"Genera Brief (AI)"**.
-3. Il pulsante diventerà blu (In elaborazione). L'AI analizzerà il titolo e creerà una sintesi del contesto, la struttura SEO, suggerimenti sui dati (reali, anno 2026), e il target.
-4. Al termine, il brief verrà **copiato automaticamente nei tuoi appunti**. Incollalo su Google Docs o nella bozza di WordPress!
+> [!IMPORTANT]
+> **Nota per il Download**: Questo file è in formato Markdown (.md). Puoi scaricarlo, aprirlo con qualsiasi editor di testo o convertirlo in PDF per una consultazione rapida da mobile o tablet.
 
 ---
 
-## ❗ Risoluzione Problemi Comuni
+## ⚡ 1. La Filosofia "Pro-Active SEO"
+A differenza dei tool tradizionali dove *tu* devi cercare i dati, CosmoNet Pro **ti suggerisce cosa fare**. L'interfaccia è pensata per minimizzare i tempi morti tra l'analisi e la pubblicazione.
 
-- **Errore 500 durante Genera Brief / Analisi**: Controlla che le variabili d'ambiente in `.env.local` e in Vercel (`GROQ_API_KEY`, ecc.) siano correttamente popolate e valide.
-- **Vedo solo argomenti vecchi nell'analisi**: Questo tool ha un vincolo stringente di focalizzarsi sempre sul 2026 e sulle tecnologie attuali. Se accade, assicurati di selezionare un Topic molto specifico e aggiornato.
-- **Nessun dato in GSC Insights**: Accertati di fare il login con l'account Google che ha privilegi di proprietario/amministratore per la property *https://cosmonet.info* in Google Search Console.
+---
+
+## 🧭 2. Le Funzionalità Modulari
+
+### 🚁 A. Daily Briefing (La Plancia di Comando)
+Questa è la tua "scrivania" virtuale. Qui trovi:
+- **🎯 Opportunità Quick Win**: Keyword che sono già in pagina 2. Con un piccolo sforzo AI, le portiamo in Top 3.
+- **📉 Rank Drops**: Il sistema monitora se i tuoi articoli perdono posizioni e ti avvisa immediatamente.
+- **🌱 Freshness Alert**: Ti ricorda quali articoli sono "vecchi" (più di 6 mesi) e vanno rinfrescati per non perdere autorità.
+- **💡 Consiglio del Giorno**: Un'analisi AI profonda che ti indica l'azione singola più importante da fare oggi.
+
+### 📊 B. Search Insights (Analisi GSC Avanzata)
+Qui analizzi i dati reali provenienti da Google Search Console con filtri intelligenti:
+- **🎯 Low CTR**: Trova articoli con tante visualizzazioni ma pochi clic. **Azione:** Cambia il Titolo (Meta Title) usando il nostro generatore di Brief.
+- **⚔️ Cannibalization Detector**: Ti avvisa se due tue pagine si stanno "mordendo a vicenda" per la stessa keyword. **Azione:** Merge delle pagine o differenziazione dei contenuti.
+
+### 📝 C. Content Factory (Generazione Contenuti)
+Trasforma un'idea in un post pronto per WordPress in meno di 2 minuti.
+1. **Brief SEO Competitor-Aware**: Genera una struttura articolo analizzando i primi 5 siti su Google in tempo reale.
+2. **🖼️ AI Image Generator**: Crea illustrazioni pro-grade (stile tech-moderno) gratuitamente via Pollinations.ai.
+3. **📱 Social Media Kit**: Genera post pronti per LinkedIn, X e Telegram per lanciare il contenuto subito dopo la pubblicazione.
+
+### 🤖 D. SEO Recovery Bot
+Se un articolo importante scende in classifica, non disperare:
+1. Trova l'articolo nella tabella (marchiato con l'icona 📉).
+2. Clicca su **RECOVER**.
+3. L'AI genererà un **Piano di Recupero Strategico**, spiegandoti cosa aggiungere o modificare per tornare in cima.
+
+---
+
+## 🔌 3. Integrazione WordPress "Zero-Click"
+Abbiamo eliminato la noia del copia-incolla:
+- Configura le tue credenziali una sola volta in **Impostazioni WP**.
+- Clicca su **Crea Bozza WP**: Il sistema invierà Titolo, Brief e l'immagine AI direttamente sul tuo sito.
+- **Auto-Linking**: Il tool inserisce automaticamente a fine articolo una sezione "Leggi anche" con i link interni più pertinenti già presenti sul tuo blog.
+
+---
+
+## 🚀 4. Workflow Ottimale (La tua routine)
+
+| Fase | Azione | Strumento |
+| :--- | :--- | :--- |
+| **08:00** | Controlla il **Consiglio del Giorno** | Daily Briefing |
+| **08:15** | Analizza un calo di ranking | Recovery Bot |
+| **09:00** | Genera Brief, Immagine e Social Kit | Content Factory |
+| **09:30** | Invia la bozza e pubblica | WP Sync |
+
+---
+
+## ❓ FAQ & Risoluzione Problemi
+
+> [!TIP]
+> **Il Brief non si genera?** Assicurati che la `GROQ_API_KEY` sia corretta. Llama 3.3 è il motore principale per la logica complessa.
+
+> [!CAUTION]
+> **Immagini non caricate?** Il servizio di generazione è gratuito e veloce, ma richiede una connessione internet stabile. Se fallisce, riprova dopo 10 secondi.
+
+---
+
+*Creato con dedizione per CosmoNet Pro. Il futuro della SEO è qui.*
