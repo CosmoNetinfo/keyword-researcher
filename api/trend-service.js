@@ -32,12 +32,19 @@ export default async function handler(req, res) {
           headers: GITHUB_TOKEN ? { Authorization: `token ${GITHUB_TOKEN}` } : { "User-Agent": "CosmoNet-App" } 
         });
         const ghData = await ghRes.json();
-        if (ghData.items) {
+        
+        if (ghData.items && ghData.items.length > 0) {
           githubTrends = ghData.items.map(repo => ({
             type: 'github', title: repo.name, url: repo.html_url, stars: repo.stargazers_count, author: repo.owner.login
           }));
         } else {
-          console.error("GitHub API Logic Error or Rate Limit:", ghData);
+          // --- GitHub FAIL-SAFE SPECIFICO ---
+          githubTrends = [
+            { type: 'github', title: 'torvalds/linux', url: 'https://github.com/torvalds/linux', stars: 171000, author: 'torvalds' },
+            { type: 'github', title: 'freeCodeCamp/freeCodeCamp', url: 'https://github.com/freeCodeCamp/freeCodeCamp', stars: 380000, author: 'freeCodeCamp' },
+            { type: 'github', title: 'microsoft/vscode', url: 'https://github.com/microsoft/vscode', stars: 155000, author: 'microsoft' }
+          ];
+          console.warn("GitHub results empty or error, using backup repos.");
         }
       } catch (e) {
         console.error("GitHub Fetch Error:", e);
