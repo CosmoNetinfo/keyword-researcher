@@ -33,7 +33,11 @@ export default async function handler(req, res) {
       const potentialFeeds = [
         { url: `${base}/feed/` },
         { url: `${base}/rss/` },
+        { url: `${base}/rss.xml` },
+        { url: `${base}/feed.xml` },
         { url: `${base}/index.xml` },
+        { url: `${base}/atom.xml` },
+        { url: `${base}/blog/feed/` },
         { url: `${base}/?feed=rss2` }
       ];
 
@@ -43,7 +47,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, items, feedUrl: feed.url });
         }
       }
-      return res.status(404).json({ error: "No public feed found for this competitor." });
+      return res.status(404).json({ error: "No public feed found. This site might block scanners or use a custom path." });
     }
 
     // ─── 1. RADAR TRENDS (GitHub & Hugging Face) ────────────────────────────
@@ -115,7 +119,12 @@ export default async function handler(req, res) {
 
 async function fetchFeed(feed, maxItems) {
   try {
-    const res = await fetch(feed.url, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(feed.url, { 
+      signal: AbortSignal.timeout(4000),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+      }
+    });
     if (!res.ok) return [];
     const xml = await res.text();
     const itemRe = /<item>([\s\S]*?)<\/item>|<entry>([\s\S]*?)<\/entry>/gi;
@@ -123,10 +132,26 @@ async function fetchFeed(feed, maxItems) {
     let m;
     while ((m = itemRe.exec(xml)) && items.length < maxItems) {
       const block = m[0];
-      const title = block.match(/<title[^>]*>(.*?)<\/title>/i)?.[1].replace(/<!\[CDATA\[|\]\]>/g, "").replace(/<[^>]+>/g, "");
-      const link = block.match(/<link[^>]*>([^<]+)<\/link>/i)?.[1] || block.match(/href=["']([^"']+)["']/i)?.[1];
-      const date = block.match(/<pubDate>(.*?)<\/pubDate>|<updated>(.*?)<\/updated>/i)?.[1];
-      if (title && link) items.push({ title, url: link, date, sourceName: feed.name, cat: feed.cat });
+      const titleMatch = block.match(/<title[^>]*>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/i);
+      const title = titleMatch?.[1].replace(/<[^>]+>/g, "").trim();
+      
+      let link = block.match(/<link[^>]*>([^<]+)<\/link>/i)?.[1];
+      if (!link) {
+        const hrefMatch = block.match(/href=["']([^"']+)["']/i);
+        link = hrefMatch?.[1];
+      }
+
+      const date = block.match(/<pubDate>(.*?)<\/pubDate>|<updated>(.*?)<\/updated>|<published>(.*?)<\/published>/i)?.[1];
+      
+      if (title && link) {
+        items.push({ 
+          title, 
+          url: link, 
+          date, 
+          sourceName: feed.name || "RSS", 
+          cat: feed.cat || "competitor" 
+        });
+      }
     }
     return items;
   } catch { return []; }
