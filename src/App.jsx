@@ -940,12 +940,20 @@ export default function App() {
                     {(result.competitors || []).map((c, i) => (
                       <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all group">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                          <div 
+                            onClick={() => window.open(c.url || c.domain || `https://${c.domain}`, '_blank')}
+                            className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all cursor-pointer"
+                          >
                             <ExternalLink className="w-6 h-6" />
                           </div>
                           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">#{i+1} Competitor</span>
                         </div>
-                        <h3 className="font-black text-slate-900 mb-1 truncate">{c.url}</h3>
+                        <h3 
+                          onClick={() => window.open(c.url || `https://${c.domain}`, '_blank')}
+                          className="font-black text-slate-900 mb-1 truncate cursor-pointer hover:text-primary transition-colors"
+                        >
+                          {c.url}
+                        </h3>
                         <p className="text-xs text-slate-400 font-medium uppercase tracking-tight mb-4">{c.domain}</p>
                         <div className="space-y-2">
                           <div className="flex justify-between text-xs">
