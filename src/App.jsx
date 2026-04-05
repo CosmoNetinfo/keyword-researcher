@@ -23,14 +23,16 @@ import {
   ExternalLink, 
   Calendar,
   CheckCircle2,
-  BarChart3,
+  Zap,
+  X,
   Plus,
-  RefreshCw,
-  Clock,
-  Check,
-  Trash2,
   History,
-  X
+  Trash2,
+  RefreshCw,
+  Brain,
+  BarChart3,
+  Clock,
+  Check
 } from "lucide-react";
 
 function cn(...inputs) {
