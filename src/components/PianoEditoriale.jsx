@@ -1964,7 +1964,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           <div className="bg-white p-8 rounded-[2rem] w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-300">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold font-inter text-deep-space">Social Media Kit 📱</h3>
-              <button onClick={() => setActiveSocial(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><Trash2 size={20} /></button>
+              <button onClick={() => setActiveSocial(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
             </div>
             <div className="space-y-6">
               {[
