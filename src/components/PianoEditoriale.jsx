@@ -427,10 +427,11 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       // 1. Tenta il fetch da WordPress API se abbiamo le credenziali
       if (wpSettings.url && wpSettings.user && wpSettings.pass) {
         try {
-          const resWP = await fetch("/api/wp-fetch", {
+          const resWP = await fetch("/api/wp-service", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              action: "fetch",
               wpUrl: wpSettings.url,
               username: wpSettings.user,
               appPassword: wpSettings.pass
@@ -443,7 +444,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             dataWP = await resWP.json();
           } else {
             const raw = await resWP.text();
-            throw new Error(`Risposta non valida dall'API (/api/wp-fetch). In locale assicurati di usare 'vercel dev' o verifica il file api/wp-fetch.js. Dettaglio: ${raw.substring(0, 50)}...`);
+            throw new Error(`Risposta non valida dall'API (/api/wp-service). In locale assicurati di usare 'vercel dev'. Dettaglio: ${raw.substring(0, 50)}...`);
           }
 
           if (resWP.ok) {

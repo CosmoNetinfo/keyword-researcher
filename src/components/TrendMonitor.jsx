@@ -144,7 +144,7 @@ export default function TrendMonitor({ onAddToPiano }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/rss-trends?cat=${cat}&limit=5`);
+      const res = await fetch(`/api/trend-service?action=rss&cat=${cat}&limit=5`);
       if (!res.ok) throw new Error(`Errore API: ${res.status}`);
       const data = await res.json();
       setItems(data.items || []);
