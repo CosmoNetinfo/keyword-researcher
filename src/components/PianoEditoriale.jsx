@@ -2320,18 +2320,4 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       )}
     </div>
   );
-}
-\n                             {a.imageUrl && (
-                                <button 
-                                  onClick={() => setPreviewImage({ url: a.imageUrl, title: a.title })}
-                                  className="shrink-0 w-8 h-8 rounded-lg overflow-hidden border border-slate-200 hover:ring-2 hover:ring-electric-blue/30 transition-all group/img mr-2"
-                                >
-                                  <img src={a.imageUrl} alt="AI" className="w-full h-full object-cover group-hover/img:scale-110 transition-transform" />
-                                </button>
-                             )}
-                             <span className={cn(
-                               "font-bold text-sm font-inter transition-colors",
-                               isDone ? "text-slate-400 line-through" : "text-deep-space"
-                             )}>
-                               {decodeHTML(a.title)}
-                             </span>
+}
