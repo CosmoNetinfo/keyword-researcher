@@ -165,6 +165,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [imageStatus, setImageStatus] = useState({}); // { id: 'loading' | 'success' | 'error' }
   const [socialStatus, setSocialStatus] = useState({});
   const [activeSocial, setActiveSocial] = useState(null); // { id, data }
+  const [radarData, setRadarData] = useState([]);
+  const [growthAdvice, setGrowthAdvice] = useState(null);
+  const [loadingRadar, setLoadingRadar] = useState(false);
 
   const quickWinKeywords = useMemo(() => new Set(
     gscKeywords
@@ -200,8 +203,43 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       }
     });
 
+    fetchRadar();
+
     return unsub;
   }, []);
+
+  async function fetchRadar() {
+    setLoadingRadar(true);
+    try {
+      const res = await fetch("/api/trend-radar");
+      const data = await res.json();
+      if (data.success) setRadarData(data.trends);
+    } catch (e) {
+      console.warn("Radar fetch failed:", e);
+    } finally {
+      setLoadingRadar(false);
+    }
+  }
+
+  async function fetchGrowthIntelligence() {
+    const token = sessionStorage.getItem('gsc_access_token');
+    if (!token) return;
+    try {
+      const res = await fetch("/api/growth-intelligence", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setGrowthAdvice(data);
+    } catch (e) {
+      console.warn("Growth Intel fetch failed:", e);
+    }
+  }
+
+  useEffect(() => {
+    if (viewMode === "briefing") {
+      fetchGrowthIntelligence();
+    }
+  }, [viewMode]);
 
   // FEAT 2: Shortcut Ricerca (Ctrl+K)
   useEffect(() => {
@@ -691,7 +729,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           appPassword: wpSettings.pass,
           title: article.title,
           content: article.lastBrief || article.description || `Bozza creata per keyword: ${article.kw}`,
-          internalLinks: suggestions.map(s => ({ url: s.existingUrl, title: s.title }))
+          internalLinks: suggestionsLinks.map(s => ({ url: s.existingUrl, title: s.title }))
         })
       });
       const data = await res.json();
@@ -1294,41 +1332,138 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       {/* Vista Briefing Giornaliero */}
       {viewMode === "briefing" && (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* Quick Wins Card */}
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
-              <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mb-6 font-black text-xl group-hover:scale-110 transition-transform">🎯</div>
-              <h3 className="text-xl font-bold mb-2">Opportunità Quick Win</h3>
-              <p className="text-sm text-slate-500 mb-6">Hai {pageItems.filter(isQuickWin).length} articoli vicini alla prima pagina. Ottimizzali ora!</p>
-              <button onClick={() => setViewMode('table')} className="text-electric-blue font-bold text-sm hover:underline">Vedi Candidati →</button>
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+              <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center mb-4 font-black text-lg group-hover:scale-110 transition-transform">🎯</div>
+              <h3 className="text-md font-bold mb-1">Quick Wins</h3>
+              <p className="text-[10px] text-slate-500 mb-4">Hai {articles.filter(isQuickWin).length} opportunità vicino alla top 3.</p>
+              <button onClick={() => setViewMode('table')} className="text-electric-blue font-bold text-[10px] hover:underline">Vedi Candidati →</button>
             </div>
             {/* Rank Drops Card */}
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
-              <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-6 font-black text-xl group-hover:scale-110 transition-transform">📉</div>
-              <h3 className="text-xl font-bold mb-2">Articoli da Recuperare</h3>
-              <p className="text-sm text-slate-500 mb-6">Ci sono {articles.filter(a => a.lastPosition > a.prevPosition + 3).length} articoli che stanno perdendo colpi.</p>
-              <button onClick={() => setViewMode('table')} className="text-rose-600 font-bold text-sm hover:underline">Avvia Recovery Bot →</button>
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+              <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center mb-4 font-black text-lg group-hover:scale-110 transition-transform">📉</div>
+              <h3 className="text-md font-bold mb-1">Recovery</h3>
+              <p className="text-[10px] text-slate-500 mb-4">Ci sono {articles.filter(a => a.lastPosition > a.prevPosition + 3).length} articoli in calo di ranking.</p>
+              <button onClick={() => setViewMode('table')} className="text-rose-600 font-bold text-[10px] hover:underline">Avvia Recovery →</button>
             </div>
-            {/* Freshness Card */}
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
-              <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-6 font-black text-xl group-hover:scale-110 transition-transform">🌱</div>
-              <h3 className="text-xl font-bold mb-2">Freshness Alert</h3>
-              <p className="text-sm text-slate-500 mb-6">Articoli non aggiornati da oltre 6 mesi. Mantienili freschi per Google!</p>
-              <button className="text-emerald-600 font-bold text-sm opacity-50 cursor-not-allowed">Prossimamente</button>
+            {/* Growth Advice Card */}
+            <div className={cn(
+              "p-6 rounded-[2rem] border transition-all relative overflow-hidden",
+              growthAdvice ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-slate-50 border-slate-200 text-slate-400"
+            )}>
+              <div className="relative z-10">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 font-black text-lg">📈</div>
+                <h3 className="text-md font-bold mb-1">Push Topic</h3>
+                <p className="text-[10px] opacity-80 mb-4">
+                  {growthAdvice ? `Settore in crescita: ${growthAdvice.bestSectorToPush}` : "Disponibile previa sync GSC"}
+                </p>
+                {growthAdvice && <div className="text-[9px] font-black uppercase bg-white/20 inline-block px-2 py-1 rounded">Consigliato oggi</div>}
+              </div>
+            </div>
+            {/* Github Radar Card */}
+            <div className="bg-slate-900 p-6 rounded-[2rem] text-white shadow-xl group cursor-pointer overflow-hidden relative">
+              <div className="absolute -top-4 -right-4 opacity-5 group-hover:scale-150 transition-transform"><Share2 size={100} /></div>
+              <h3 className="text-md font-bold mb-1 flex items-center gap-2">Trend Radar <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /></h3>
+              <p className="text-[10px] text-slate-400 mb-4">Scansionando repository e modelli LLM emergenti...</p>
+              <div className="space-y-2">
+                {loadingRadar ? <div className="animate-pulse flex gap-2"><div className="w-full h-8 bg-white/10 rounded-lg"></div></div> : 
+                  radarData.slice(0, 2).map((item, i) => (
+                    <div key={i} className="text-[9px] bg-white/10 p-2 rounded-lg border border-white/5 truncate">
+                      <span className="font-black text-indigo-400 mr-2">{item.type.toUpperCase()}</span> {item.title}
+                    </div>
+                  ))
+                }
+              </div>
             </div>
           </div>
           
-          <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-12 opacity-10"><Zap size={200} /></div>
-            <div className="relative z-10">
-              <h2 className="text-3xl font-bold mb-4 font-inter">Consiglio del Giorno 💡</h2>
-              <p className="text-lg text-slate-300 max-w-2xl leading-relaxed mb-8">
-                Basato sulle tue performance GSC, ti suggeriamo di puntare forte sulla keyword <strong>"{pageItems[0]?.kw || 'AI Automation'}"</strong>. 
-                Abbiamo notato un alto numero di impressioni ma un CTR ancora basso. Aggiorna il Meta Title!
-              </p>
-              <button onClick={() => handleCopyBrief(pageItems[0])} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold hover:bg-slate-100 transition-all flex items-center gap-2">
-                Genera Brief Ottimizzato <ArrowUpRight size={18} />
-              </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2 space-y-6">
+              <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-12 opacity-10"><Zap size={200} /></div>
+                <div className="relative z-10">
+                  <h2 className="text-3xl font-bold mb-2 font-inter flex items-center gap-3">
+                    Bussola Operativa 💡
+                    {growthAdvice && <span className="text-[10px] bg-indigo-500 px-3 py-1 rounded-full uppercase tracking-widest font-black animate-pulse">ROI Alto</span>}
+                  </h2>
+                  <p className="text-lg text-slate-300 max-w-2xl leading-relaxed mb-8">
+                    {growthAdvice ? growthAdvice.advice : "L'intelligenza artificiale sta analizzando i tuoi dati Search Console per suggerirti la mossa migliore..."}
+                  </p>
+                  <div className="flex gap-4">
+                    <button onClick={() => setViewMode('table')} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold hover:bg-slate-100 transition-all flex items-center gap-2">
+                      Analizza Keywords <ArrowUpRight size={18} />
+                    </button>
+                    {growthAdvice && (
+                      <div className="flex items-center gap-4 px-6 border-l border-white/10">
+                        <div>
+                          <div className="text-[10px] text-slate-500 uppercase font-black">Top Growth</div>
+                          <div className="text-xl font-bold truncate max-w-[150px]">{growthAdvice.topGrowth[0]?.query}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Feed Trend Recenti (Inspiration Engine) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8">
+                  <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-6 flex items-center gap-2">🚀 Nuovi Modelli AI (Hugging Face)</h4>
+                  <div className="space-y-4">
+                    {radarData.filter(i => i.type === 'huggingface').map((m, i) => (
+                      <div key={i} className="flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0">
+                        <a href={m.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">{m.title}</a>
+                        <div className="text-[10px] text-slate-400 font-medium">{m.description}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8">
+                  <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-6 flex items-center gap-2">📦 Trending Repos (GitHub)</h4>
+                  <div className="space-y-4">
+                    {radarData.filter(i => i.type === 'github').map((r, i) => (
+                      <div key={i} className="flex flex-col gap-1 border-b border-slate-50 pb-3 last:border-0">
+                        <a href={r.url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">{r.title}</a>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
+                          <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold">⭐ {r.stars}</span>
+                          <span className="truncate">by {r.author}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* Statistiche Quick Win Realtime */}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-[2.5rem] p-8">
+                <h4 className="font-black text-indigo-900 uppercase tracking-widest text-[10px] mb-4">Snapshot Performance</h4>
+                <div className="space-y-6">
+                  <div className="flex justify-between items-end border-b border-indigo-200 pb-4">
+                    <div>
+                      <div className="text-md font-black text-indigo-600">Quick Wins</div>
+                      <div className="text-[10px] text-indigo-400 font-bold">Argomenti caldissimi</div>
+                    </div>
+                    <div className="text-3xl font-black text-indigo-900">{articles.filter(isQuickWin).length}</div>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <div className="text-md font-black text-rose-600">Recovery</div>
+                      <div className="text-[10px] text-rose-400 font-bold">Articoli in calo</div>
+                    </div>
+                    <div className="text-3xl font-black text-rose-900">{articles.filter(a => a.lastPosition > a.prevPosition + 3).length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-8">
+                 <h4 className="font-black text-slate-400 uppercase tracking-widest text-[10px] mb-4">Prossimamente: Freshness Alert</h4>
+                 <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                   Stiamo elaborando l'algoritmo per identificare quali articoli del 2024/2025 vanno rinfrescati per mantenere l'E-E-A-T.
+                 </p>
+              </div>
             </div>
           </div>
         </div>

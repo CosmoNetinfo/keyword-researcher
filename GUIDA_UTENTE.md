@@ -5,7 +5,11 @@ Benvenuto nella documentazione ufficiale di **CosmoNet Keyword Researcher Pro**.
 ---
 
 > [!IMPORTANT]
-> **Nota per il Download**: Questo file è in formato Markdown (.md). Puoi scaricarlo, aprirlo con qualsiasi editor di testo o convertirlo in PDF per una consultazione rapida da mobile o tablet.
+> **Nota per il Download**:
+> - [x] **Phase 3: Refinement & Guides**
+> - [x] Aggiornamento `GUIDA_UTENTE.md` con le nuove funzioni radar.
+> - [x] Test finale dei trend con il token fornito.
+> Questo file è in formato Markdown (.md). Puoi scaricarlo, aprirlo con qualsiasi editor di testo o convertirlo in PDF per una consultazione rapida da mobile o tablet.
 
 ---
 
@@ -39,6 +43,17 @@ Se un articolo importante scende in classifica, non disperare:
 1. Trova l'articolo nella tabella (marchiato con l'icona 📉).
 2. Clicca su **RECOVER**.
 3. L'AI genererà un **Piano di Recupero Strategico**, spiegandoti cosa aggiungere o modificare per tornare in cima.
+
+### E. Trend Radar (Ispirazione Continua) 🛰️
+Non restare mai senza idee:
+1. Trova il widget **"Trend Radar"** nel Daily Briefing.
+2. Visualizza in tempo reale quali **Repository GitHub** (AI/Linux) e quali **Modelli LLM** (Hugging Face) stanno esplodendo a livello mondiale.
+3. Clicca sui link per approfondire e trasformarli in contenuti unici in anteprima assoluta.
+
+### F. Growth Intelligence (Dove spingere) 📈
+Usa i dati per decidere:
+- Il sistema confronta i dati GSC settimanali e ti dà un **Advice** testuale.
+- Se vedi *"Spingi AI"*, significa che il tuo pubblico sta cercando quel topic più del solito: è il momento di pubblicare!
 
 ---
 
