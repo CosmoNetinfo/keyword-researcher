@@ -179,7 +179,7 @@ Richieste di volumi:
     if (serperKey && resultObj.keywords && resultObj.keywords.length > 0) {
       try {
         const enriched = await Promise.all(
-          resultObj.keywords.slice(0, 15).map(async (kw) => {
+          resultObj.keywords.slice(0, 5).map(async (kw) => {
             try {
               const r = await fetch("https://google.serper.dev/search", {
                 method: "POST",
@@ -188,7 +188,6 @@ Richieste di volumi:
               });
               const data = await r.json();
               
-              // Calcolo KD avanzato
               const adsCount = data.ads?.length || 0;
               const hasKnowledgeGraph = !!data.knowledgeGraph;
               const hasVideo = (data.organic || []).some(o => o.link?.includes('youtube.com') || o.link?.includes('vimeo.com'));
@@ -207,14 +206,12 @@ Richieste di volumi:
                 has_video: hasVideo,
                 has_kg: hasKnowledgeGraph
               };
-            } catch (err) {
-              console.error("Single keyword enrichment error:", err);
+            } catch {
               return kw;
             }
           })
         );
-        // Replace first 15 with enriched ones
-        resultObj.keywords = [...enriched, ...resultObj.keywords.slice(15)];
+        resultObj.keywords = [...enriched, ...resultObj.keywords.slice(5)];
       } catch (e) {
         console.error("Enrichment process error:", e);
       }
@@ -223,7 +220,10 @@ Richieste di volumi:
     res.status(200).json(resultObj);
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    console.error("INTERNAL API ERROR:", error);
+    res.status(500).json({ 
+      error: `Errore Backend: ${error.message}`,
+      type: error.name
+    });
   }
 }
