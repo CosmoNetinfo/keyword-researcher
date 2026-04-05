@@ -4,18 +4,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { wpUrl, username, appPassword, title, content } = req.body;
-
+    const { wpUrl, username, appPassword, title, content, internalLinks = [] } = req.body;
+    
     if (!wpUrl || !username || !appPassword || !title) {
-      return res.status(400).json({ error: 'Parametri mancanti' });
+        return res.status(400).json({ error: 'Parametri mancanti' });
     }
 
-    // Costruzione URL API WP
     const apiUrl = `${wpUrl.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
-    
-    // Auth Basic con Application Password
     /* eslint-disable no-undef */
     const auth = Buffer.from(`${username}:${appPassword}`).toString('base64');
+
+    let finalContent = content || "Bozza creata da Keyword Researcher";
+    
+    // Iniezione link interni a fine articolo (Opzione A)
+    if (internalLinks && internalLinks.length > 0) {
+      finalContent += "\n\n<!-- Suggerimenti Link Interni -->\n" + 
+        "<div class='related-posts'><h3>Leggi anche:</h3><ul>" + 
+        internalLinks.map(l => `<li><a href="${l.url}">${l.title}</a></li>`).join("") + 
+        "</ul></div>";
+    }
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -25,9 +32,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         title,
-        content: content || "Bozza creata da Keyword Researcher",
-        status: "draft",
-        // categories: [1] // Potrebbe servire il mapping delle categorie
+        content: finalContent,
+        status: "draft"
       })
     });
 

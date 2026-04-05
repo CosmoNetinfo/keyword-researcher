@@ -9,11 +9,35 @@ export default async function handler(req, res) {
     if (!title) return res.status(400).json({ error: 'Titolo mancante' });
 
     const groqKey = process.env.GROQ_API_KEY;
+    const serperKey = process.env.SERPER_API_KEY;
+    
     if (!groqKey) return res.status(500).json({ error: 'GROQ_API_KEY non configurata sul server' });
+
+    let competitorContext = "";
+    if (serperKey) {
+      try {
+        const serperRes = await fetch("https://google.serper.dev/search", {
+          method: "POST",
+          headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ q: title, gl: "it", hl: "it", num: 5 })
+        });
+        const serperJson = await serperRes.json();
+        const results = serperJson.organic || [];
+        if (results.length > 0) {
+          competitorContext = "\n\nCOMPETITOR ATTUALI (Analisi SERP):\n" + 
+            results.map(r => `- ${r.title}: ${r.snippet}`).join("\n");
+        }
+      } catch (e) {
+        console.warn("Serper enrichment failed for brief:", e.message);
+      }
+    }
 
     const prompt = `Sei un editor SEO esperto di cosmonet.info, blog tech italiano.
 Scrivi un brief dettagliato per un articolo su: ${title}
 ${category ? `Categoria: ${category}` : ''}
+${competitorContext}
+
+OBIETTIVO: Analizza i competitor sopra citati e scrivi un brief che permetta di superarli in qualità, offrendo più valore tecnico e dettagli aggiornati al 2026.
 
 Testo narrativo in italiano di 150-250 parole che includa:
 - Contesto e rilevanza dell'argomento nel 2026

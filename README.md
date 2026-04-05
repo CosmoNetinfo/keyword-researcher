@@ -1,79 +1,78 @@
-# 🚀 CosmoNet Keyword Researcher & Editorial Suite
+# 🚀 CosmoNet Keyword Researcher & Editorial Suite (Ultimate Edition v5.0)
 
-**CosmoNet Keyword Researcher Pro** è una suite di intelligenza artificiale avanzata per SEO e Content Strategy, progettata per massimizzare il traffico organico del blog `cosmonet.info`.
-Il tool automatizza l'intero workflow editoriale: dalla scoperta di keyword tramite Google Search Console e Trend (RSS), alla generazione di brief ottimizzati tramite LLM (Llama 3.3, Gemini 2.0, Claude 3.5), fino alla sincronizzazione con WordPress.
+**CosmoNet Keyword Researcher Pro** è una suite di intelligenza artificiale di classe enterprise per SEO e Content Automation, progettata per dominare la SERP di `cosmonet.info`.
+Questa versione trasforma il workflow editoriale in un processo semi-autonomo, integrando analisi dei competitor, generazione visuale, social kit e algoritmi di recupero ranking.
 
 ---
 
-## 🌟 Funzionalità Principali
+## 🌟 Novità della Versione 5.0 (Enterprise Suite)
 
-### 📊 Integrazione Google Search Console (GSC)
-- **Analisi del Traffico**: Visualizza click, impressioni, CTR e posizione media.
-- **Identificazione "Quick Win"**: Badge automatico per le keyword posizionate tra il 5° e il 20° posto.
-- **Azione Rapida**: Lancia un'analisi AI ottimizzata direttamente da una keyword GSC per scalare le posizioni in Top 3.
+### 📈 1. Search Insights & Deep Analytics
+- **Dashboard Grafica Interattiva**: Monitoraggio in tempo reale di Clic e Impressioni tramite grafici dinamici (Recharts).
+- **Cannibalization Detector**: Algoritmo specializzato che identifica query dove più pagine competono inefficacemente, suggerendo azioni di merging o differenziazione.
+- **Low CTR Optimizer**: Filtro automatico per catturare le "Gold Opportunities" (keyword in top position ma con bassi clic).
 
-### 🤖 Analisi AI Multimodello
-- **Motori Supportati**: Groq (Llama-3.3-70b-versatile), Gemini 2.0 Flash, Claude 3.5 Sonnet.
-- **Modalità Quick Win**: Ottimizza i prompt per aggiornare e migliorare contenuti esistenti piuttosto che crearne di nuovi da zero.
-- **Zero Allucinazioni**: Vincoli di prompt stringenti per garantire che l'elaborazione si basi su trend reali del 2026 e dati verificabili.
+### 🤖 2. Content Power-up & Recovery Bot
+- **SEO Recovery Bot**: Sistema proattivo che rileva i "Rank Drop" e genera istantaneamente un **Piano di Recupero** basato sui nuovi intent dei competitor.
+- **Competitor-Aware Briefs**: Generazione di brief che includono dati reali estrapolati dai top 5 competitor in SERP tramite Serper.dev.
+- **Daily Briefing**: Una scheda dedicata che riassume le 3 azioni prioritarie per la giornata.
 
-### 📡 Trend Monitor RSS
-- **Aggiornamenti in Tempo Reale**: Monitoraggio di oltre 60 fonti feed RSS dal mondo Tech, AI e Linux.
-- **Add to Plan**: Aggiungi istantaneamente una notizia di tendenza al tuo Piano Editoriale con un solo click.
+### 🎨 3. Visual & Social Automation
+- **AI Image Generation (Gratuita)**: Integrazione con Pollinations.ai per creare illustrazioni editoriali professionali on-demand e senza costi.
+- **Social Media Kit**: Generazione automatica di post ottimizzati per LinkedIn, X (Twitter) e Telegram per massimizzare la distribuzione del contenuto.
 
-### 📅 Gestione Piano Editoriale
-- **Kanban / Tabella**: Organizza gli articoli da scrivere, in lavorazione e completati.
-- **Sincronizzazione WordPress**: Importa lo stato degli articoli (pubblicati, programmati, bozze) direttamente dal CMS.
-- **Brief Generator**: Ottieni un brief SEO dettagliato generato dall'AI pronto da copiare.
+### 🔌 4. Workflow Seamless (WordPress)
+- **One-Click WP Draft**: Esporta i brief generati direttamente come bozze su WordPress.
+- **Auto-Linking Intelligente**: Iniezione automatica di link interni correlati ("Leggi anche") a fine articolo per potenziare il PageRank interno.
 
 ---
 
 ## 🛠 Stack Tecnologico
 
-- **Frontend**: React 19 + Vite + Tailwind CSS
-- **Database**: Firebase Firestore (Real-time data sync)
-- **Backend / API**: Node.js Serverless Functions (deploy su Vercel)
-- **Integrazioni Esterne**: API Google Search Console, API WordPress REST, Serper.dev (Google Search API), API LLM (Groq, Anthropic, Google).
+- **Frontend**: React 19 + Vite + Tailwind CSS + Recharts
+- **Database**: Firebase Firestore (Sync in tempo reale)
+- **Backend / API**: Vercel Serverless Functions (Node.js)
+- **AI Engine**: 
+  - **Text**: Groq (Llama-3.3-70b-versatile), Gemini 2.0 Flash, Claude 3.5 Sonnet.
+  - **Images**: Pollinations.ai (Free/Fast).
+  - **Search**: Serper.dev (Real-time Google SERP Data).
+- **GSC**: Google Search Console API (v1).
 
 ---
 
-## 🚀 Setup e Sviluppo Locale
-
-### Prerequisiti
-- Node.js (v18+)
-- Vercel CLI (per testare le API serverless in locale)
+## 🚀 Setup e Configurazione
 
 ### Installazione
-
-1. Clona la repository.
-2. Installa le dipendenze:
-   ```bash
-   npm install
-   ```
-
-3. Crea un file `.env.local` nella root del progetto basandoti su `.env.example` (assicurati di non committarlo!):
-   ```env
-   VITE_FIREBASE_API_KEY="la-tua-chiave-firebase"
-   GROQ_API_KEY="la-tua-chiave-groq"
-   GEMINI_API_KEY="la-tua-chiave-gemini"
-   ANTHROPIC_API_KEY="la-tua-chiave-anthropic"
-   SERPER_API_KEY="la-tua-chiave-serper"
-   VITE_GSC_CLIENT_ID="id-client-google-cloud"
-   WP_APPLICATION_PASSWORD="password-app-wordpress"
-   ```
-
-### Avvio
-
-Per avviare solo il frontend:
 ```bash
-npm run dev
+npm install
 ```
 
-Per testare correttamente l'applicazione completa (Frontend + Serverless Functions via proxy Vercel), usa:
+### Variabili d'Ambiente (.env)
+Assicurati che le seguenti siano configurate nel tuo profilo Vercel o file `.env` locale:
+```env
+VITE_FIREBASE_API_KEY="xxx"
+GROQ_API_KEY="xxx" (Richiesta per Social Kit & Recovery)
+SERPER_API_KEY="xxx" (Richiesta per Competitor Analysis & KD reale)
+VITE_GSC_CLIENT_ID="xxx" (Autenticazione GSC)
+GEMINI_API_KEY="xxx"
+ANTHROPIC_API_KEY="xxx"
+```
+
+### Esecuzione
+Frontend + API (Proxy Vercel):
 ```bash
 vercel dev
 ```
 
 ---
 
-*Prodotto con ❤️ dal team di sviluppo CosmoNet Pro per il web di domani.*
+## 📝 Workflow Consigliato
+1. Apri **GSC Insights** e identifica un **Quick Win**.
+2. Clicca su **Analizza** per studiare il competitor.
+3. Genera il **Brief SEO** arricchito.
+4. Genera l'**Immagine AI** e il **Social Kit**.
+5. Clicca su **Crea Bozza WP** per avere tutto pronto sul CMS.
+
+---
+
+*Prodotto con ❤️ dal team di sviluppo CosmoNet Pro per il futuro dell'editoria digitale.*

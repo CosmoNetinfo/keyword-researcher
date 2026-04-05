@@ -29,7 +29,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  Image as ImageIcon,
+  Share2,
+  Copy,
+  Download
 } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -142,7 +146,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   });
   const [saving, setSaving]     = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState("table"); // "table" | "calendar"
+  const [viewMode, setViewMode] = useState("table"); // "table", "calendar", "briefing"
   const [showWPSettings, setShowWPSettings] = useState(false);
   const [wpSettings, setWPSettings] = useState({ url: "", user: "", pass: "" });
   const [testingWP, setTestingWP] = useState(false);
@@ -156,6 +160,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   const [sortConfig, setSortConfig] = useState({ key: "month", direction: "asc" }); // Default: per data (mese)
   const [wpCategories, setWPCategories] = useState([]);
   const [briefStatus, setBriefStatus] = useState({});
+  const [imageStatus, setImageStatus] = useState({}); // { id: 'loading' | 'success' | 'error' }
+  const [socialStatus, setSocialStatus] = useState({});
+  const [activeSocial, setActiveSocial] = useState(null); // { id, data }
 
   const quickWinKeywords = useMemo(() => new Set(
     gscKeywords
@@ -537,6 +544,12 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       if (!res.ok) throw new Error(data.error || 'Errore API');
       if (!data.brief) throw new Error('Nessun testo restituito');
 
+      // SALVA IL BRIEF NEL DATABASE
+      await updateDoc(doc(db, "piano_editoriale", article.id), { 
+        lastBrief: data.brief,
+        lastBriefAt: serverTimestamp()
+      });
+
       await navigator.clipboard.writeText(data.brief);
       setBriefStatus(prev => ({ ...prev, [article.id]: 'success' }));
       setTimeout(() => {
@@ -576,6 +589,86 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
+  // ── Genera Immagine (Pollinations.ai) ────────────────────────────────────
+  async function handleGenerateImage(article) {
+    setImageStatus(prev => ({ ...prev, [article.id]: 'loading' }));
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: `Pro-grade editorial illustration for a tech blog post titled "${article.title}". Style: clean, modern, digital art, vibrant colors, technology theme.` })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      // Salvataggio URL nel DB
+      await updateDoc(doc(db, "piano_editoriale", article.id), { imageUrl: data.imageUrl });
+      
+      setImageStatus(prev => ({ ...prev, [article.id]: 'success' }));
+      setTimeout(() => setImageStatus(prev => ({ ...prev, [article.id]: null })), 2000);
+    } catch (err) {
+      console.error(err);
+      setImageStatus(prev => ({ ...prev, [article.id]: 'error' }));
+    }
+  }
+
+  // ── Genera Social Kit ──────────────────────────────────────────────────────
+  async function handleGenerateSocial(article) {
+    setSocialStatus(prev => ({ ...prev, [article.id]: 'loading' }));
+    try {
+      const res = await fetch('/api/generate-social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: article.title, brief: article.lastBrief })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      setActiveSocial({ id: article.id, data });
+      setSocialStatus(prev => ({ ...prev, [article.id]: 'success' }));
+      setTimeout(() => setSocialStatus(prev => ({ ...prev, [article.id]: null })), 2000);
+    } catch (err) {
+      console.error(err);
+      setSocialStatus(prev => ({ ...prev, [article.id]: 'error' }));
+    }
+  }
+
+  // ── Recovery Bot ──────────────────────────────────────────────────────────
+  async function handleRecovery(article) {
+    if (!article.lastPosition || !article.prevPosition) return;
+    setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
+    try {
+      const res = await fetch('/api/generate-recovery-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: article.title, 
+          currentPosition: article.lastPosition, 
+          prevPosition: article.prevPosition 
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      
+      const el = document.createElement('textarea');
+      el.value = data.brief;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      
+      setBriefStatus(prev => ({ ...prev, [article.id]: 'success' }));
+      alert("🚀 Piano di recupero generato e copiato negli appunti!");
+      
+      const artRef = doc(db, "piano_editoriale", article.id);
+      await updateDoc(artRef, { lastRecoveryBrief: data.brief, recoveryBriefAt: serverTimestamp() });
+      
+    } catch (e) {
+      console.error(e);
+      setBriefStatus(prev => ({ ...prev, [article.id]: 'error' }));
+    }
+  }
+
   // ── WordPress Draft ───────────────────────────────────────────────────────
   async function createWPDraft(article) {
     if (!wpSettings.url || !wpSettings.user || !wpSettings.pass) {
@@ -584,6 +677,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
     setSaving(true);
     try {
+      // Recupero suggerimenti link interni se disponibili
+      const suggestions = allLinks[article.id] || [];
+      
       const res = await fetch("/api/wp-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -592,7 +688,8 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
           username: wpSettings.user,
           appPassword: wpSettings.pass,
           title: article.title,
-          content: article.description || `Bozza creata per keyword: ${article.kw}`
+          content: article.lastBrief || article.description || `Bozza creata per keyword: ${article.kw}`,
+          internalLinks: suggestions.map(s => ({ url: s.existingUrl, title: s.title }))
         })
       });
       const data = await res.json();
@@ -679,15 +776,25 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
-  // ── Suggerimenti Link Interni ─────────────────────────────────────────────
+  // - [x] Update `api/analyze.js` (Keyword Difficulty reale)
+  // - [x] Implementazione Alert Ranking in `PianoEditoriale.jsx`
+  // - [x] Miglioramento algoritmo suggerimenti link interni
+  // - [x] Implementazione Briefing Giornaliero
+
+  // ── Suggerimenti Link Interni AVANZATI ────────────────────────────────────
   function showLinkSuggestions(article) {
     const published = articles.filter(a => a.status === "pubblicato" && a.id !== article.id);
-    const kwWords = (article.kw || "").toLowerCase().split(/[\s,]+/).filter(w => w.length > 3);
+    const tokensA = new Set(getTokens(article.title + " " + (article.kw || "")));
     
-    const suggested = published.filter(p => {
-      const pText = (p.title + " " + p.kw).toLowerCase();
-      return kwWords.some(w => pText.includes(w));
-    }).slice(0, 5);
+    const suggested = published.map(p => {
+      const tokensP = getTokens(p.title + " " + (p.kw || ""));
+      const common = tokensP.filter(t => tokensA.has(t));
+      const score = (2 * common.length) / (tokensA.size + tokensP.length);
+      return { ...p, linkScore: score, commonTokens: common };
+    })
+    .filter(p => p.linkScore > 0.15)
+    .sort((a, b) => b.linkScore - a.linkScore)
+    .slice(0, 8);
 
     setSuggestions({ article, items: suggested });
   }
@@ -1046,13 +1153,25 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 <span className="hidden sm:inline">Pulizia</span>
               </button>
 
-              <button 
-                onClick={() => setViewMode(v => v === "table" ? "calendar" : "table")}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-white border border-slate-200 text-slate-700 hover:border-violet-500 hover:text-violet-500 transition-all"
-              >
-                {viewMode === "table" ? <Calendar size={18} /> : <BarChart3 size={18} />}
-                <span className="hidden sm:inline">{viewMode === "table" ? "Cal" : "Tab"}</span>
-              </button>
+              {/* Bottoni Vista */}
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
+                {[
+                  { id: "table", label: "Tabella", icon: <BarChart3 size={16} /> },
+                  { id: "calendar", label: "Agenda", icon: <Calendar size={16} /> },
+                  { id: "briefing", label: "Briefing", icon: <Zap size={16} className="text-amber-500" /> },
+                ].map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => setViewMode(v.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                      viewMode === v.id ? "bg-white text-deep-space shadow-sm" : "text-slate-500 hover:text-deep-space"
+                    )}
+                  >
+                    {v.icon} {v.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="h-8 w-px bg-slate-200 mx-1 hidden md:block" />
@@ -1170,74 +1289,101 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         </form>
       )}
 
-      {/* Tabella articoli */}
-
-      {/* Vista Calendario Multipagina */}
-      {viewMode === "calendar" && (
-        <div className="w-full">
-          {filter.month === "all" ? (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 bg-blue-50 text-electric-blue rounded-full flex items-center justify-center mb-6 shadow-inner">
-                <Calendar size={32} />
-              </div>
-              <h3 className="text-xl font-bold text-deep-space mb-2 font-inter">Seleziona un Mese</h3>
-              <p className="text-slate-500 max-w-sm text-sm">
-                Per visualizzare l'agenda giornaliera, seleziona un mese specifico dal filtro in alto.
-              </p>
+      {/* Vista Briefing Giornaliero */}
+      {viewMode === "briefing" && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Quick Wins Card */}
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+              <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mb-6 font-black text-xl group-hover:scale-110 transition-transform">🎯</div>
+              <h3 className="text-xl font-bold mb-2">Opportunità Quick Win</h3>
+              <p className="text-sm text-slate-500 mb-6">Hai {pageItems.filter(isQuickWin).length} articoli vicini alla prima pagina. Ottimizzali ora!</p>
+              <button onClick={() => setViewMode('table')} className="text-electric-blue font-bold text-sm hover:underline">Vedi Candidati →</button>
             </div>
-          ) : (
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                <h3 className="font-bold text-lg text-deep-space font-inter uppercase tracking-wider">
-                  Agenda - {MONTH_NAMES[Number(filter.month) - 1]} {filter.year !== "all" ? filter.year : new Date().getFullYear()}
-                </h3>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {(() => {
-                  const y = filter.year === "all" ? new Date().getFullYear() : Number(filter.year);
-                  const m = Number(filter.month);
-                  const daysInMonth = new Date(y, m, 0).getDate();
-                  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+            {/* Rank Drops Card */}
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+              <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-6 font-black text-xl group-hover:scale-110 transition-transform">📉</div>
+              <h3 className="text-xl font-bold mb-2">Articoli da Recuperare</h3>
+              <p className="text-sm text-slate-500 mb-6">Ci sono {articles.filter(a => a.lastPosition > a.prevPosition + 3).length} articoli che stanno perdendo colpi.</p>
+              <button onClick={() => setViewMode('table')} className="text-rose-600 font-bold text-sm hover:underline">Avvia Recovery Bot →</button>
+            </div>
+            {/* Freshness Card */}
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center mb-6 font-black text-xl group-hover:scale-110 transition-transform">🌱</div>
+              <h3 className="text-xl font-bold mb-2">Freshness Alert</h3>
+              <p className="text-sm text-slate-500 mb-6">Articoli non aggiornati da oltre 6 mesi. Mantienili freschi per Google!</p>
+              <button className="text-emerald-600 font-bold text-sm opacity-50 cursor-not-allowed">Prossimamente</button>
+            </div>
+          </div>
+          
+          <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-12 opacity-10"><Zap size={200} /></div>
+            <div className="relative z-10">
+              <h2 className="text-3xl font-bold mb-4 font-inter">Consiglio del Giorno 💡</h2>
+              <p className="text-lg text-slate-300 max-w-2xl leading-relaxed mb-8">
+                Basato sulle tue performance GSC, ti suggeriamo di puntare forte sulla keyword <strong>"{pageItems[0]?.kw || 'AI Automation'}"</strong>. 
+                Abbiamo notato un alto numero di impressioni ma un CTR ancora basso. Aggiorna il Meta Title!
+              </p>
+              <button onClick={() => handleCopyBrief(pageItems[0])} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold hover:bg-slate-100 transition-all flex items-center gap-2">
+                Genera Brief Ottimizzato <ArrowUpRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  const articlesByDay = {};
-                  const unscheduled = [];
-                  filtered.forEach(a => {
-                    let day = null;
-                    if (a.scheduledDate) {
-                      const d = new Date(a.scheduledDate);
-                      if ((!a.year || a.year === d.getFullYear()) && (!a.month || a.month === d.getMonth() + 1)) {
-                         day = d.getDate();
-                      }
-                    } else if (a.day) {
-                      day = a.day;
-                    }
-                    
-                    if (day && day >= 1 && day <= daysInMonth) {
-                      if (!articlesByDay[day]) articlesByDay[day] = [];
-                      articlesByDay[day].push(a);
-                    } else {
-                      unscheduled.push(a);
-                    }
-                  });
+      {/* Vista Calendario */}
+      {viewMode === "calendar" && (
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-500/10 overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {(() => {
+              const y = Number(filter.year === "all" ? new Date().getFullYear() : filter.year);
+              const m = Number(filter.month === "all" ? new Date().getMonth() + 1 : filter.month);
+              const daysInMonth = new Date(y, m, 0).getDate();
+              const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+              
+              const articlesByDay = {};
+              filtered.forEach(a => {
+                if (a.month === m && a.year === y) {
+                  const d = a.day || 1;
+                  if (!articlesByDay[d]) articlesByDay[d] = [];
+                  articlesByDay[d].push(a);
+                }
+              });
 
-                  return (
-                    <>
-                      {unscheduled.length > 0 && (
-                        <div className="flex flex-col md:flex-row group bg-amber-50/30 border-b border-slate-200">
-                          {/* Box Data Sinistra */}
-                          <div className="md:w-48 p-4 md:p-6 flex flex-row md:flex-col items-center md:items-start md:justify-center gap-4 md:gap-1 shrink-0">
-                            <span className="font-black text-2xl font-inter text-amber-600">
-                              Mese
-                            </span>
-                            <span className="text-xs font-bold uppercase tracking-widest text-amber-500">
-                              Senza Giorno
-                            </span>
-                          </div>
-                          
-                          {/* Articoli a Destra */}
-                          <div className="flex-1 p-4 md:p-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
-                            {unscheduled.map(a => (
-                              <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-amber-500/50 hover:shadow-md transition-all flex flex-col gap-3">
+              return (
+                <>
+                  {daysArray.map(day => {
+                    const dayArticles = articlesByDay[day] || [];
+                    const isToday = new Date().getDate() === day && new Date().getMonth() + 1 === m && new Date().getFullYear() === y;
+
+                    return (
+                      <div key={day} className={cn("flex flex-col md:flex-row group transition-colors", isToday ? "bg-electric-blue/5" : "hover:bg-slate-50/50")}>
+                        {/* Box Data Sinistra */}
+                        <div className="md:w-48 p-4 md:p-6 md:border-r border-slate-100 flex flex-row md:flex-col items-center md:items-start md:justify-center gap-4 md:gap-1 shrink-0">
+                          <span className={cn(
+                            "font-black text-3xl font-inter", 
+                            isToday ? "text-electric-blue" : "text-slate-700"
+                          )}>
+                            {day}
+                          </span>
+                          <span className={cn(
+                            "text-xs font-bold uppercase tracking-widest",
+                            isToday ? "text-electric-blue/70" : "text-slate-400"
+                          )}>
+                            {new Date(y, m - 1, day).toLocaleDateString('it-IT', { weekday: 'long' })}
+                          </span>
+                        </div>
+                        
+                        {/* Articoli a Destra */}
+                        <div className="flex-1 p-4 md:p-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
+                          {dayArticles.length === 0 ? (
+                            <div className="flex items-center text-sm text-slate-400 font-medium italic opacity-0 group-hover:opacity-100 transition-opacity col-span-full">
+                              Nessun articolo programmato
+                            </div>
+                          ) : (
+                            dayArticles.map(a => (
+                              <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-electric-blue/50 hover:shadow-md transition-all flex flex-col gap-3">
                                 <div className="flex justify-between items-start gap-3">
                                   <div className="font-bold text-sm text-deep-space leading-snug break-words">
                                     {decodeHTML(a.title)}
@@ -1260,76 +1406,16 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                                   </div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
+                            ))
+                          )}
                         </div>
-                      )}
-
-                      {daysArray.map(day => {
-                        const dayArticles = articlesByDay[day] || [];
-                        const isToday = new Date().getDate() === day && new Date().getMonth() + 1 === m && new Date().getFullYear() === y;
-
-                        return (
-                          <div key={day} className={cn("flex flex-col md:flex-row group transition-colors", isToday ? "bg-electric-blue/5" : "hover:bg-slate-50/50")}>
-                            {/* Box Data Sinistra */}
-                            <div className="md:w-48 p-4 md:p-6 md:border-r border-slate-100 flex flex-row md:flex-col items-center md:items-start md:justify-center gap-4 md:gap-1 shrink-0">
-                              <span className={cn(
-                                "font-black text-3xl font-inter", 
-                                isToday ? "text-electric-blue" : "text-slate-700"
-                              )}>
-                                {day}
-                              </span>
-                              <span className={cn(
-                                "text-xs font-bold uppercase tracking-widest",
-                                isToday ? "text-electric-blue/70" : "text-slate-400"
-                              )}>
-                                {new Date(y, m - 1, day).toLocaleDateString('it-IT', { weekday: 'long' })}
-                              </span>
-                            </div>
-                            
-                            {/* Articoli a Destra */}
-                            <div className="flex-1 p-4 md:p-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
-                              {dayArticles.length === 0 ? (
-                                <div className="flex items-center text-sm text-slate-400 font-medium italic opacity-0 group-hover:opacity-100 transition-opacity col-span-full">
-                                  Nessun articolo programmato
-                                </div>
-                              ) : (
-                                dayArticles.map(a => (
-                                  <div key={a.id} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-electric-blue/50 hover:shadow-md transition-all flex flex-col gap-3">
-                                    <div className="flex justify-between items-start gap-3">
-                                      <div className="font-bold text-sm text-deep-space leading-snug break-words">
-                                        {decodeHTML(a.title)}
-                                      </div>
-                                      <StatusBtn status={a.status || "da_scrivere"} onChange={() => cycleStatus(a)} className="scale-90 origin-top-right shrink-0" />
-                                    </div>
-                                    <div className="flex flex-wrap items-center justify-between gap-2 mt-auto">
-                                      <div className="flex items-center gap-2">
-                                        <Badge text={a.cat} meta={allCategories} />
-                                        <span className={cn(
-                                          "text-[10px] font-bold px-2 py-0.5 rounded",
-                                          DIFF_META[a.diff]?.bg || "bg-slate-100",
-                                          DIFF_META[a.diff]?.color || "text-slate-600"
-                                        )}>
-                                          {a.diff ? DIFF_META[a.diff].label : "—"}
-                                        </span>
-                                      </div>
-                                      <div className="text-xs text-slate-500 font-medium border border-slate-200 px-2.5 py-1 rounded-lg truncate max-w-[150px]" title={a.kw}>
-                                        {a.kw || "Nessuna KW"}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
+                      </div>
+                    );
+                  })}
+                </>
+              );
+            })()}
+          </div>
         </div>
       )}
 
@@ -1440,6 +1526,15 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                                   {duplicateWarnings[a.id].type === 'duplicato' ? 'Duplicato esatto' : duplicateWarnings[a.id].type === 'stessa_kw' ? 'Stessa Keyword' : 'Molto simile'} a: {duplicateWarnings[a.id].relatedTitle}
                                 </div>
                               </div>
+                            )}
+                            {/* RANKING ALERT */}
+                            {a.status === "pubblicato" && a.lastPosition && a.prevPosition && a.lastPosition > a.prevPosition + 2 && (
+                               <div className="relative group/rank">
+                                 <ArrowUpDown size={14} className="text-rose-500 animate-pulse cursor-help" />
+                                 <div className="absolute left-0 bottom-full mb-2 hidden group-hover/rank:block z-50 w-48 bg-rose-600 text-white text-[10px] p-2 rounded-lg shadow-xl">
+                                   ⚠️ RANK DROP: Posizione scesa da {a.prevPosition.toFixed(1)} a {a.lastPosition.toFixed(1)}. Valuta un aggiornamento!
+                                 </div>
+                               </div>
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -1557,6 +1652,16 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                               <><FileText size={16} /> Copia Brief</>
                             )}
                           </button>
+                          {a.status === "pubblicato" && a.lastPosition && a.prevPosition && a.lastPosition > a.prevPosition + 2 && (
+                            <button 
+                              onClick={() => handleRecovery(a)} 
+                              title="Avvia Recovery Bot"
+                              className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center gap-1 group/rec"
+                            >
+                              <Zap size={16} className="group-hover/rec:animate-bounce" />
+                              <span className="text-[10px] font-bold hidden xl:inline">RECOVER</span>
+                            </button>
+                          )}
                           {!isDone && (
                             <button 
                               onClick={() => createWPDraft(a)} 
@@ -1566,6 +1671,32 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                               <Edit3 size={16} />
                             </button>
                           )}
+                          <button
+                            onClick={() => handleGenerateImage(a)}
+                            disabled={imageStatus[a.id] === 'loading'}
+                            title="Genera Immagine AI (Gratis)"
+                            className={cn(
+                              "p-1.5 rounded-lg transition-all",
+                              imageStatus[a.id] === 'success' ? "bg-emerald-50 text-emerald-600" :
+                              imageStatus[a.id] === 'error' ? "bg-red-50 text-red-600" :
+                              "bg-slate-50 text-slate-600 hover:bg-slate-200"
+                            )}
+                          >
+                            {imageStatus[a.id] === 'loading' ? <RefreshCw size={16} className="animate-spin" /> : <ImageIcon size={16} />}
+                          </button>
+                          <button
+                            onClick={() => handleGenerateSocial(a)}
+                            disabled={socialStatus[a.id] === 'loading'}
+                            title="Genera Social Media Kit"
+                            className={cn(
+                              "p-1.5 rounded-lg transition-all",
+                              socialStatus[a.id] === 'success' ? "bg-emerald-50 text-emerald-600" :
+                              socialStatus[a.id] === 'error' ? "bg-red-50 text-red-600" :
+                              "bg-slate-50 text-slate-600 hover:bg-slate-200"
+                            )}
+                          >
+                            {socialStatus[a.id] === 'loading' ? <RefreshCw size={16} className="animate-spin" /> : <Share2 size={16} />}
+                          </button>
                           <button 
                             onClick={() => deleteArticle(a.id)}
                             title="Elimina"
@@ -1580,6 +1711,39 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Social Kit */}
+      {activeSocial && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-[2rem] w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold font-inter text-deep-space">Social Media Kit 📱</h3>
+              <button onClick={() => setActiveSocial(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><Trash2 size={20} /></button>
+            </div>
+            <div className="space-y-6">
+              {[
+                { id: 'linkedin', label: 'LinkedIn', icon: '💼', text: activeSocial.data.linkedin },
+                { id: 'twitter', label: 'X (Twitter)', icon: '🐦', text: activeSocial.data.twitter },
+                { id: 'telegram', label: 'Telegram / WA', icon: '📢', text: activeSocial.data.telegram },
+              ].map(platform => (
+                <div key={platform.id} className="bg-slate-50 rounded-2xl p-5 border border-slate-200 relative group">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-black uppercase text-slate-400 tracking-widest">{platform.icon} {platform.label}</span>
+                    <button 
+                      onClick={() => { navigator.clipboard.writeText(platform.text); alert('Copiato!'); }}
+                      className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-electric-blue transition-colors"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{platform.text}</p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setActiveSocial(null)} className="w-full mt-8 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Chiudi Kit</button>
           </div>
         </div>
       )}
@@ -1648,107 +1812,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 className="bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-2xl py-3 font-bold text-sm hover:bg-emerald-100 disabled:opacity-50"
               >
                 {testingWP ? "Test in corso..." : "Test Connessione"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Suggest Link */}
-      {suggestions && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, color: "var(--color-text-primary)" }}>
-          <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: 500, boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ marginTop: 0 }}>Suggerimenti Link Interni</h3>
-            <p style={{ fontSize: 13, color: "#666" }}>Pagine pubblicate correlate a: <strong>{suggestions.article.title}</strong></p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, margin: "20px 0" }}>
-              {suggestions.items.map(item => (
-                <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8f9fa", padding: 10, borderRadius: 8 }}>
-                  <div style={{ fontSize: 12 }}>
-                    <div style={{ fontWeight: 600 }}>{item.title}</div>
-                    <div style={{ color: "#0284c7" }}>{item.existingUrl}</div>
-                  </div>
-                  <button onClick={() => { navigator.clipboard.writeText(item.existingUrl); alert("Copiato!"); }} style={{ fontSize: 10, padding: "4px 8px", background: "#e0f2fe", color: "#0369a1", border: "none", borderRadius: 4, cursor: "pointer" }}>Copia Link</button>
-                </div>
-              ))}
-              {suggestions.items.length === 0 && <div style={{ textAlign: "center", opacity: 0.5 }}>Nessun articolo correlato trovato online.</div>}
-            </div>
-            <button onClick={() => setSuggestions(null)} style={{ width: "100%", padding: 10, borderRadius: 8, background: "#f3f4f6", color: "#374151", border: "none" }}>Chiudi</button>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Revisione Duplicati */}
-      {showDuplicateReview && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, color: "var(--color-text-primary)" }}>
-          <div style={{ background: "#fff", padding: 24, borderRadius: 16, width: "90%", maxWidth: 800, maxHeight: "85vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ margin: 0 }}>Revisione Articoli Duplicati o Simili</h3>
-              <button onClick={() => setShowDuplicateReview(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>✕</button>
-            </div>
-            
-            <p style={{ fontSize: 13, color: "#666", marginBottom: 20 }}>
-              Sono stati trovati {Object.keys(duplicateWarnings).length} articoli con potenziali conflitti. Revisiona la lista e usa l'icona <span style={{color: "#ef4444"}}>✕</span> per eliminare quelli non necessari.
-            </p>
-
-            <div style={{ flex: 1, overflowY: "auto", paddingRight: 10 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead style={{ position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
-                  <tr style={{ textAlign: "left", borderBottom: "2px solid #eee" }}>
-                    <th style={{ padding: "10px 5px" }}>Articolo</th>
-                    <th style={{ padding: "10px 5px" }}>Problema</th>
-                    <th style={{ padding: "10px 5px", textAlign: "right" }}>Azione</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(duplicateWarnings).map(([id, info]) => {
-                    const art = articles.find(a => a.id === id);
-                    if (!art) return null;
-                    return (
-                      <tr key={id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                        <td style={{ padding: "12px 5px" }}>
-                          <div style={{ fontWeight: 600 }}>{art.title}</div>
-                          <div style={{ fontSize: 11, color: "#9ca3af" }}>KW: {art.kw || "—"}</div>
-                        </td>
-                        <td style={{ padding: "12px 5px" }}>
-                          <span style={{ 
-                            fontSize: 10, padding: "2px 6px", borderRadius: 4, 
-                            background: info.type === 'duplicato' ? "#fee2e2" : info.type === 'stessa_kw' ? "#fef3c7" : "#e0f2fe",
-                            color: info.type === 'duplicato' ? "#991b1b" : info.type === 'stessa_kw' ? "#92400e" : "#075985"
-                          }}>
-                            {info.type === 'duplicato' ? 'DUPLICATO ESATTO' : info.type === 'stessa_kw' ? 'STESSA KEYWORD' : 'MOLTO SIMILE'}
-                          </span>
-                          <div style={{ fontSize: 11, marginTop: 4, fontStyle: "italic" }}>Correlato a: {info.relatedTitle}</div>
-                        </td>
-                        <td style={{ padding: "12px 5px", textAlign: "right" }}>
-                          <button 
-                            onClick={() => {
-                              deleteArticle(art.id);
-                              // Aggiorniamo localmente i warnings per far sparire la riga
-                              const next = {...duplicateWarnings};
-                              delete next[art.id];
-                              setDuplicateWarnings(next);
-                            }}
-                            style={{ background: "#fee2e2", color: "#ef4444", border: "none", width: 28, height: 28, borderRadius: "50%", cursor: "pointer", fontWeight: "bold" }}
-                            title="Elimina articolo"
-                          >✕</button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <button 
-                onClick={bulkDeleteDuplicates} 
-                disabled={saving}
-                style={{ padding: "10px 24px", borderRadius: 8, background: "#fee2e2", color: "#ef4444", border: "1.5px solid #ef4444", fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}
-              >
-                {saving ? "Eliminazione..." : `🗑️ Elimina tutti (${Object.keys(duplicateWarnings).length})`}
-              </button>
-              <button onClick={() => setShowDuplicateReview(false)} style={{ padding: "10px 24px", borderRadius: 8, background: "#6366f1", color: "#fff", border: "none", fontWeight: 600, cursor: "pointer" }}>
-                Ho finito la revisione
               </button>
             </div>
           </div>

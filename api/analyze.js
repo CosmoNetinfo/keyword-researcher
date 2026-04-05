@@ -169,22 +169,33 @@ Richieste di volumi:
     if (serperKey && resultObj.keywords && resultObj.keywords.length > 0) {
       try {
         const enriched = await Promise.all(
-          resultObj.keywords.slice(0, 10).map(async (kw) => {
+          resultObj.keywords.slice(0, 15).map(async (kw) => {
             try {
               const r = await fetch("https://google.serper.dev/search", {
                 method: "POST",
                 headers: { "X-API-KEY": serperKey, "Content-Type": "application/json" },
-                body: JSON.stringify({ q: kw.keyword, gl: "it", hl: "it", num: 5 })
+                body: JSON.stringify({ q: kw.keyword, gl: "it", hl: "it", num: 10 })
               });
               const data = await r.json();
-              const adsCount = data.ads?.length || 0;
-              const organicCount = data.organic?.length || 0;
               
+              // Calcolo KD avanzato
+              const adsCount = data.ads?.length || 0;
+              const hasKnowledgeGraph = !!data.knowledgeGraph;
+              const hasVideo = (data.organic || []).some(o => o.link?.includes('youtube.com') || o.link?.includes('vimeo.com'));
+              const competitorCount = data.organic?.length || 0;
+              
+              let diffReal = kw.difficulty;
+              if (adsCount >= 3) diffReal = 'alta';
+              else if (adsCount >= 1 || hasKnowledgeGraph || hasVideo) diffReal = 'media';
+              else if (competitorCount < 5) diffReal = 'bassa';
+
               return {
                 ...kw,
                 serper_ads: adsCount,
-                serper_organic: organicCount,
-                difficulty_real: adsCount > 2 ? 'alta' : kw.difficulty
+                serper_organic: competitorCount,
+                difficulty_real: diffReal,
+                has_video: hasVideo,
+                has_kg: hasKnowledgeGraph
               };
             } catch (err) {
               console.error("Single keyword enrichment error:", err);
@@ -192,8 +203,8 @@ Richieste di volumi:
             }
           })
         );
-        // Replace first 10 with enriched ones, keep the rest
-        resultObj.keywords = [...enriched, ...resultObj.keywords.slice(10)];
+        // Replace first 15 with enriched ones
+        resultObj.keywords = [...enriched, ...resultObj.keywords.slice(15)];
       } catch (e) {
         console.error("Enrichment process error:", e);
       }
