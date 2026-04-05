@@ -2,7 +2,7 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { action, title, category, brief, currentPosition, prevPosition, prompt, width = 1024, height = 1024 } = req.body;
+  const { action, title, category, brief, prompt, width = 1024, height = 1024 } = req.body;
   const groqKey = process.env.GROQ_API_KEY;
   const serperKey = process.env.SERPER_API_KEY;
 
@@ -53,12 +53,20 @@ export default async function handler(req, res) {
       return res.status(200).json(JSON.parse(groqRes));
     }
 
-    // ─── 4. GENERAZIONE RECOVERY PLAN ───────────────────────────────────────
-    if (action === 'recovery') {
-      if (!title) return res.status(400).json({ error: 'Titolo mancante' });
-      const promptRec = `Genera un piano di recupero SEO per "${title}" (calato da ${prevPosition} a ${currentPosition}). 150 parole: Gap, Update, Intent, Links.`;
-      const groqRes = await callGroq(groqKey, promptRec, 0.5);
-      return res.status(200).json({ brief: groqRes });
+    // ─── 5. ANALISI STRATEGICA COMPETITOR (NEW) ─────────────────────────────
+    if (action === 'analyze-competitor') {
+      const { posts, domain } = req.body;
+      if (!posts || !posts.length) return res.status(400).json({ error: 'Post mancanti' });
+      const promptComp = `Sei un esperto SEO analista di cosmonet.info. Analizza questi ultimi 5 articoli di "${domain}":
+      ${posts.map(p => `- ${p.title}`).join('\n')}
+      
+      OBIETTIVO: Fornisci un report strategico in italiano (150 parole max) che indichi:
+      1. FOCUS ATTUALE: Su cosa sta puntando il competitor?
+      2. GAP SEO: Quale "angolo" o dettaglio è stato tralasciato che noi possiamo coprire?
+      3. KILLER TITLE: Suggerisci 1 titolo per il nostro Piano Editoriale che superi questi contenuti.`;
+      
+      const groqRes = await callGroq(groqKey, promptComp, 0.4);
+      return res.status(200).json({ report: groqRes });
     }
 
     res.status(400).json({ error: 'Azione non valida' });

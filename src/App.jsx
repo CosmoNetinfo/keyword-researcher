@@ -204,6 +204,56 @@ export default function App() {
   const [prefilledKeyword, setPrefilledKeyword] = useState("");
   const [isQuickWinMode, setIsQuickWinMode] = useState(false);
   const [sharedGscKeywords, setSharedGscKeywords] = useState([]);
+  
+  // --- COMPETITOR INSIGHTS STATES ---
+  const [expandingCompId, setExpandingCompId] = useState(null);
+  const [compData, setCompData] = useState({});
+  const [loadingComp, setLoadingComp] = useState(false);
+  const [compReport, setCompReport] = useState(null);
+  const [showCompModal, setShowCompModal] = useState(false);
+
+  // --- COMPETITOR INSIGHTS FUNCTIONS ---
+  async function scanCompetitor(domain, index) {
+    if (expandingCompId === index) {
+      setExpandingCompId(null);
+      return;
+    }
+    setExpandingCompId(index);
+    if (compData[domain]) return;
+    
+    setLoadingComp(true);
+    try {
+      const res = await fetch("/api/trend-service?action=scan-competitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain })
+      });
+      const data = await res.json();
+      if (data.items) {
+        setCompData(prev => ({ ...prev, [domain]: data.items }));
+      } else {
+        alert(data.error || "Nessun feed trovato per questo dominio.");
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoadingComp(false); }
+  }
+
+  async function analyzeCompAI(domain) {
+    const posts = compData[domain];
+    if (!posts) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "analyze-competitor", posts, domain })
+      });
+      const data = await res.json();
+      setCompReport(data.report);
+      setShowCompModal(true);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }
 
   // FEAT 4: Dynamic Browser Tab Title
   useEffect(() => {
@@ -938,7 +988,7 @@ export default function App() {
                 {activeTab === "competitors" && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {(result.competitors || []).map((c, i) => (
-                      <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+                      <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-xl transition-all group h-fit">
                         <div className="flex items-center justify-between mb-4">
                           <div 
                             onClick={() => window.open(c.url || c.domain || `https://${c.domain}`, '_blank')}
@@ -964,6 +1014,50 @@ export default function App() {
                             <div className="h-full bg-primary rounded-full" style={{ width: `${c.relevance}%` }}></div>
                           </div>
                         </div>
+
+                        {/* --- NEW: SPY BUTTON --- */}
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); scanCompetitor(c.domain, i); }}
+                          className="mt-4 w-full py-3 bg-slate-50 hover:bg-primary/5 text-slate-500 hover:text-primary text-[10px] font-black uppercase tracking-widest rounded-xl border border-slate-100 transition-all flex items-center justify-center gap-2"
+                        >
+                          {expandingCompId === i ? <X size={14} /> : <Zap size={14} />}
+                          {expandingCompId === i ? "Chiudi" : "🔍 Spia Ultimi 5 Articoli"}
+                        </button>
+
+                        {/* --- NEW: EXPANDABLE CONTENT --- */}
+                        {expandingCompId === i && (
+                          <div className="mt-6 pt-6 border-t border-slate-50 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                            {loadingComp && !compData[c.domain] ? (
+                              <div className="animate-pulse space-y-2">
+                                <div className="h-4 bg-slate-100 rounded w-3/4"></div>
+                                <div className="h-4 bg-slate-100 rounded w-1/2"></div>
+                              </div>
+                            ) : (
+                              <>
+                                {compData[c.domain]?.map((p, j) => (
+                                  <div key={j} className="flex items-center justify-between gap-3 group/item">
+                                    <a href={p.url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-slate-700 hover:text-primary truncate flex-1 leading-tight">{p.title}</a>
+                                    <button 
+                                      onClick={() => addToPiano({ title: p.title, keywords: [], priority: 'Media', description: `Sorgente: ${c.domain}` }, 'nuovo')}
+                                      className="p-1.5 bg-slate-50 text-slate-400 hover:bg-emerald-500 hover:text-white rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
+                                      title="Aggiungi al Piano"
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                                {compData[c.domain] && (
+                                  <button 
+                                    onClick={() => analyzeCompAI(c.domain)}
+                                    className="w-full py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 mt-2 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"
+                                  >
+                                    <Zap size={14} /> Deep Analysis AI
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -988,6 +1082,31 @@ export default function App() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* --- STRATEGIC REPORT MODAL --- */}
+      {showCompModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-300">
+            <div className="p-10">
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-2">Deep Strategic Report</div>
+                  <h2 className="text-2xl font-black text-slate-900 leading-tight">Analisi Competitor Strategica</h2>
+                </div>
+                <button onClick={() => setShowCompModal(false)} className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-2xl transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="prose prose-slate max-w-none">
+                <p className="text-slate-600 leading-relaxed whitespace-pre-wrap text-sm">{compReport}</p>
+              </div>
+              <div className="mt-10 pt-10 border-t border-slate-50 flex justify-end">
+                <button onClick={() => setShowCompModal(false)} className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all">Chiudi Analisi</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </Layout>

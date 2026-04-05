@@ -1,3 +1,4 @@
+/* global process */
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 // ─── Catalogo Feed RSS ────────────────────────────────────────────────────────
@@ -18,6 +19,30 @@ export default async function handler(req, res) {
   const { action, cat = 'all', limit = 5 } = req.query;
 
   try {
+    // ─── 0. COMPETITOR SCANNER (NEW) ──────────────────────────────────────
+    if (action === "scan-competitor") {
+      const { domain } = req.body;
+      if (!domain) return res.status(400).json({ error: "Missing domain" });
+
+      const cleanDomain = domain.replace(/^(https?:\/\/)?(www\.)?/, "").replace(/\/$/, "");
+      const base = `https://${cleanDomain}`;
+      
+      const potentialFeeds = [
+        { url: `${base}/feed/` },
+        { url: `${base}/rss/` },
+        { url: `${base}/index.xml` },
+        { url: `${base}/?feed=rss2` }
+      ];
+
+      for (const feed of potentialFeeds) {
+        const items = await fetchFeed(feed, 5);
+        if (items && items.length > 0) {
+          return res.status(200).json({ success: true, items, feedUrl: feed.url });
+        }
+      }
+      return res.status(404).json({ error: "No public feed found for this competitor." });
+    }
+
     // ─── 1. RADAR TRENDS (GitHub & Hugging Face) ────────────────────────────
     if (action === 'radar') {
       const thirtyDaysAgo = new Date();
