@@ -433,7 +433,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       let publishedFromWP = [];
       let wpError = null;
 
-      // 1. Tenta il fetch da WordPress API se abbiamo le credenziali
       if (wpSettings.url && wpSettings.user && wpSettings.pass) {
         try {
           const resWP = await fetch("/api/wp-service", {
@@ -446,50 +445,26 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
               appPassword: wpSettings.pass
             })
           });
-          
-          const contentTypeWP = resWP.headers.get("content-type");
-          let dataWP = {};
-          if (contentTypeWP && contentTypeWP.includes("application/json")) {
-            dataWP = await resWP.json();
-          } else {
-            const raw = await resWP.text();
-            throw new Error(`Risposta non valida dall'API (/api/wp-service). In locale assicurati di usare 'vercel dev'. Dettaglio: ${raw.substring(0, 50)}...`);
-          }
-
+          const dataWP = await resWP.json();
           if (resWP.ok) {
             publishedFromWP = dataWP.posts || [];
             if (dataWP.categories) {
               setWPCategories(dataWP.categories);
-              // Salva le categorie nella configurazione (opzionale se lo fai qui)
               updateDoc(doc(db, "config", "wordpress"), { categories: dataWP.categories });
             }
           } else {
             wpError = dataWP.error || "Errore sconosciuto";
-            console.error("WP API Error:", wpError);
           }
-        } catch (e) {
-          wpError = e.message;
-          console.warn("WP Fetch fallito:", e);
-        }
-      } else {
-        wpError = "Configurazione incompleta";
+        } catch (e) { wpError = e.message; }
       }
 
       const res = await fetch("/api/check-published");
-      const contentTypePub = res.headers.get("content-type");
       let publishedPublic = [];
-      
-      if (contentTypePub && contentTypePub.includes("application/json")) {
+      if (res.ok) {
         const dataPub = await res.json();
         publishedPublic = dataPub.published || [];
-      } else {
-        const raw = await res.text();
-        console.warn("Chiamata check-published non ha restituito JSON (normale in ambiente dev locale):", raw.substring(0, 50));
       }
       
-      if (!res.ok && publishedPublic.length === 0) throw new Error("Errore API refresh pubblico o ambiente locale");
-      
-      // Uniamo le liste evitando duplicati (usiamo il titolo come chiave)
       const allFound = [...publishedFromWP];
       for (const p of publishedPublic) {
         if (!allFound.find(f => cleanTitle(f.title) === cleanTitle(p.title))) {
@@ -499,81 +474,66 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       let countSynced = 0;
       let countImported = 0;
-      
-      // 3. Processiamo gli articoli trovati su WP/Sitemap
       const syncTimestamp = Date.now();
-      
-      // Mappa delle categorie per ID
       const catMap = {};
       wpCategories.forEach(c => { catMap[c.id] = c.slug; });
 
-      for (const found of allFound) {
-        const cleanFoundTitle = cleanTitle(found.title);
-        
-        // Cerchiamo se esiste già nel piano (Priorità: ID WP > URL > Titolo)
-        let existing = articles.find(art => 
-          (found.id && art.wpId === found.id) || 
-          (found.url && art.existingUrl === found.url)
-        );
+      const chunkSize = 500;
+      for (let i = 0; i < allFound.length; i += chunkSize) {
+        const chunk = allFound.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        let batchCount = 0;
 
-        if (!existing) {
-          existing = articles.find(art => {
-            const cleanArtTitle = cleanTitle(art.title);
-            return (cleanFoundTitle && cleanArtTitle) && (cleanFoundTitle.includes(cleanArtTitle) || cleanArtTitle.includes(cleanFoundTitle));
-          });
+        for (const found of chunk) {
+          const cleanFoundTitle = cleanTitle(found.title);
+          let existing = articles.find(art => (found.id && art.wpId === found.id) || (found.url && art.existingUrl === found.url));
+          if (!existing) {
+            existing = articles.find(art => cleanTitle(art.title) === cleanFoundTitle);
+          }
+
+          const isFuture = found.status === "future";
+          const postDate = new Date(found.date || Date.now());
+          let importedCat = "news";
+          if (found.categoryIds && found.categoryIds.length > 0) {
+            const firstCatId = found.categoryIds[0];
+            if (catMap[firstCatId]) importedCat = catMap[firstCatId];
+          }
+
+          const updateData = {
+            title: found.title,
+            existingUrl: found.url,
+            wpId: found.id || null,
+            status: isFuture ? "programmato" : "pubblicato",
+            wpStatus: isFuture ? "programmato" : "online",
+            scheduledDate: found.date || null,
+            year: postDate.getFullYear(),
+            month: postDate.getMonth() + 1,
+            lastSyncedAt: syncTimestamp,
+            cat: importedCat
+          };
+
+          if (existing) {
+             const hasChanged = existing.status !== updateData.status || existing.existingUrl !== updateData.existingUrl;
+             if (hasChanged) {
+               batch.update(doc(db, "piano_editoriale", existing.id), updateData);
+               batchCount++;
+               countSynced++;
+             }
+          } else {
+             const newDocRef = doc(collection(db, "piano_editoriale"));
+             batch.set(newDocRef, { ...updateData, kw: "", diff: "bassa", tipo: "News/Review", source: "wp-import", createdAt: serverTimestamp() });
+             batchCount++;
+             countImported++;
+          }
         }
-
-        if (!existing) {
-          existing = articles.find(art => {
-            const similarity = calculateSimilarity(cleanFoundTitle, cleanTitle(art.title));
-            return similarity > 0.85;
-          });
-        }
-
-        const isFuture = found.status === "future";
-        const postDate = new Date(found.date);
-        
-        // Determiniamo la categoria (prendiamo la prima se presente)
-        let importedCat = "news";
-        if (found.categoryIds && found.categoryIds.length > 0) {
-          const firstCatId = found.categoryIds[0];
-          if (catMap[firstCatId]) importedCat = catMap[firstCatId];
-        }
-
-        const updateData = {
-          title: found.title,
-          existingUrl: found.url,
-          wpId: found.id || null,
-          status: isFuture ? "programmato" : "pubblicato",
-          wpStatus: isFuture ? "programmato" : "online",
-          scheduledDate: found.date || null,
-          year: postDate.getFullYear(),
-          month: postDate.getMonth() + 1,
-          lastSyncedAt: syncTimestamp,
-          cat: importedCat
-        };
-
-        if (existing) {
-          await updateDoc(doc(db, "piano_editoriale", existing.id), updateData);
-          countSynced++;
-        } else {
-          await addDoc(collection(db, "piano_editoriale"), {
-            ...updateData,
-            kw: "",
-            diff: "bassa",
-            tipo: "News/Review",
-            source: "wp-import",
-            createdAt: serverTimestamp(),
-          });
-          countImported++;
-        }
+        if (batchCount > 0) await batch.commit();
       }
 
       const wpStatusMsg = !wpError 
-        ? `\n(✅ WordPress API: trovati ${publishedFromWP.length} post)` 
-        : `\n(⚠️ WordPress API: ${wpError})`;
+        ? `\\n(✅ WordPress API: trovati ${allFound.length} post)` 
+        : `\\n(⚠️ WordPress API: ${wpError})`;
 
-      alert(`✅ Aggiornamento completato!\n- ${countSynced} articoli sincronizzati\n- ${countImported} nuovi articoli importati.${wpStatusMsg}`);
+      alert(`✅ Aggiornamento completato!\\n- ${countSynced} articoli sincronizzati\\n- ${countImported} nuovi articoli importati.${wpStatusMsg}`);
     } catch (e) {
       console.error(e);
       alert("Errore durante il refresh: " + e.message);
@@ -582,7 +542,6 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
-  // ── Genera e Copia Brief SEO ──────────────────────────────────────────────
   async function handleCopyBrief(article) {
     setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {

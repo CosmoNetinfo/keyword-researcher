@@ -16,22 +16,40 @@ export default async function handler(req, res) {
   try {
     // ─── 1. FETCH POSTS & CATEGORIES (Ex wp-fetch.js) ──────────────────────
     if (action === 'fetch') {
-      const postsUrl = `${baseApiUrl}/posts?status[]=publish&status[]=future&per_page=100`;
       const catUrl = `${baseApiUrl}/categories?per_page=100`;
-
-      const [pRes, cRes] = await Promise.all([
-        fetch(postsUrl, { headers }),
+      
+      // Get first page of posts and categories
+      const [firstPRes, cRes] = await Promise.all([
+        fetch(`${baseApiUrl}/posts?status[]=publish&status[]=future&per_page=100&page=1`, { headers }),
         fetch(catUrl, { headers })
       ]);
 
-      if (!pRes.ok) throw new Error("Errore durante il recupero dei post");
+      if (!firstPRes.ok) throw new Error("Errore durante il recupero dei post (Pagina 1)");
       
-      const pData = await pRes.json();
+      const firstPData = await firstPRes.json();
       const cData = await cRes.json();
+      
+      let allPosts = [...firstPData];
+      const totalPages = parseInt(firstPRes.headers.get('X-WP-TotalPages') || '1');
+
+      // If there are more pages, fetch them in parallel
+      if (totalPages > 1) {
+        const pagePromises = [];
+        for (let p = 2; p <= totalPages; p++) {
+          pagePromises.push(
+            fetch(`${baseApiUrl}/posts?status[]=publish&status[]=future&per_page=100&page=${p}`, { headers })
+              .then(res => res.ok ? res.json() : [])
+          );
+        }
+        const pagesData = await Promise.all(pagePromises);
+        pagesData.forEach(data => {
+          allPosts = [...allPosts, ...data];
+        });
+      }
 
       return res.status(200).json({
         success: true,
-        posts: pData.map(p => ({ id: p.id, title: p.title.rendered, url: p.link, status: p.status, date: p.date, categoryIds: p.categories })),
+        posts: allPosts.map(p => ({ id: p.id, title: p.title.rendered, url: p.link, status: p.status, date: p.date, categoryIds: p.categories })),
         categories: cData.map(c => ({ id: c.id, name: c.name, slug: c.slug, count: c.count }))
       });
     }
