@@ -11,7 +11,9 @@ import {
   doc,
   serverTimestamp,
   setDoc,
-  getDoc,\n  writeBatch\n} from "firebase/firestore";
+  getDoc,
+  writeBatch
+} from "firebase/firestore";
 import { 
   Plus, 
   Search, 
