@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       if (!prompt) return res.status(400).json({ error: 'Prompt mancante' });
       const cleanPrompt = encodeURIComponent(prompt.trim());
       const seed = Math.floor(Math.random() * 1000000);
-      const imageUrl = `https://pollinations.ai/p/${cleanPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true`;
+      const imageUrl = `https://gen.pollinations.ai/image/${cleanPrompt}?width=${width}&height=${height}&seed=${seed}&model=flux&nologo=true`;
       return res.status(200).json({ success: true, imageUrl, source: 'pollinations.ai' });
     }
 

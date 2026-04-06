@@ -103,6 +103,14 @@ function calculateSimilarity(s1, s2) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function rewriteImageUrl(url) {
+  if (!url) return url;
+  if (url.includes('pollinations.ai/p/')) {
+    return url.replace('pollinations.ai/p/', 'gen.pollinations.ai/image/');
+  }
+  return url;
+}
+
 function Badge({ text, meta, className }) {
   if (!text || !meta?.[text]) return null;
   const { label, color, bg, border } = meta[text];
@@ -1513,10 +1521,17 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                         ) : (
                           <>
                             <img 
-                              src={a.imageUrl} 
+                              src={rewriteImageUrl(a.imageUrl)} 
                               alt={a.title} 
+                              onError={(e) => { e.target.style.display = 'none'; setImageStatus(prev => ({ ...prev, [a.id]: 'error' })); }}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                             />
+                            {imageStatus[a.id] === 'error' && (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 text-slate-300">
+                                <ImageIcon size={32} />
+                                <span className="text-[10px] font-bold mt-2">Immagine Errata</span>
+                              </div>
+                            )}
                             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                                <button 
                                  onClick={() => setPreviewImage({ url: a.imageUrl, title: a.title })}
@@ -1616,7 +1631,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                                          onClick={() => setPreviewImage({ url: a.imageUrl, title: a.title })}
                                          className="shrink-0 w-8 h-8 rounded-lg overflow-hidden border border-slate-200 hover:scale-110 active:scale-95 transition-all shadow-sm"
                                        >
-                                         <img src={a.imageUrl} alt="AI" className="w-full h-full object-cover" />
+                                         <img src={rewriteImageUrl(a.imageUrl)} alt="AI" className="w-full h-full object-cover" onError={(e) => { if (e.currentTarget.parentElement && e.currentTarget.parentElement.tagName === "BUTTON") e.currentTarget.parentElement.style.display = "none"; else e.currentTarget.style.display = "none"; }} />
                                        </button>
                                     )}
                                     <div className="font-bold text-sm text-deep-space leading-snug break-words">
@@ -1745,7 +1760,12 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                                  onClick={() => setPreviewImage({ url: a.imageUrl, title: a.title })}
                                  className="shrink-0 w-8 h-8 rounded-lg overflow-hidden border border-slate-200 hover:ring-2 hover:ring-electric-blue/30 transition-all group/img mr-2"
                                >
-                                 <img src={a.imageUrl} alt="AI" className="w-full h-full object-cover group-hover/img:scale-110 transition-transform" />
+                                 <img 
+                                   src={rewriteImageUrl(a.imageUrl)} 
+                                   alt="AI" 
+                                   onError={(e) => { e.target.closest('button').style.display = 'none'; }}
+                                   className="w-full h-full object-cover group-hover/img:scale-110 transition-transform" 
+                                 />
                                </button>
                             )}
                             <span className={cn(
