@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ExternalLink, RefreshCw, Rss, Globe, TrendingUp, Copy, Check } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { downloadNewsMarkdown } from "../utils/exportNews";
 
 function cn(...inputs) { return twMerge(clsx(inputs)); }
 
@@ -53,7 +54,7 @@ function SkeletonCard() {
 }
 
 // ─── Trend Card ───────────────────────────────────────────────────────────────
-function TrendCard({ item, onAddToPiano }) {
+function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
   const [copied, setCopied] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const colors = CAT_COLORS[item.cat] || CAT_COLORS["tech-en"];
@@ -68,12 +69,19 @@ function TrendCard({ item, onAddToPiano }) {
   };
 
   return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noreferrer"
+    <article
       className="group block bg-white rounded-2xl border border-slate-100 p-4 hover:border-indigo-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative"
     >
+      <label className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-600 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggleSelected(item)}
+          aria-label={`Seleziona per esportazione: ${item.title}`}
+          className="h-4 w-4 accent-indigo-600"
+        />
+        Includi nel file .md
+      </label>
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <span className={cn(
           "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
@@ -120,14 +128,14 @@ function TrendCard({ item, onAddToPiano }) {
           )}
         </div>
       </div>
-      <p className="text-[13px] font-semibold text-slate-800 leading-snug line-clamp-3 group-hover:text-indigo-700 transition-colors pr-2">
+      <a href={item.url} target="_blank" rel="noreferrer" className="block text-[13px] font-semibold text-slate-800 leading-snug line-clamp-3 hover:text-indigo-700 transition-colors pr-2">
         {item.title}
-      </p>
+      </a>
       <div className="mt-3 flex items-center gap-1 text-[10px] text-slate-400 font-medium">
         <ExternalLink size={10} />
         <span className="truncate">{new URL(item.url).hostname.replace("www.", "")}</span>
       </div>
-    </a>
+    </article>
   );
 }
 
@@ -139,6 +147,24 @@ export default function TrendMonitor({ onAddToPiano }) {
   const [fetchedAt, setFetchedAt] = useState(null);
   const [error, setError]         = useState(null);
   const [feedsCount, setFeedsCount] = useState(0);
+  const [selectedItems, setSelectedItems] = useState(new Map());
+
+  const toggleSelected = (item) => {
+    setSelectedItems(current => {
+      const next = new Map(current);
+      if (next.has(item.url)) next.delete(item.url);
+      else next.set(item.url, item);
+      return next;
+    });
+  };
+
+  const selectVisible = () => {
+    setSelectedItems(current => {
+      const next = new Map(current);
+      for (const item of items) next.set(item.url, item);
+      return next;
+    });
+  };
 
   const fetchTrends = useCallback(async (cat = activecat) => {
     setLoading(true);
@@ -228,6 +254,42 @@ export default function TrendMonitor({ onAddToPiano }) {
         })}
       </div>
 
+      <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <p role="status" className="text-sm font-semibold text-indigo-900 mr-auto">
+            {selectedItems.size} notizie selezionate
+          </p>
+          <button type="button" onClick={selectVisible} disabled={loading || items.length === 0}
+            className="text-sm font-semibold text-indigo-700 disabled:opacity-50">
+            Seleziona tutte le notizie mostrate
+          </button>
+          <button type="button" onClick={() => setSelectedItems(new Map())} disabled={selectedItems.size === 0}
+            className="text-sm font-semibold text-slate-600 disabled:opacity-50">
+            Svuota selezione
+          </button>
+          <button type="button" onClick={() => downloadNewsMarkdown([...selectedItems.values()])}
+            disabled={selectedItems.size === 0}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
+            Scarica selezionate (.md)
+          </button>
+        </div>
+        <p className="text-xs text-indigo-700">La selezione viene mantenuta quando cambi categoria o aggiorni le notizie. Il file contiene titolo, fonte, data e link originale.</p>
+        {selectedItems.size > 0 && (
+          <details className="text-sm text-slate-700">
+            <summary className="cursor-pointer font-semibold">Rivedi la selezione</summary>
+            <ul className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+              {[...selectedItems.values()].map(item => (
+                <li key={item.url} className="flex items-center gap-3">
+                  <span className="mr-auto">{item.title}</span>
+                  <button type="button" onClick={() => toggleSelected(item)}
+                    aria-label={`Rimuovi dalla selezione: ${item.title}`} className="text-indigo-700 font-semibold">Rimuovi</button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
+
       {/* Error state */}
       {error && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-rose-700 text-sm font-medium">
@@ -247,7 +309,8 @@ export default function TrendMonitor({ onAddToPiano }) {
                 <p className="text-sm mt-1">I feed potrebbero essere temporaneamente offline</p>
               </div>
             )
-            : items.map((item, i) => <TrendCard key={`${item.url}-${i}`} item={item} onAddToPiano={onAddToPiano} />)
+            : items.map((item, i) => <TrendCard key={`${item.url}-${i}`} item={item} onAddToPiano={onAddToPiano}
+                selected={selectedItems.has(item.url)} onToggleSelected={toggleSelected} />)
         }
       </div>
 

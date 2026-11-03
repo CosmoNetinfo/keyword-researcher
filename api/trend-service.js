@@ -77,10 +77,10 @@ export default async function handler(req, res) {
     }
 
     // ─── 2. RSS FEED SCANNER ───────────────────────────────────────────────
-    const feedsToFetch = cat === 'all' ? RSS_FEEDS.slice(0, 15) : RSS_FEEDS.filter(f => f.cat === cat);
+    const feedsToFetch = cat === 'all' ? RSS_FEEDS : RSS_FEEDS.filter(f => f.cat === cat);
     const items = await fetchFeeds(feedsToFetch, Math.min(limit, 8));
 
-    res.status(200).json({ items: items.slice(0, 100), fetchedAt: new Date().toISOString() });
+    res.status(200).json({ items: items.slice(0, 100), feedsAttempted: feedsToFetch.length, fetchedAt: new Date().toISOString() });
 
   } catch (error) {
     res.status(500).json({ error: error.message });
