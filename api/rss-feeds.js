@@ -67,9 +67,9 @@ export function getFeedsByTopic(topic = "all") {
 /**
  * Esegue il fetch di un singolo feed con User-Agent realistico
  */
-export async function fetchFeed(feed, maxItems = 5) {
+export async function fetchFeed(feed, maxItems = 5, request = fetch) {
   try {
-    const res = await fetch(feed.url, { 
+    const res = await request(feed.url, {
       signal: AbortSignal.timeout(6000),
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
@@ -93,6 +93,14 @@ export async function fetchFeed(feed, maxItems = 5) {
         link = hrefMatch?.[1];
       }
 
+      try {
+        if (!link) continue;
+        const article = new URL(link, feed.url);
+        link = ["http:", "https:"].includes(article.protocol) ? article.href : null;
+      } catch {
+        link = null;
+      }
+
       const dateMatch = block.match(/<pubDate>(.*?)<\/pubDate>|<updated>(.*?)<\/updated>|<published>(.*?)<\/published>/i);
       const date = dateMatch?.[1] || dateMatch?.[2] || dateMatch?.[3];
       
@@ -102,7 +110,8 @@ export async function fetchFeed(feed, maxItems = 5) {
           url: link, 
           date, 
           sourceName: feed.name || "RSS", 
-          cat: feed.cat || "general" 
+          cat: feed.cat || "general",
+          feedUrl: feed.url
         });
       }
     }
@@ -116,8 +125,8 @@ export async function fetchFeed(feed, maxItems = 5) {
 /**
  * Esegue il fetch parallelo di più feed
  */
-export async function fetchFeeds(feeds, maxPerFeed = 5) {
-  const results = await Promise.allSettled(feeds.map(f => fetchFeed(f, maxPerFeed)));
+export async function fetchFeeds(feeds, maxPerFeed = 5, request = fetch) {
+  const results = await Promise.allSettled(feeds.map(f => fetchFeed(f, maxPerFeed, request)));
   return results
     .filter(r => r.status === 'fulfilled')
     .flatMap(r => r.value)

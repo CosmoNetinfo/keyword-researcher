@@ -3,28 +3,9 @@ import { ExternalLink, RefreshCw, Rss, Globe, TrendingUp, Copy, Check } from "lu
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { downloadNewsMarkdown } from "../utils/exportNews";
+import { RSS_BATCH_SIZE } from "../utils/feedUrl";
 
 function cn(...inputs) { return twMerge(clsx(inputs)); }
-
-// ─── Configurazione categorie ─────────────────────────────────────────────────
-const CATEGORIES = [
-  { id: "all",       label: "Tutti",        emoji: "📡", color: "indigo" },
-  { id: "tech-it",   label: "🇮🇹 Italiani",  emoji: "",   color: "emerald" },
-  { id: "linux",     label: "Linux",        emoji: "🐧", color: "orange" },
-  { id: "ai",        label: "AI",           emoji: "🤖", color: "violet" },
-  { id: "gaming",    label: "Gaming",       emoji: "🎮", color: "rose" },
-  { id: "selfhosted",label: "Self-hosted",  emoji: "🔧", color: "amber" },
-  { id: "tech-en",   label: "Tech EN",      emoji: "🌍", color: "sky" },
-];
-
-const CAT_COLORS = {
-  "tech-it":   { bg: "bg-emerald-50",  text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
-  "linux":     { bg: "bg-orange-50",   text: "text-orange-700",  border: "border-orange-200",  dot: "bg-orange-500" },
-  "ai":        { bg: "bg-violet-50",   text: "text-violet-700",  border: "border-violet-200",  dot: "bg-violet-500" },
-  "gaming":    { bg: "bg-rose-50",     text: "text-rose-700",    border: "border-rose-200",    dot: "bg-rose-500" },
-  "selfhosted":{ bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-500" },
-  "tech-en":   { bg: "bg-sky-50",      text: "text-sky-700",     border: "border-sky-200",     dot: "bg-sky-500" },
-};
 
 function timeAgo(dateStr) {
   if (!dateStr) return "";
@@ -57,7 +38,6 @@ function SkeletonCard() {
 function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
   const [copied, setCopied] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
-  const colors = CAT_COLORS[item.cat] || CAT_COLORS["tech-en"];
   const ago = timeAgo(item.date);
 
   const handleCopy = (e) => {
@@ -83,11 +63,7 @@ function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
         Includi nel file .md
       </label>
       <div className="flex items-start justify-between gap-2 mb-2.5">
-        <span className={cn(
-          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border",
-          colors.bg, colors.text, colors.border
-        )}>
-          <span className={cn("w-1.5 h-1.5 rounded-full", colors.dot)} />
+        <span className="min-w-0 truncate rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
           {item.sourceName}
         </span>
         <div className="flex items-center gap-2">
@@ -98,7 +74,7 @@ function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
                 titolo: item.title,
                 link_fonte: item.url,
                 fonte: item.sourceName,
-                categoria: item.cat === "ai" ? "ai" : (item.cat === "gaming" ? "gaming" : "oss")
+                categoria: "oss"
               });
               setIsAdded(true);
             }}
@@ -140,13 +116,13 @@ function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
 }
 
 // ─── Componente principale ────────────────────────────────────────────────────
-export default function TrendMonitor({ onAddToPiano }) {
-  const [activecat, setActiveCat] = useState("all");
+export default function TrendMonitor({ onAddToPiano, feeds, onOpenSettings }) {
+  const [source, setSource] = useState("");
   const [items, setItems]         = useState([]);
   const [loading, setLoading]     = useState(false);
   const [fetchedAt, setFetchedAt] = useState(null);
   const [error, setError]         = useState(null);
-  const [feedsCount, setFeedsCount] = useState(0);
+  const visibleItems = source ? items.filter(item => item.feedUrl === source) : items;
   const [selectedItems, setSelectedItems] = useState(new Map());
 
   const toggleSelected = (item) => {
@@ -161,38 +137,46 @@ export default function TrendMonitor({ onAddToPiano }) {
   const selectVisible = () => {
     setSelectedItems(current => {
       const next = new Map(current);
-      for (const item of items) next.set(item.url, item);
+      for (const item of visibleItems) next.set(item.url, item);
       return next;
     });
   };
 
-  const fetchTrends = useCallback(async (cat = activecat) => {
+  const fetchTrends = useCallback(async (signal) => {
+    if (!feeds.length) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/trend-service?action=rss&cat=${cat}&limit=5`);
-      if (!res.ok) throw new Error(`Errore API: ${res.status}`);
-      const data = await res.json();
-      setItems(data.items || []);
-      setFetchedAt(new Date(data.fetchedAt));
-      setFeedsCount(data.feedsAttempted || 0);
-    } catch (e) {
-      setError(e.message);
+      const requests = [];
+      for (let start = 0; start < feeds.length; start += RSS_BATCH_SIZE) {
+        requests.push(fetch("/api/trend-service?action=rss", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feeds: feeds.slice(start, start + RSS_BATCH_SIZE) }),
+          signal,
+        }).then(res => {
+          if (!res.ok) throw new Error(`Errore API: ${res.status}`);
+          return res.json();
+        }));
+      }
+      const batches = await Promise.all(requests);
+      if (signal?.aborted) return;
+      const news = batches.flatMap(batch => batch.items);
+      news.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      setItems(news);
+      setFetchedAt(new Date());
+    } catch (error) {
+      if (!signal?.aborted) setError(error.message);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }, [activecat]);
+  }, [feeds]);
 
   useEffect(() => {
-    fetchTrends(activecat);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activecat]);
-
-  // Conteggi per categoria
-  const counts = items.reduce((acc, item) => {
-    acc[item.cat] = (acc[item.cat] || 0) + 1;
-    return acc;
-  }, {});
+    const controller = new AbortController();
+    fetchTrends(controller.signal);
+    return () => controller.abort();
+  }, [fetchTrends]);
 
   const formatTime = (d) => d ? d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "";
 
@@ -209,13 +193,13 @@ export default function TrendMonitor({ onAddToPiano }) {
             Trend Monitor
           </h2>
           <p className="text-slate-500 text-sm mt-0.5 ml-11">
-            Ultime notizie dai competitor · {feedsCount} feed monitorati
+            Ultime notizie dalle fonti importate · {feeds.length} feed monitorati
             {fetchedAt && <span className="ml-2 text-slate-400">· aggiornato alle {formatTime(fetchedAt)}</span>}
           </p>
         </div>
         <button
-          onClick={() => fetchTrends(activecat)}
-          disabled={loading}
+          onClick={() => fetchTrends()}
+          disabled={loading || !feeds.length}
           className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm disabled:opacity-50"
         >
           <RefreshCw size={14} className={cn(loading && "animate-spin")} />
@@ -223,43 +207,23 @@ export default function TrendMonitor({ onAddToPiano }) {
         </button>
       </div>
 
-      {/* Filtri categoria */}
-      <div className="flex flex-wrap gap-2">
-        {CATEGORIES.map(cat => {
-          const count = cat.id === "all" ? items.length : (counts[cat.id] || 0);
-          const isActive = activecat === cat.id;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCat(cat.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all",
-                isActive
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:text-indigo-600"
-              )}
-            >
-              {cat.emoji && <span>{cat.emoji}</span>}
-              {cat.label}
-              {count > 0 && (
-                <span className={cn(
-                  "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                  isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                )}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {feeds.length > 0 && (
+        <div className="max-w-sm space-y-1 text-sm font-semibold text-slate-700">
+          <label htmlFor="trend-source" className="block">Fonte</label>
+          <select id="trend-source" value={source} onChange={event => setSource(event.target.value)}
+            className="block min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3">
+            <option value="">Tutte le fonti</option>
+            {feeds.map(feed => <option key={feed.url} value={feed.url}>{feed.name}</option>)}
+          </select>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <p role="status" className="text-sm font-semibold text-indigo-900 mr-auto">
             {selectedItems.size} notizie selezionate
           </p>
-          <button type="button" onClick={selectVisible} disabled={loading || items.length === 0}
+          <button type="button" onClick={selectVisible} disabled={loading || visibleItems.length === 0}
             className="text-sm font-semibold text-indigo-700 disabled:opacity-50">
             Seleziona tutte le notizie mostrate
           </button>
@@ -273,7 +237,7 @@ export default function TrendMonitor({ onAddToPiano }) {
             Scarica selezionate (.md)
           </button>
         </div>
-        <p className="text-xs text-indigo-700">La selezione viene mantenuta quando cambi categoria o aggiorni le notizie. Il file contiene titolo, fonte, data e link originale.</p>
+        <p className="text-xs text-indigo-700">La selezione viene mantenuta quando cambi fonte o aggiorni le notizie. Il file contiene titolo, fonte, data e link originale.</p>
         {selectedItems.size > 0 && (
           <details className="text-sm text-slate-700">
             <summary className="cursor-pointer font-semibold">Rivedi la selezione</summary>
@@ -301,25 +265,34 @@ export default function TrendMonitor({ onAddToPiano }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {loading
           ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)
-          : items.length === 0
+          : visibleItems.length === 0
             ? (
               <div className="col-span-full flex flex-col items-center justify-center py-24 text-slate-400">
                 <Globe size={48} className="mb-4 opacity-30" />
-                <p className="font-semibold">Nessun articolo trovato</p>
-                <p className="text-sm mt-1">I feed potrebbero essere temporaneamente offline</p>
+                {feeds.length === 0 ? (
+                  <>
+                    <p className="font-semibold">Nessuna fonte RSS importata</p>
+                    <button type="button" onClick={onOpenSettings}
+                      className="mt-2 min-h-11 rounded-xl bg-indigo-50 px-4 text-sm font-semibold text-indigo-700">
+                      Apri Impostazioni · Fonti RSS
+                    </button>
+                  </>
+                ) : (
+                  <p className="font-semibold">Nessun articolo trovato</p>
+                )}
               </div>
             )
-            : items.map((item, i) => <TrendCard key={`${item.url}-${i}`} item={item} onAddToPiano={onAddToPiano}
+            : visibleItems.map((item, i) => <TrendCard key={`${item.url}-${i}`} item={item} onAddToPiano={onAddToPiano}
                 selected={selectedItems.has(item.url)} onToggleSelected={toggleSelected} />)
         }
       </div>
 
       {/* Footer info */}
-      {!loading && items.length > 0 && (
+      {!loading && visibleItems.length > 0 && (
         <div className="text-center">
           <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
             <TrendingUp size={12} />
-            {items.length} articoli da {feedsCount} fonti — aggiornamento ogni 15 minuti su Vercel
+            {visibleItems.length} articoli
           </span>
         </div>
       )}

@@ -4,10 +4,8 @@ import {
   Calendar, 
   History, 
   Search, 
-  PlusCircle,
-  BarChart3,
   BarChart2,
-  Menu,
+  Rss,
   X,
   TrendingUp
 } from 'lucide-react';
@@ -29,7 +27,7 @@ const Sidebar = ({ activeView, setView, dueCount, isOpen, onClose }) => {
 
   return (
     <aside className={cn(
-      "fixed left-0 top-0 h-screen w-[280px] bg-[#0F172A] text-white flex flex-col z-[60] border-r border-slate-800 shadow-2xl transition-transform duration-300 md:translate-x-0",
+      "fixed left-0 top-0 h-screen w-[280px] max-w-full overflow-y-auto bg-[#0F172A] text-white flex flex-col z-[60] border-r border-slate-800 shadow-2xl transition-transform duration-300 md:translate-x-0",
       isOpen ? "translate-x-0" : "-translate-x-full"
     )}>
       <div className="p-8 pb-12 flex items-center justify-between">
@@ -75,6 +73,16 @@ const Sidebar = ({ activeView, setView, dueCount, isOpen, onClose }) => {
             </button>
           )
         })}
+        <p className="px-4 pt-5 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Impostazioni</p>
+        <button type="button" onClick={() => setView('rss-settings')}
+          aria-current={activeView === 'rss-settings' ? 'page' : undefined}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold",
+            activeView === 'rss-settings' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+          )}>
+          <Rss size={20} aria-hidden="true" />
+          Fonti RSS
+        </button>
       </nav>
 
       <div className="p-6">

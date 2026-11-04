@@ -1,10 +1,13 @@
 /* global process */
-import { RSS_FEEDS, fetchFeed, fetchFeeds } from './rss-feeds.js';
+import { fetchFeed, fetchFeeds } from './rss-feeds.js';
+
+import { fetchPublicRss } from './public-rss.js';
+import { normalizeFeedUrl, RSS_BATCH_SIZE } from '../src/utils/feedUrl.js';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 export default async function handler(req, res) {
-  const { action, cat = 'all', limit = 5 } = req.query;
+  const { action } = req.query;
 
   try {
     // ─── 0. COMPETITOR SCANNER (NEW) ──────────────────────────────────────
@@ -77,10 +80,21 @@ export default async function handler(req, res) {
     }
 
     // ─── 2. RSS FEED SCANNER ───────────────────────────────────────────────
-    const feedsToFetch = cat === 'all' ? RSS_FEEDS : RSS_FEEDS.filter(f => f.cat === cat);
-    const items = await fetchFeeds(feedsToFetch, Math.min(limit, 8));
+    const submitted = req.body?.feeds;
+    if (submitted !== undefined && (!Array.isArray(submitted) || submitted.length > RSS_BATCH_SIZE)) {
+      return res.status(400).json({ error: "Invalid RSS feed list" });
+    }
 
-    res.status(200).json({ items: items.slice(0, 100), feedsAttempted: feedsToFetch.length, fetchedAt: new Date().toISOString() });
+    const feeds = new Map();
+    for (const feed of submitted || []) {
+      const url = typeof feed?.url === 'string' && normalizeFeedUrl(feed.url);
+      if (!url || feeds.has(url)) continue;
+      const name = typeof feed.name === 'string' ? feed.name.trim().slice(0, 200) : '';
+      feeds.set(url, { url, name: name || new URL(url).hostname });
+    }
+
+    const items = await fetchFeeds([...feeds.values()], 5, fetchPublicRss);
+    return res.status(200).json({ items });
 
   } catch (error) {
     res.status(500).json({ error: error.message });

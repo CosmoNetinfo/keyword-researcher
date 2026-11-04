@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
 import TrendMonitor from "./components/TrendMonitor";
+import RssSettings from "./components/RssSettings";
+import { readRssFeeds } from "./utils/rssSettings";
 import GSCInsights from "./components/GSCInsights";
 import Layout from "./components/Layout";
 import { clsx } from "clsx";
@@ -191,6 +193,7 @@ async function _exportWord(analysis) {
 console.log("App component initialization started");
 export default function App() {
   console.log("App function executing");
+  const [rssFeeds, setRssFeeds] = useState(readRssFeeds);
   const [view, setView] = useState("new"); // Debuuging: default to new
   const [url, setUrl] = useState("cosmonet.info");
   const [topic, setTopic] = useState(TOPICS[0]);
@@ -676,8 +679,10 @@ export default function App() {
       )}
 
       {view === "trend" && (
-        <TrendMonitor onAddToPiano={addArticoloToPiano} />
+        <TrendMonitor onAddToPiano={addArticoloToPiano} feeds={rssFeeds} onOpenSettings={() => setView("rss-settings")} />
       )}
+
+      {view === "rss-settings" && <RssSettings feeds={rssFeeds} onChange={setRssFeeds} />}
 
       {view === "new" && (
         <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
