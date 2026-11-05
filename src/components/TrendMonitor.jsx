@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { ExternalLink, RefreshCw, Rss, Globe, TrendingUp, Copy, Check } from "lucide-react";
+import { ExternalLink, RefreshCw, Rss, Globe, TrendingUp, Copy, Check, Settings } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { downloadNewsMarkdown } from "../utils/exportNews";
 import { RSS_BATCH_SIZE } from "../utils/feedUrl";
+import { groupRecentNews } from "../utils/trendPreferences";
 
 function cn(...inputs) { return twMerge(clsx(inputs)); }
 
@@ -35,7 +36,7 @@ function SkeletonCard() {
 }
 
 // ─── Trend Card ───────────────────────────────────────────────────────────────
-function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
+function TrendCard({ item, hue, onAddToPiano, selected, onToggleSelected }) {
   const [copied, setCopied] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const ago = timeAgo(item.date);
@@ -50,7 +51,8 @@ function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
 
   return (
     <article
-      className="group block bg-white rounded-2xl border border-slate-100 p-4 hover:border-indigo-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 relative"
+      className="group block min-w-0 bg-white rounded-2xl border border-l-4 border-slate-200 p-4 hover:shadow-md transition-all duration-200 relative"
+      style={{ borderLeftColor: `hsl(${hue} 65% 44%)` }}
     >
       <label className="flex items-center gap-2 mb-3 text-xs font-semibold text-slate-600 cursor-pointer">
         <input
@@ -63,7 +65,8 @@ function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
         Includi nel file .md
       </label>
       <div className="flex items-start justify-between gap-2 mb-2.5">
-        <span className="min-w-0 truncate rounded-full border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+        <span className="min-w-0 truncate rounded-full px-2 py-0.5 text-[10px] font-bold"
+          style={{ backgroundColor: `hsl(${hue} 72% 92%)`, color: `hsl(${hue} 66% 26%)` }}>
           {item.sourceName}
         </span>
         <div className="flex items-center gap-2">
@@ -116,13 +119,20 @@ function TrendCard({ item, onAddToPiano, selected, onToggleSelected }) {
 }
 
 // ─── Componente principale ────────────────────────────────────────────────────
-export default function TrendMonitor({ onAddToPiano, feeds, onOpenSettings }) {
+export default function TrendMonitor({ onAddToPiano, feeds, hours, onOpenSettings, onOpenSources }) {
   const [source, setSource] = useState("");
   const [items, setItems]         = useState([]);
   const [loading, setLoading]     = useState(false);
   const [fetchedAt, setFetchedAt] = useState(null);
   const [error, setError]         = useState(null);
-  const visibleItems = source ? items.filter(item => item.feedUrl === source) : items;
+  const [now, setNow] = useState(Date.now);
+  const groups = groupRecentNews(items, feeds, source, hours, now);
+  const visibleItems = groups.flatMap(group => group.items);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
   const [selectedItems, setSelectedItems] = useState(new Map());
 
   const toggleSelected = (item) => {
@@ -164,7 +174,9 @@ export default function TrendMonitor({ onAddToPiano, feeds, onOpenSettings }) {
       const news = batches.flatMap(batch => batch.items);
       news.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setItems(news);
-      setFetchedAt(new Date());
+      const fetched = Date.now();
+      setNow(fetched);
+      setFetchedAt(new Date(fetched));
     } catch (error) {
       if (!signal?.aborted) setError(error.message);
     } finally {
@@ -193,10 +205,15 @@ export default function TrendMonitor({ onAddToPiano, feeds, onOpenSettings }) {
             Trend Monitor
           </h2>
           <p className="text-slate-500 text-sm mt-0.5 ml-11">
-            Ultime notizie dalle fonti importate · {feeds.length} feed monitorati
+            Ultime {hours} ore · {feeds.length} feed monitorati
             {fetchedAt && <span className="ml-2 text-slate-400">· aggiornato alle {formatTime(fetchedAt)}</span>}
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onOpenSettings}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-600">
+            <Settings size={16} aria-hidden="true" /> Impostazioni
+          </button>
         <button
           onClick={() => fetchTrends()}
           disabled={loading || !feeds.length}
@@ -205,6 +222,7 @@ export default function TrendMonitor({ onAddToPiano, feeds, onOpenSettings }) {
           <RefreshCw size={14} className={cn(loading && "animate-spin")} />
           Aggiorna
         </button>
+        </div>
       </div>
 
       {feeds.length > 0 && (
@@ -262,9 +280,11 @@ export default function TrendMonitor({ onAddToPiano, feeds, onOpenSettings }) {
       )}
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div className="space-y-6">
         {loading
-          ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)
+          ? <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
+            </div>
           : visibleItems.length === 0
             ? (
               <div className="col-span-full flex flex-col items-center justify-center py-24 text-slate-400">
@@ -272,18 +292,33 @@ export default function TrendMonitor({ onAddToPiano, feeds, onOpenSettings }) {
                 {feeds.length === 0 ? (
                   <>
                     <p className="font-semibold">Nessuna fonte RSS importata</p>
-                    <button type="button" onClick={onOpenSettings}
+                    <button type="button" onClick={onOpenSources}
                       className="mt-2 min-h-11 rounded-xl bg-indigo-50 px-4 text-sm font-semibold text-indigo-700">
                       Apri Impostazioni · Fonti RSS
                     </button>
                   </>
                 ) : (
-                  <p className="font-semibold">Nessun articolo trovato</p>
+                  <p className="font-semibold">Nessun articolo nelle ultime {hours} ore</p>
                 )}
               </div>
             )
-            : visibleItems.map((item, i) => <TrendCard key={`${item.url}-${i}`} item={item} onAddToPiano={onAddToPiano}
-                selected={selectedItems.has(item.url)} onToggleSelected={toggleSelected} />)
+            : groups.map(group => (
+              <section key={group.domain} aria-label={group.name}
+                className="min-w-0 space-y-3 rounded-2xl border p-3 sm:p-4"
+                style={{ backgroundColor: `hsl(${group.hue} 65% 97%)`, borderColor: `hsl(${group.hue} 55% 84%)` }}>
+                <h3 className="flex flex-wrap items-baseline gap-x-3 text-base font-bold [overflow-wrap:anywhere]"
+                  style={{ color: `hsl(${group.hue} 66% 26%)` }}>
+                  {group.name}
+                  <span className="text-xs font-medium">{group.items.length} {group.items.length === 1 ? "notizia" : "notizie"}</span>
+                </h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {group.items.map((item, i) => (
+                    <TrendCard key={`${item.url}-${i}`} item={item} hue={group.hue} onAddToPiano={onAddToPiano}
+                      selected={selectedItems.has(item.url)} onToggleSelected={toggleSelected} />
+                  ))}
+                </div>
+              </section>
+            ))
         }
       </div>
 

@@ -15,6 +15,8 @@ import {
 import PianoEditoriale from "./components/PianoEditoriale";
 import TrendMonitor from "./components/TrendMonitor";
 import RssSettings from "./components/RssSettings";
+import TrendSettings from "./components/TrendSettings";
+import { readTrendHours, saveTrendHours } from "./utils/trendPreferences";
 import { readRssFeeds } from "./utils/rssSettings";
 import GSCInsights from "./components/GSCInsights";
 import Layout from "./components/Layout";
@@ -193,6 +195,7 @@ async function _exportWord(analysis) {
 console.log("App component initialization started");
 export default function App() {
   console.log("App function executing");
+  const [trendHours, setTrendHours] = useState(readTrendHours);
   const [rssFeeds, setRssFeeds] = useState(readRssFeeds);
   const [view, setView] = useState("new"); // Debuuging: default to new
   const [url, setUrl] = useState("cosmonet.info");
@@ -679,7 +682,15 @@ export default function App() {
       )}
 
       {view === "trend" && (
-        <TrendMonitor onAddToPiano={addArticoloToPiano} feeds={rssFeeds} onOpenSettings={() => setView("rss-settings")} />
+        <TrendMonitor onAddToPiano={addArticoloToPiano} feeds={rssFeeds} hours={trendHours}
+          onOpenSettings={() => setView("trend-settings")} onOpenSources={() => setView("rss-settings")} />
+      )}
+
+      {view === "trend-settings" && (
+        <TrendSettings hours={trendHours} onChange={hours => {
+          saveTrendHours(hours);
+          setTrendHours(hours);
+        }} onBack={() => setView("trend")} />
       )}
 
       {view === "rss-settings" && <RssSettings feeds={rssFeeds} onChange={setRssFeeds} />}

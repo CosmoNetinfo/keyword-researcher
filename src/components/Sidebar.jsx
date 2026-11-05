@@ -74,6 +74,15 @@ const Sidebar = ({ activeView, setView, dueCount, isOpen, onClose }) => {
           )
         })}
         <p className="px-4 pt-5 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Impostazioni</p>
+        <button type="button" onClick={() => setView('trend-settings')}
+          aria-current={activeView === 'trend-settings' ? 'page' : undefined}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold",
+            activeView === 'trend-settings' ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+          )}>
+          <TrendingUp size={20} aria-hidden="true" />
+          Preferenze Trend Monitor
+        </button>
         <button type="button" onClick={() => setView('rss-settings')}
           aria-current={activeView === 'rss-settings' ? 'page' : undefined}
           className={cn(
