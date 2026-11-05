@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { appOriginAllowed } from "../server/app-access.js";
 import { readSearchRows, wordpressPageMetadata } from "../server/gsc-report.js";
 import {
-  classifyPage, comparisonPeriods, findCannibalization, findSeoOpportunities, growthRows, STRUCTURAL_DEFAULTS,
+  aggregatePageRows, classifyPage, comparisonPeriods, findCannibalization, findSeoOpportunities, growthRows, STRUCTURAL_DEFAULTS,
 } from "../src/utils/seoOpportunities.js";
 
 export default async function handler(req, res) {
@@ -16,7 +16,11 @@ export default async function handler(req, res) {
   auth.setCredentials({ access_token: token });
   const searchconsole = google.searchconsole({ version: "v1", auth });
   const periods = comparisonPeriods();
-  const read = (period, dimensions) => readSearchRows(searchconsole, period, dimensions);
+  const read = async (period, dimensions) => {
+    const raw = await readSearchRows(searchconsole, period, dimensions);
+    const pageIndex = dimensions.indexOf("page");
+    return { rows: pageIndex < 0 ? raw : aggregatePageRows(raw, pageIndex), rowsRead: raw.length };
+  };
 
   try {
     if (action === "opportunities") {
@@ -26,30 +30,30 @@ export default async function handler(req, res) {
       ]);
       const extra = Array.isArray(structuralTerms) ? structuralTerms.filter(term => typeof term === "string")
         .slice(0, 100).map(term => term.trim().slice(0, 100)).filter(Boolean) : [];
-      const candidates = findSeoOpportunities(current, previous, queries, thresholds, [...STRUCTURAL_DEFAULTS, ...extra]);
+      const candidates = findSeoOpportunities(current.rows, previous.rows, queries.rows, thresholds, [...STRUCTURAL_DEFAULTS, ...extra]);
       const metadata = await wordpressPageMetadata(candidates.map(row => row.url));
       const rows = candidates.map(row => {
         const post = metadata.get(new URL(row.url).pathname.replace(/\/$/, ""));
         return { ...row, classification: classifyPage(post, null, periods.current.endDate), publishedAt: post?.date || null };
       });
       return res.status(200).json({
-        ...periods, rows, cannibalization: findCannibalization(queries),
-        counts: { current: current.length, previous: previous.length, queryPages: queries.length },
+        ...periods, rows, cannibalization: findCannibalization(queries.rows),
+        counts: { current: current.rowsRead, previous: previous.rowsRead, queryPages: queries.rowsRead },
       });
     }
 
     if (action === "growth") {
       const [current, previous] = await Promise.all([read(periods.current, ["query", "page"]), read(periods.previous, ["query", "page"])]);
-      return res.status(200).json({ ...periods, success: true, topGrowth: growthRows(current, previous),
-        counts: { current: current.length, previous: previous.length } });
+      return res.status(200).json({ ...periods, success: true, topGrowth: growthRows(current.rows, previous.rows),
+        counts: { current: current.rowsRead, previous: previous.rowsRead } });
     }
 
     if (action === "data" || action === "pages") {
       const dimensions = action === "pages" ? ["page"]
         : type === "trend" ? ["date"] : type === "cannibalization" ? ["query", "page"] : ["query"];
-      const rows = await read(periods.current, dimensions);
+      const { rows, rowsRead } = await read(periods.current, dimensions);
       return res.status(200).json({
-        ...periods, rowsRead: rows.length,
+        ...periods, rowsRead,
         rows: type === "cannibalization" ? [] : rows.slice(0, 150),
         ...(type === "cannibalization" && { pairs: findCannibalization(rows) }),
       });

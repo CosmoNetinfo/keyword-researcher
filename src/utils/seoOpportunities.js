@@ -21,6 +21,44 @@ export function seoSettings(input) {
   }));
 }
 
+export function aggregatePageRows(rows, pageIndex) {
+  const pages = new Map();
+  for (const row of rows) {
+    let url;
+    try {
+      url = new URL(row.keys[pageIndex]);
+    } catch {
+      continue;
+    }
+    const path = url.pathname;
+    if (!["https:", "http:"].includes(url.protocol) ||
+      /(?:^|\/)(?:tag|category)(?:\/|$)|\/\d+\/?$/i.test(path) ||
+      ["page", "paged"].some(key => url.searchParams.getAll(key).some(value => /^\d+$/.test(value)))) continue;
+
+    url.hash = "";
+    const keys = [...row.keys];
+    keys[pageIndex] = url.href;
+    const key = JSON.stringify(keys);
+    const total = pages.get(key) || { keys, clicks: 0, impressions: 0, weightedPosition: 0 };
+    total.clicks += row.clicks;
+    total.impressions += row.impressions;
+    total.weightedPosition += row.position * row.impressions;
+    pages.set(key, total);
+  }
+  return [...pages.values()].map(({ keys, clicks, impressions, weightedPosition }) => ({
+    keys, clicks, impressions,
+    ctr: impressions ? clicks / impressions : 0,
+    position: impressions ? weightedPosition / impressions : 0,
+  })).sort((a, b) => b.clicks - a.clicks);
+}
+
+function declineLabel(current, previous) {
+  if (!current || !previous) return "causa da verificare";
+  if (current.impressions < previous.impressions / 2) return "calo di domanda";
+  if (current.impressions >= previous.impressions) return "calo di CTR";
+  return "calo con impressioni in diminuzione";
+}
+
 function metrics(row) {
   return row ? { clicks: row.clicks, impressions: row.impressions, ctr: row.ctr, position: row.position } : null;
 }
@@ -58,6 +96,7 @@ export function findSeoOpportunities(current, previous, queryPages = [], input, 
     return [{
       url, current: metrics(currentRow), previous: metrics(previousRow), missing: !currentRow,
       lostClicks: declining ? loss : 0, lowCtr,
+      declineLabel: declining ? declineLabel(currentRow, previousRow) : null,
       focusKeyphrase: queryData.actionable.sort((a, b) => b.impressions - a.impressions)[0]?.query || "",
       structuralQueries: queryData.structural,
     }];

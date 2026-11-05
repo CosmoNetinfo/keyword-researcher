@@ -116,6 +116,7 @@ export default function SeoOpportunities({ accessToken, onAddToPiano, onSnapshot
                       <p>Precedente · {formatSeoMetrics(row.previous)}</p>
                       {row.missing && <p>Pagina assente nelle righe correnti.</p>}
                       <p>{row.classification} · {action}</p>
+                      {row.declineLabel && <p className="font-semibold text-amber-300">{row.declineLabel}</p>}
                       {label === "CTR basso strutturale" && <ul>{row.structuralQueries.map(query => (
                         <li key={query.query}>{query.query} · {formatSeoMetrics(query)}</li>
                       ))}</ul>}
