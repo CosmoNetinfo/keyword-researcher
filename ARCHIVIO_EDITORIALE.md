@@ -61,3 +61,29 @@ Il server segnala quando i risultati sono troncati.
 
 [Autenticazione MCP in ChatGPT](https://developers.openai.com/plugins/build/auth) ·
 [Connettori MCP in Claude](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp)
+
+### Accesso alle altre sezioni
+
+Per autorizzare il connettore a navigare nell'app e leggere Piano Editoriale,
+cronologia e contesto condiviso, configura anche lo scope `editorial:read`
+nel provider OAuth e autorizza nuovamente il client con entrambi gli scope.
+Il solo `archive:read` continua a dare accesso alle note.
+
+Per condividere RSS, notizie e Search Console, integra anche questa regola
+all'interno del blocco Firestore dei documenti:
+
+```text
+match /archivio_editoriale/{uid}/contesto/mcp {
+  allow read, create, update: if request.auth != null && request.auth.uid == uid;
+}
+```
+
+Dopo aver caricato i dati in Trend Monitor o GSC Insights, apri **Archivio
+editoriale → Dati condivisi con MCP**. Seleziona cosa condividere. Il pannello
+può anche rimuovere le copie condivise. I risultati riportano le date di
+caricamento e condivisione. Nessun token Google Search Console viene salvato.
+Le sezioni vengono aperte tramite link; le operazioni MCP sono in sola lettura.
+
+Se Firestore richiede un indice per il filtro del Piano Editoriale, crea un
+indice composito sulla raccolta `piano_editoriale` con `status` crescente e
+`createdAt` decrescente.

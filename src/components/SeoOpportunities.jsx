@@ -2,7 +2,7 @@ import { useState } from "react";
 import { safeEditorialUrl } from "../utils/editorialRadar";
 import { downloadSeoMarkdown, opportunityReasons } from "../utils/exportSeo";
 
-export default function SeoOpportunities({ accessToken, onAddToPiano }) {
+export default function SeoOpportunities({ accessToken, onAddToPiano, onSnapshot }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,6 +21,7 @@ export default function SeoOpportunities({ accessToken, onAddToPiano }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `Errore API (${response.status})`);
       setResult(data);
+      onSnapshot({ ...data, fetchedAt: new Date().toISOString() });
     } catch (error) {
       setError(error.message);
     } finally {

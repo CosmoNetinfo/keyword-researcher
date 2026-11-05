@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
 import TrendMonitor from "./components/TrendMonitor";
+import { APP_SECTIONS } from "./utils/appSections";
 import EditorialArchive from "./components/EditorialArchive";
 import RssSettings from "./components/RssSettings";
 import TrendSettings from "./components/TrendSettings";
@@ -196,10 +197,18 @@ async function _exportWord(analysis) {
 console.log("App component initialization started");
 export default function App() {
   console.log("App function executing");
+  const [trendSnapshot, setTrendSnapshot] = useState(null);
+  const [gscSnapshot, setGscSnapshot] = useState(null);
+  const [seoSnapshot, setSeoSnapshot] = useState(null);
   const [archiveDraft, setArchiveDraft] = useState(null);
   const [trendHours, setTrendHours] = useState(readTrendHours);
   const [rssFeeds, setRssFeeds] = useState(readRssFeeds);
-  const [view, setView] = useState(() => /^[a-zA-Z0-9]{20}$/.test(new URLSearchParams(window.location.search).get("nota") || "") ? "archive" : "new");
+  const [view, setView] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (/^[a-zA-Z0-9]{20}$/.test(params.get("nota") || "")) return "archive";
+    const section = params.get("vista");
+    return Object.hasOwn(APP_SECTIONS, section) ? section : "new";
+  });
   const [url, setUrl] = useState("cosmonet.info");
   const [topic, setTopic] = useState(TOPICS[0]);
   const [customTopic, setCustomTopic] = useState("");
@@ -694,19 +703,22 @@ export default function App() {
         <GSCInsights 
           setView={setView} 
           setPrefilledKeyword={setPrefilledKeyword}
-          onKeywordsLoaded={setSharedGscKeywords}
+          onKeywordsLoaded={setSharedGscKeywords} onSnapshot={setGscSnapshot} onSeoSnapshot={setSeoSnapshot}
           onAddToPiano={addArticoloToPiano}
         />
       )}
 
       {view === "trend" && (
         <TrendMonitor onAddToPiano={addArticoloToPiano} feeds={rssFeeds} hours={trendHours}
-          pianoItems={pianoItems} keywords={sharedGscKeywords} onOpenGsc={() => setView("gsc")}
+          onSnapshot={setTrendSnapshot} pianoItems={pianoItems} keywords={sharedGscKeywords} onOpenGsc={() => setView("gsc")}
           onArchiveBrief={note => { setArchiveDraft(note); setView("archive"); }}
           onOpenSettings={() => setView("trend-settings")} onOpenSources={() => setView("rss-settings")} />
       )}
 
-      {view === "archive" && <EditorialArchive initialNote={archiveDraft} onConsumeDraft={() => setArchiveDraft(null)} />}
+      {view === "archive" && (
+        <EditorialArchive initialNote={archiveDraft} onConsumeDraft={() => setArchiveDraft(null)}
+          context={{ feeds: rssFeeds, hours: trendHours, trend: trendSnapshot, gsc: gscSnapshot, seo: seoSnapshot }} />
+      )}
 
       {view === "trend-settings" && (
         <TrendSettings hours={trendHours} onChange={hours => {

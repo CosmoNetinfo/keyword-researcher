@@ -120,7 +120,7 @@ function TrendCard({ item, hue, onAddToPiano, selected, onToggleSelected }) {
 }
 
 // ─── Componente principale ────────────────────────────────────────────────────
-export default function TrendMonitor({ onAddToPiano, feeds, hours, pianoItems, keywords, onOpenGsc, onArchiveBrief, onOpenSettings, onOpenSources }) {
+export default function TrendMonitor({ onAddToPiano, feeds, hours, pianoItems, keywords, onSnapshot, onOpenGsc, onArchiveBrief, onOpenSettings, onOpenSources }) {
   const [showRadar, setShowRadar] = useState(false);
   const [source, setSource] = useState("");
   const [items, setItems]         = useState([]);
@@ -179,12 +179,13 @@ export default function TrendMonitor({ onAddToPiano, feeds, hours, pianoItems, k
       const fetched = Date.now();
       setNow(fetched);
       setFetchedAt(new Date(fetched));
+      onSnapshot({ fetchedAt: new Date(fetched).toISOString(), items: news.slice(0, 50) });
     } catch (error) {
       if (!signal?.aborted) setError(error.message);
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [feeds]);
+  }, [feeds, onSnapshot]);
 
   useEffect(() => {
     const controller = new AbortController();

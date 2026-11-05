@@ -24,7 +24,7 @@ function formatNum(n) {
 }
 function pos(n) { return (!n && n !== 0) ? '—' : n.toFixed(1); }
 
-export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLoaded, onAddToPiano }) {
+export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLoaded, onAddToPiano, onSnapshot, onSeoSnapshot }) {
   const [accessToken, setAccessToken] = useState(() => {
     if (typeof window !== 'undefined') {
       if (window.location.hash.includes('access_token')) {
@@ -86,9 +86,14 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
         impressions: r.impressions
       })));
       onKeywordsLoaded?.(kwData.rows || []);
+      onSnapshot({
+        fetchedAt: new Date().toISOString(), startDate,
+        keywords: (kwData.rows || []).slice(0, 30),
+        pages: (pgData.rows || []).slice(0, 30),
+      });
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [accessToken, dateRange, onKeywordsLoaded]);
+  }, [accessToken, dateRange, onKeywordsLoaded, onSnapshot]);
 
   useEffect(() => {
     if (accessToken) fetchData();
@@ -125,13 +130,13 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
           <button onClick={fetchData} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold px-6 py-2 rounded-xl transition-all text-sm">
             {loading ? '...' : '⟳ Sync'}
           </button>
-          <button onClick={() => { sessionStorage.removeItem('gsc_access_token'); setAccessToken(null); }} className="text-slate-500 hover:text-rose-400 text-xs font-bold px-4 py-2">Logout</button>
+          <button onClick={() => { sessionStorage.removeItem('gsc_access_token'); setAccessToken(null); onSnapshot(null); onSeoSnapshot(null); }} className="text-slate-500 hover:text-rose-400 text-xs font-bold px-4 py-2">Logout</button>
         </div>
       </div>
 
       {error && <div className="bg-rose-900/20 border border-rose-500/50 text-rose-300 px-6 py-4 rounded-2xl text-sm font-bold">⚠️ {error}</div>}
 
-      <SeoOpportunities accessToken={accessToken} onAddToPiano={onAddToPiano} />
+      <SeoOpportunities accessToken={accessToken} onAddToPiano={onAddToPiano} onSnapshot={onSeoSnapshot} />
 
       {keywords.length > 0 && (
         <>
