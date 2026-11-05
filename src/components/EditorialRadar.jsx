@@ -1,7 +1,7 @@
 import { buildEditorialRadar, safeEditorialUrl } from "../utils/editorialRadar";
-import { downloadEditorialBrief } from "../utils/exportBrief";
+import { buildEditorialBrief, downloadEditorialBrief } from "../utils/exportBrief";
 
-export default function EditorialRadar({ items, pianoItems, keywords, onOpenGsc }) {
+export default function EditorialRadar({ items, pianoItems, keywords, onOpenGsc, onArchiveBrief }) {
   const opportunities = buildEditorialRadar(items, pianoItems, keywords);
 
   return (
@@ -24,10 +24,16 @@ export default function EditorialRadar({ items, pianoItems, keywords, onOpenGsc 
               <h4 className="font-bold text-slate-900">{opportunity.lead.title}</h4>
               <p className="text-sm text-slate-600">{opportunity.reason}</p>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => onArchiveBrief({ title: opportunity.lead.title, markdown: buildEditorialBrief(opportunity), source: "radar" })}
+                className="min-h-11 rounded-xl border border-indigo-200 px-4 text-sm font-bold text-indigo-700">
+                Salva nell'archivio
+              </button>
             <button type="button" onClick={() => downloadEditorialBrief(opportunity)}
               className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white">
               Scarica brief (.md)
             </button>
+            </div>
           </div>
           <details className="text-sm text-slate-700">
             <summary className="min-h-8 cursor-pointer font-semibold">Fonti da verificare ({opportunity.sources.length})</summary>

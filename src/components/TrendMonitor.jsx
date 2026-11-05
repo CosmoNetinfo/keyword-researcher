@@ -120,7 +120,7 @@ function TrendCard({ item, hue, onAddToPiano, selected, onToggleSelected }) {
 }
 
 // ─── Componente principale ────────────────────────────────────────────────────
-export default function TrendMonitor({ onAddToPiano, feeds, hours, pianoItems, keywords, onOpenGsc, onOpenSettings, onOpenSources }) {
+export default function TrendMonitor({ onAddToPiano, feeds, hours, pianoItems, keywords, onOpenGsc, onArchiveBrief, onOpenSettings, onOpenSources }) {
   const [showRadar, setShowRadar] = useState(false);
   const [source, setSource] = useState("");
   const [items, setItems]         = useState([]);
@@ -318,7 +318,7 @@ export default function TrendMonitor({ onAddToPiano, feeds, hours, pianoItems, k
               </div>
             )
             : showRadar ? (
-              <EditorialRadar items={visibleItems} pianoItems={pianoItems} keywords={keywords} onOpenGsc={onOpenGsc} />
+              <EditorialRadar items={visibleItems} pianoItems={pianoItems} keywords={keywords} onOpenGsc={onOpenGsc} onArchiveBrief={onArchiveBrief} />
             ) : groups.map(group => (
               <section key={group.domain} aria-label={group.name}
                 className="min-w-0 space-y-3 rounded-2xl border p-3 sm:p-4"

@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import PianoEditoriale from "./components/PianoEditoriale";
 import TrendMonitor from "./components/TrendMonitor";
+import EditorialArchive from "./components/EditorialArchive";
 import RssSettings from "./components/RssSettings";
 import TrendSettings from "./components/TrendSettings";
 import { readTrendHours, saveTrendHours } from "./utils/trendPreferences";
@@ -195,6 +196,7 @@ async function _exportWord(analysis) {
 console.log("App component initialization started");
 export default function App() {
   console.log("App function executing");
+  const [archiveDraft, setArchiveDraft] = useState(null);
   const [trendHours, setTrendHours] = useState(readTrendHours);
   const [rssFeeds, setRssFeeds] = useState(readRssFeeds);
   const [view, setView] = useState("new"); // Debuuging: default to new
@@ -684,8 +686,11 @@ export default function App() {
       {view === "trend" && (
         <TrendMonitor onAddToPiano={addArticoloToPiano} feeds={rssFeeds} hours={trendHours}
           pianoItems={pianoItems} keywords={sharedGscKeywords} onOpenGsc={() => setView("gsc")}
+          onArchiveBrief={note => { setArchiveDraft(note); setView("archive"); }}
           onOpenSettings={() => setView("trend-settings")} onOpenSources={() => setView("rss-settings")} />
       )}
+
+      {view === "archive" && <EditorialArchive initialNote={archiveDraft} onConsumeDraft={() => setArchiveDraft(null)} />}
 
       {view === "trend-settings" && (
         <TrendSettings hours={trendHours} onChange={hours => {

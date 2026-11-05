@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  Calendar, 
+  Calendar,
+  Archive,
   History, 
   Search, 
   BarChart2,
@@ -21,6 +22,7 @@ const Sidebar = ({ activeView, setView, dueCount, isOpen, onClose }) => {
     { id: 'piano',  label: 'Piano Editoriale', icon: Calendar,    badge: dueCount },
     { id: 'new',    label: 'Nuova Analisi',    icon: Search },
     { id: 'trend',  label: 'Trend Monitor',    icon: TrendingUp },
+    { id: 'archive', label: 'Archivio editoriale', icon: Archive },
     { id: 'history',label: 'Cronologia',       icon: History },
     { id: 'gsc',    label: 'GSC Insights',     icon: BarChart2 },
   ];
