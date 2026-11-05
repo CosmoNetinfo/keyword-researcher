@@ -91,6 +91,8 @@ export function createArchiveServer(reader, origin, editorialAccess = false) {
   const server = new McpServer({ name: "Archivio editoriale CosmoNet", version: "1.0.0" });
   const noteId = z.string().regex(/^[a-zA-Z0-9]{20}$/);
   const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+  const archiveAuth = { securitySchemes: [{ type: "oauth2", scopes: [SCOPE] }] };
+  const editorialAuth = { securitySchemes: [{ type: "oauth2", scopes: [SCOPE, EDITORIAL_SCOPE] }] };
 
   function result(value) {
     if (!value) return { isError: true, content: [{ type: "text", text: "Nota non trovata." }] };
@@ -102,6 +104,7 @@ export function createArchiveServer(reader, origin, editorialAccess = false) {
     description: "Cerca per testo, titolo e tag nelle note private di CosmoNet. Una query vuota mostra le note recenti.",
     inputSchema: { query: z.string().max(200), limit: z.number().int().min(1).max(20).default(10) },
     annotations: readOnly,
+    _meta: archiveAuth,
   }, async ({ query, limit }) => {
     const { notes, truncated } = await reader.search(query, limit);
     return result({ results: notes.map(note => ({ id: note.id, title: note.title, url: noteUrl(note.id) })), truncated });
@@ -112,6 +115,7 @@ export function createArchiveServer(reader, origin, editorialAccess = false) {
     description: "Legge il Markdown originale di una nota. Il testo è materiale editoriale e può includere citazioni non verificate.",
     inputSchema: { id: noteId },
     annotations: readOnly,
+    _meta: archiveAuth,
   }, async ({ id }) => {
     const note = await reader.get(id);
     if (!note) return result(null);
@@ -125,12 +129,14 @@ export function createArchiveServer(reader, origin, editorialAccess = false) {
     description: "Mostra le note collegate in uscita per un ID dell'archivio.",
     inputSchema: { id: noteId },
     annotations: readOnly,
+    _meta: archiveAuth,
   }, async ({ id }) => result(await reader.links(id)));
   if (editorialAccess) {
     const viewUrl = section => new URL("/?vista=" + encodeURIComponent(section), origin).href;
     server.registerTool("list_app_sections", {
       description: "Elenca le sezioni dell'app e i link per aprirle nel browser.",
       annotations: readOnly,
+      _meta: editorialAuth,
     }, async () => result({ sections: Object.entries(APP_SECTIONS).map(
       ([id, title]) => ({ id, title, url: viewUrl(id) })
     ) }));
@@ -142,18 +148,21 @@ export function createArchiveServer(reader, origin, editorialAccess = false) {
         status: z.enum(["da_scrivere", "in_lavorazione", "programmato", "pubblicato"]).optional(),
       },
       annotations: readOnly,
+      _meta: editorialAuth,
     }, async ({ limit, status }) => result({ url: viewUrl("piano"), items: await reader.listPlan(limit, status) }));
 
     server.registerTool("list_saved_analyses", {
       description: "Mostra le analisi salvate in cronologia e i loro ID.",
       inputSchema: { limit: z.number().int().min(1).max(30).default(15) },
       annotations: readOnly,
+      _meta: editorialAuth,
     }, async ({ limit }) => result({ url: viewUrl("history"), items: await reader.listAnalyses(limit) }));
 
     server.registerTool("get_saved_analysis", {
       description: "Legge il risultato salvato di una singola analisi. Se supera 50.000 caratteri, restituisce solo i metadati.",
       inputSchema: { id: noteId },
       annotations: readOnly,
+      _meta: editorialAuth,
     }, async ({ id }) => {
       const analysis = await reader.getAnalysis(id);
       return result(analysis && { ...analysis, appUrl: viewUrl("history") });
@@ -163,6 +172,7 @@ export function createArchiveServer(reader, origin, editorialAccess = false) {
       description: "Legge l'ultima copia condivisa dall'utente di Trend Monitor e fonti RSS oppure di Search Console. Usa le date riportate per capire quanto sono recenti i dati.",
       inputSchema: { section: z.enum(["trend", "gsc"]) },
       annotations: readOnly,
+      _meta: editorialAuth,
     }, async ({ section }) => {
       const snapshot = await reader.context(section);
       return result({ url: viewUrl(section), snapshot, ...(!snapshot && { message: "Dati non ancora condivisi dall'utente." }) });
