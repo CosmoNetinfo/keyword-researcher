@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { downloadNewsMarkdown } from "../utils/exportNews";
 import { RSS_BATCH_SIZE } from "../utils/feedUrl";
+import EditorialRadar from "./EditorialRadar";
 import { groupRecentNews } from "../utils/trendPreferences";
 
 function cn(...inputs) { return twMerge(clsx(inputs)); }
@@ -119,7 +120,8 @@ function TrendCard({ item, hue, onAddToPiano, selected, onToggleSelected }) {
 }
 
 // ─── Componente principale ────────────────────────────────────────────────────
-export default function TrendMonitor({ onAddToPiano, feeds, hours, onOpenSettings, onOpenSources }) {
+export default function TrendMonitor({ onAddToPiano, feeds, hours, pianoItems, keywords, onOpenGsc, onOpenSettings, onOpenSources }) {
+  const [showRadar, setShowRadar] = useState(false);
   const [source, setSource] = useState("");
   const [items, setItems]         = useState([]);
   const [loading, setLoading]     = useState(false);
@@ -225,6 +227,17 @@ export default function TrendMonitor({ onAddToPiano, feeds, hours, onOpenSetting
         </div>
       </div>
 
+      <div role="group" aria-label="Vista Trend Monitor" className="flex flex-wrap gap-2">
+        {["Notizie", "Radar editoriale"].map((label, index) => (
+          <button type="button" key={label} aria-pressed={showRadar === Boolean(index)}
+            onClick={() => setShowRadar(Boolean(index))}
+            className={cn("min-h-11 rounded-xl border px-4 text-sm font-bold",
+              showRadar === Boolean(index) ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-600")}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       {feeds.length > 0 && (
         <div className="max-w-sm space-y-1 text-sm font-semibold text-slate-700">
           <label htmlFor="trend-source" className="block">Fonte</label>
@@ -236,41 +249,43 @@ export default function TrendMonitor({ onAddToPiano, feeds, hours, onOpenSetting
         </div>
       )}
 
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <p role="status" className="text-sm font-semibold text-indigo-900 mr-auto">
-            {selectedItems.size} notizie selezionate
-          </p>
-          <button type="button" onClick={selectVisible} disabled={loading || visibleItems.length === 0}
-            className="text-sm font-semibold text-indigo-700 disabled:opacity-50">
-            Seleziona tutte le notizie mostrate
-          </button>
-          <button type="button" onClick={() => setSelectedItems(new Map())} disabled={selectedItems.size === 0}
-            className="text-sm font-semibold text-slate-600 disabled:opacity-50">
-            Svuota selezione
-          </button>
-          <button type="button" onClick={() => downloadNewsMarkdown([...selectedItems.values()])}
-            disabled={selectedItems.size === 0}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
-            Scarica selezionate (.md)
-          </button>
+      {!showRadar && (
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <p role="status" className="text-sm font-semibold text-indigo-900 mr-auto">
+              {selectedItems.size} notizie selezionate
+            </p>
+            <button type="button" onClick={selectVisible} disabled={loading || visibleItems.length === 0}
+              className="text-sm font-semibold text-indigo-700 disabled:opacity-50">
+              Seleziona tutte le notizie mostrate
+            </button>
+            <button type="button" onClick={() => setSelectedItems(new Map())} disabled={selectedItems.size === 0}
+              className="text-sm font-semibold text-slate-600 disabled:opacity-50">
+              Svuota selezione
+            </button>
+            <button type="button" onClick={() => downloadNewsMarkdown([...selectedItems.values()])}
+              disabled={selectedItems.size === 0}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
+              Scarica selezionate (.md)
+            </button>
+          </div>
+          <p className="text-xs text-indigo-700">La selezione viene mantenuta quando cambi fonte o aggiorni le notizie. Il file contiene titolo, fonte, data e link originale.</p>
+          {selectedItems.size > 0 && (
+            <details className="text-sm text-slate-700">
+              <summary className="cursor-pointer font-semibold">Rivedi la selezione</summary>
+              <ul className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                {[...selectedItems.values()].map(item => (
+                  <li key={item.url} className="flex items-center gap-3">
+                    <span className="mr-auto">{item.title}</span>
+                    <button type="button" onClick={() => toggleSelected(item)}
+                      aria-label={`Rimuovi dalla selezione: ${item.title}`} className="text-indigo-700 font-semibold">Rimuovi</button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
-        <p className="text-xs text-indigo-700">La selezione viene mantenuta quando cambi fonte o aggiorni le notizie. Il file contiene titolo, fonte, data e link originale.</p>
-        {selectedItems.size > 0 && (
-          <details className="text-sm text-slate-700">
-            <summary className="cursor-pointer font-semibold">Rivedi la selezione</summary>
-            <ul className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-              {[...selectedItems.values()].map(item => (
-                <li key={item.url} className="flex items-center gap-3">
-                  <span className="mr-auto">{item.title}</span>
-                  <button type="button" onClick={() => toggleSelected(item)}
-                    aria-label={`Rimuovi dalla selezione: ${item.title}`} className="text-indigo-700 font-semibold">Rimuovi</button>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </div>
+      )}
 
       {/* Error state */}
       {error && (
@@ -302,7 +317,9 @@ export default function TrendMonitor({ onAddToPiano, feeds, hours, onOpenSetting
                 )}
               </div>
             )
-            : groups.map(group => (
+            : showRadar ? (
+              <EditorialRadar items={visibleItems} pianoItems={pianoItems} keywords={keywords} onOpenGsc={onOpenGsc} />
+            ) : groups.map(group => (
               <section key={group.domain} aria-label={group.name}
                 className="min-w-0 space-y-3 rounded-2xl border p-3 sm:p-4"
                 style={{ backgroundColor: `hsl(${group.hue} 65% 97%)`, borderColor: `hsl(${group.hue} 55% 84%)` }}>

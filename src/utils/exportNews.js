@@ -7,7 +7,7 @@ const CATEGORY_LABELS = {
   'tech-en': 'Tecnologia, sicurezza e Windows',
 };
 
-function escapeText(value) {
+export function escapeText(value) {
   return String(value ?? '').replace(/\s+/g, ' ').trim()
     .replace(/([\\`*_{}[\]<>#!|])/g, '\\$1');
 }
@@ -54,11 +54,15 @@ export function buildNewsMarkdown(items, exportedAt = new Date()) {
 export function downloadNewsMarkdown(items) {
   if (!items.length) return;
   const exportedAt = new Date();
-  const blob = new Blob([buildNewsMarkdown(items, exportedAt)], { type: 'text/markdown;charset=utf-8' });
+  downloadMarkdown(buildNewsMarkdown(items, exportedAt), `cosmonet-notizie-${exportedAt.toISOString().slice(0, 10)}.md`);
+}
+
+export function downloadMarkdown(markdown, filename) {
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `cosmonet-notizie-${exportedAt.toISOString().slice(0, 10)}.md`;
+  anchor.download = filename;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();

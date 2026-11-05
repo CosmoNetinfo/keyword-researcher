@@ -683,6 +683,7 @@ export default function App() {
 
       {view === "trend" && (
         <TrendMonitor onAddToPiano={addArticoloToPiano} feeds={rssFeeds} hours={trendHours}
+          pianoItems={pianoItems} keywords={sharedGscKeywords} onOpenGsc={() => setView("gsc")}
           onOpenSettings={() => setView("trend-settings")} onOpenSources={() => setView("rss-settings")} />
       )}
 
