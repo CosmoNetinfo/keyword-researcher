@@ -24,3 +24,7 @@ prefisso `VITE_` restano disponibili come fallback server durante la transizione
 Per Archivio e MCP consulta [ARCHIVIO_EDITORIALE.md](ARCHIVIO_EDITORIALE.md).
 Le credenziali WordPress continuano a risiedere in Firestore. L'accesso al
 documento `config/wordpress` dipende dalle regole Firestore del progetto.
+
+Per salvare la classificazione manuale, aggiungi alle regole Firestore del
+progetto l'accesso per il solo proprietario al documento
+`/seo_settings/{uid}` (`request.auth != null && request.auth.uid == uid`).
