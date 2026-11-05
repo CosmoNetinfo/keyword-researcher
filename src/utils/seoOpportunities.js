@@ -1,16 +1,31 @@
 export const SEO_DEFAULTS = { impressions: 100, position: 10, ctr: 3, clicksLost: 5, lossPercent: 20 };
 export const STRUCTURAL_DEFAULTS = ["cosmonet", "cosmonet.info", "keyword researcher", "cosmonett", "cosmnet", "cosmonte"];
 
-export function comparisonPeriods(now = new Date()) {
+export const GSC_DATE_RANGES = [
+  { id: "today", label: "Oggi", days: 1, endOffset: 0 },
+  { id: "yesterday", label: "Ieri", days: 1, endOffset: 1 },
+  { id: "week", label: "Ultimi 7 giorni", days: 7, endOffset: 0 },
+  { id: "month", label: "Ultimo mese (30 giorni)", days: 30, endOffset: 0 },
+  { id: "quarter", label: "Ultimi 3 mesi (90 giorni)", days: 90, endOffset: 0 },
+  { id: "year", label: "Ultimo anno (365 giorni)", days: 365, endOffset: 0 },
+];
+
+export function comparisonPeriods(now = new Date(), range) {
+  // I chiamanti senza selettore mantengono il confronto con dati consolidati.
+  const selected = range === undefined ? { days: 28, endOffset: 3 }
+    : GSC_DATE_RANGES.find(option => option.id === range);
+  if (!selected) throw new Error("Periodo Search Console non valido.");
   const parts = new Intl.DateTimeFormat("en", {
-    timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: range === undefined ? "America/Los_Angeles" : "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(now);
   const { year, month, day: date } = Object.fromEntries(parts.map(part => [part.type, part.value]));
   const day = new Date(`${year}-${month}-${date}T00:00:00Z`);
   const offset = days => new Date(day.getTime() - days * 86_400_000).toISOString().slice(0, 10);
+  const end = selected.endOffset;
+  const start = end + selected.days - 1;
   return {
-    current: { startDate: offset(30), endDate: offset(3) },
-    previous: { startDate: offset(58), endDate: offset(31) },
+    current: { startDate: offset(start), endDate: offset(end) },
+    previous: { startDate: offset(start + selected.days), endDate: offset(start + 1) },
   };
 }
 
