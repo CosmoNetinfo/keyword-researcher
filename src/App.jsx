@@ -199,7 +199,7 @@ export default function App() {
   const [archiveDraft, setArchiveDraft] = useState(null);
   const [trendHours, setTrendHours] = useState(readTrendHours);
   const [rssFeeds, setRssFeeds] = useState(readRssFeeds);
-  const [view, setView] = useState("new"); // Debuuging: default to new
+  const [view, setView] = useState(() => /^[a-zA-Z0-9]{20}$/.test(new URLSearchParams(window.location.search).get("nota") || "") ? "archive" : "new");
   const [url, setUrl] = useState("cosmonet.info");
   const [topic, setTopic] = useState(TOPICS[0]);
   const [customTopic, setCustomTopic] = useState("");
@@ -395,24 +395,39 @@ export default function App() {
 
   const addArticoloToPiano = useCallback(async (articolo) => {
     try {
-      const { collection, addDoc, serverTimestamp } = await import("firebase/firestore");
-      await addDoc(collection(db, "piano_editoriale"), {
+      const { collection, addDoc, doc, runTransaction, serverTimestamp } = await import("firebase/firestore");
+      const fromGsc = articolo.fonte === "Search Console";
+      const data = {
         title: articolo.titolo || articolo.title,
         cat: articolo.categoria || "Tech",
         diff: articolo.priorita === "Alta" ? "alta" : (articolo.priorita === "Bassa" ? "bassa" : "media"),
         status: "da_scrivere",
-        source: "trend-monitor",
+        source: fromGsc ? "gsc-opportunity" : "trend-monitor",
+        ...(fromGsc && { tipo: "Aggiornamento" }),
         sourceName: articolo.fonte || "",
         sourceUrl: articolo.link_fonte || "",
         note: articolo.note || "",
         createdAt: serverTimestamp(),
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
-      });
-      alert("Articolo aggiunto al Piano Editoriale ✓");
+      };
+      const piano = collection(db, "piano_editoriale");
+      if (fromGsc) {
+        const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data.sourceUrl));
+        const id = "gsc-" + Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
+        const ref = doc(piano, id);
+        await runTransaction(db, async transaction => {
+          if (!(await transaction.get(ref)).exists()) transaction.set(ref, data);
+        });
+      } else {
+        await addDoc(piano, data);
+      }
+      alert("Articolo presente nel Piano Editoriale ✓");
+      return true;
     } catch (e) {
       console.error("Errore:", e);
       alert("Errore durante l'aggiunta al Piano.");
+      return false;
     }
   }, []);
 
@@ -680,6 +695,7 @@ export default function App() {
           setView={setView} 
           setPrefilledKeyword={setPrefilledKeyword}
           onKeywordsLoaded={setSharedGscKeywords}
+          onAddToPiano={addArticoloToPiano}
         />
       )}
 

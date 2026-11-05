@@ -1,3 +1,4 @@
+import SeoOpportunities from "./SeoOpportunities";
 import { useState, useCallback, useEffect } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
@@ -21,10 +22,9 @@ function formatNum(n) {
   if (!n && n !== 0) return '—';
   return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n.toString();
 }
-function pct(n) { return (!n && n !== 0) ? '—' : (n * 100).toFixed(1) + '%'; }
 function pos(n) { return (!n && n !== 0) ? '—' : n.toFixed(1); }
 
-export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLoaded }) {
+export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLoaded, onAddToPiano }) {
   const [accessToken, setAccessToken] = useState(() => {
     if (typeof window !== 'undefined') {
       if (window.location.hash.includes('access_token')) {
@@ -130,6 +130,8 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
       </div>
 
       {error && <div className="bg-rose-900/20 border border-rose-500/50 text-rose-300 px-6 py-4 rounded-2xl text-sm font-bold">⚠️ {error}</div>}
+
+      <SeoOpportunities accessToken={accessToken} onAddToPiano={onAddToPiano} />
 
       {keywords.length > 0 && (
         <>

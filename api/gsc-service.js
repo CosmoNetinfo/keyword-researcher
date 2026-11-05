@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { comparisonPeriods, findSeoOpportunities } from '../src/utils/seoOpportunities.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,6 +17,20 @@ export default async function handler(req, res) {
   const siteUrl = 'https://www.cosmonet.info/';
 
   try {
+    if (action === 'opportunities') {
+      const periods = comparisonPeriods();
+      const reports = await Promise.all([periods.current, periods.previous].map(period =>
+        searchconsole.searchanalytics.query({
+          siteUrl,
+          requestBody: { ...period, dimensions: ['page'], rowLimit: 250, dataState: 'final' },
+        })
+      ));
+      return res.status(200).json({
+        ...periods,
+        rows: findSeoOpportunities(reports[0].data.rows || [], reports[1].data.rows || []),
+      });
+    }
+
     // ─── 1. KEYWORDS & TRENDS (Ex gsc-data.js) ──────────────────────────────
     if (action === 'data' || !action) {
       const requestBody = {

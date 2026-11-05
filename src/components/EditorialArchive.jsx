@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { addDoc, collection, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -67,6 +67,7 @@ function AuthenticatedArchive({ initialNote, onConsumeDraft }) {
 }
 
 function ArchiveNotes({ uid, initialNote, onConsumeDraft }) {
+  const linkedNoteId = useRef(initialNote ? null : new URLSearchParams(window.location.search).get("nota"));
   const [notes, setNotes] = useState([]);
   const [ready, setReady] = useState(false);
   const [draft, setDraft] = useState(() => ({ ...EMPTY, ...initialNote }));
@@ -80,6 +81,12 @@ function ArchiveNotes({ uid, initialNote, onConsumeDraft }) {
     const entries = snapshot.docs.map(note => ({ ...note.data(), id: note.id }));
     entries.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
     setNotes(entries);
+    const target = linkedNoteId.current && entries.find(note => note.id === linkedNoteId.current);
+    if (target) {
+      linkedNoteId.current = null;
+      setDraft(target);
+      setTags(target.tags.join(", "));
+    }
     setReady(true);
   }, error => {
     setReady(false);
@@ -94,6 +101,7 @@ function ArchiveNotes({ uid, initialNote, onConsumeDraft }) {
   ) : [], [notes, draft.id]);
 
   function openNote(note) {
+    linkedNoteId.current = null;
     setDraft(note);
     setTags(note.tags.join(", "));
     setMessage("");
