@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { appOriginAllowed } from "../server/app-access.js";
 import { readSearchRows, wordpressPageMetadata } from "../server/gsc-report.js";
 import {
-  aggregatePageRows, classifyPage, comparisonPeriods, findCannibalization, findSeoOpportunities, growthRows, STRUCTURAL_DEFAULTS,
+  aggregatePageRows, classifyPage, comparisonPeriods, findCannibalization, findSeoOpportunities, growthRows, GSC_DATE_RANGES, STRUCTURAL_DEFAULTS,
 } from "../src/utils/seoOpportunities.js";
 
 export default async function handler(req, res) {
@@ -11,13 +11,20 @@ export default async function handler(req, res) {
   const token = req.body?.access_token || req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Sessione Search Console scaduta: accedi di nuovo", code: "GSC_SESSION_EXPIRED" });
 
-  const { action = "data", type = "keywords", thresholds, structuralTerms } = req.body || {};
+  const { action = "data", type = "keywords", thresholds, structuralTerms, range } = req.body || {};
+  if (range !== undefined && !GSC_DATE_RANGES.some(option => option.id === range)) {
+    return res.status(400).json({ error: "Periodo Search Console non valido." });
+  }
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: token });
   const searchconsole = google.searchconsole({ version: "v1", auth });
-  const periods = comparisonPeriods();
+  const periods = comparisonPeriods(new Date(), range);
+  const dataState = range === undefined ? "final" : "all";
+  const dataNote = range === undefined ? null : "Il calendario del selettore segue Europe/Rome. Google aggrega i dati giornalieri nel fuso Pacifico, quindi i confini delle giornate possono differire. I dati recenti possono essere parziali o non ancora disponibili."
+    + (range === "year" ? " Il confronto precedente può essere incompleto: Search Console conserva circa 16 mesi di dati." : "");
+  const reportPeriod = { ...periods, range, dataNote };
   const read = async (period, dimensions) => {
-    const raw = await readSearchRows(searchconsole, period, dimensions);
+    const raw = await readSearchRows(searchconsole, period, dimensions, dataState);
     const pageIndex = dimensions.indexOf("page");
     return { rows: pageIndex < 0 ? raw : aggregatePageRows(raw, pageIndex), rowsRead: raw.length };
   };
@@ -37,14 +44,14 @@ export default async function handler(req, res) {
         return { ...row, classification: classifyPage(post, null, periods.current.endDate), publishedAt: post?.date || null };
       });
       return res.status(200).json({
-        ...periods, rows, cannibalization: findCannibalization(queries.rows),
+        ...reportPeriod, rows, cannibalization: findCannibalization(queries.rows),
         counts: { current: current.rowsRead, previous: previous.rowsRead, queryPages: queries.rowsRead },
       });
     }
 
     if (action === "growth") {
       const [current, previous] = await Promise.all([read(periods.current, ["query", "page"]), read(periods.previous, ["query", "page"])]);
-      return res.status(200).json({ ...periods, success: true, topGrowth: growthRows(current.rows, previous.rows),
+      return res.status(200).json({ ...reportPeriod, success: true, topGrowth: growthRows(current.rows, previous.rows),
         counts: { current: current.rowsRead, previous: previous.rowsRead } });
     }
 
@@ -53,8 +60,9 @@ export default async function handler(req, res) {
         : type === "trend" ? ["date"] : type === "cannibalization" ? ["query", "page"] : ["query"];
       const { rows, rowsRead } = await read(periods.current, dimensions);
       return res.status(200).json({
-        ...periods, rowsRead,
-        rows: type === "cannibalization" ? [] : rows.slice(0, 150),
+        ...reportPeriod, rowsRead,
+        rows: type === "cannibalization" ? [] : type === "trend"
+          ? rows.sort((a, b) => a.keys[0].localeCompare(b.keys[0])) : rows.slice(0, 150),
         ...(type === "cannibalization" && { pairs: findCannibalization(rows) }),
       });
     }

@@ -1,6 +1,7 @@
 import { clearGscSession, GSC_EXPIRED_MESSAGE, isGscExpired, readGscSession } from "../utils/gscSession";
+import { GSC_DATE_RANGES } from "../utils/seoOpportunities";
 import SeoOpportunities from "./SeoOpportunities";
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
@@ -31,6 +32,8 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
   const [coverage, setCoverage] = useState(null);
   const [trend, setTrend] = useState([]);
   const [analysisType, setAnalysisType] = useState('all');
+  const [range, setRange] = useState("month");
+  const requestRef = useRef(null);
 
   const handleLogin = useCallback(() => {
     const params = new URLSearchParams({
@@ -44,6 +47,7 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
   }, []);
 
   const expireSession = useCallback(() => {
+    requestRef.current?.abort();
     clearGscSession(true);
     setSession(readGscSession());
     onSnapshot(null);
@@ -59,19 +63,27 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
 
   const fetchData = useCallback(async () => {
     if (!accessToken) return;
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     setLoading(true); setError(null);
     try {
-      // Utilizzo del nuovo GSC Service consolidato
+      const options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal };
       const [kwRes, pgRes, trRes] = await Promise.all([
-        fetch('/api/gsc-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'data', access_token: accessToken, type: 'keywords' }) }),
-        fetch('/api/gsc-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'pages', access_token: accessToken }) }),
-        fetch('/api/gsc-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'data', access_token: accessToken, type: 'trend' }) }),
+        fetch('/api/gsc-service', { ...options, body: JSON.stringify({ action: 'data', access_token: accessToken, type: 'keywords', range }) }),
+        fetch('/api/gsc-service', { ...options, body: JSON.stringify({ action: 'pages', access_token: accessToken, range }) }),
+        fetch('/api/gsc-service', { ...options, body: JSON.stringify({ action: 'data', access_token: accessToken, type: 'trend', range }) }),
       ]);
+      if (controller.signal.aborted || sessionStorage.getItem("gsc_access_token") !== accessToken) return;
+      if ([kwRes, pgRes, trRes].some(response => response.status === 401)) {
+        expireSession();
+        return;
+      }
       const kwData = await kwRes.json();
       const pgData = await pgRes.json();
       const trData = await trRes.json();
       
-      if (sessionStorage.getItem("gsc_access_token") !== accessToken) return;
+      if (controller.signal.aborted || sessionStorage.getItem("gsc_access_token") !== accessToken) return;
       const results = [[kwRes, kwData], [pgRes, pgData], [trRes, trData]];
       if (results.some(([response, data]) => isGscExpired(response, data))) {
         expireSession();
@@ -79,7 +91,7 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
       }
       const failed = results.find(([response]) => !response.ok);
       if (failed) throw new Error(failed[1].error || "Impossibile leggere Search Console.");
-      setCoverage({ current: kwData.current, previous: kwData.previous, keywords: kwData.rowsRead, pages: pgData.rowsRead });
+      setCoverage({ range, current: kwData.current, previous: kwData.previous, keywords: kwData.rowsRead, pages: pgData.rowsRead, dataNote: kwData.dataNote });
       
       setKeywords(kwData.rows || []);
       setPages(pgData.rows || []);
@@ -91,15 +103,20 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
       onKeywordsLoaded?.(kwData.rows || []);
       onSnapshot({
         fetchedAt: new Date().toISOString(), startDate: kwData.current.startDate,
+        current: kwData.current, previous: kwData.previous, range, dataNote: kwData.dataNote,
         keywords: (kwData.rows || []).slice(0, 30),
         pages: (pgData.rows || []).slice(0, 30),
       });
-    } catch (e) { setError(e.message); }
-    finally { setLoading(false); }
-  }, [accessToken, onKeywordsLoaded, onSnapshot, expireSession]);
+    } catch (e) {
+      if (!controller.signal.aborted) setError(e.message);
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, [accessToken, range, onKeywordsLoaded, onSnapshot, expireSession]);
 
   useEffect(() => {
     if (accessToken) fetchData();
+    return () => requestRef.current?.abort();
   }, [accessToken, fetchData]);
 
   const expires = session.expiresAt ? new Date(session.expiresAt).toLocaleString("it-IT", { timeZone: "Europe/Rome" }) : null;
@@ -122,13 +139,20 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
   }
 
   return (
-    <div className="p-8 space-y-8 bg-slate-950 min-h-screen text-slate-100">
+    <div className="p-4 sm:p-8 space-y-8 bg-slate-950 min-h-screen text-slate-100">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-3xl font-black bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Search Insights</h2>
           <p className="text-slate-500 text-sm mt-1">Analisi dati reali cosmonet.info</p>
         </div>
-        <div className="flex items-center gap-4 bg-slate-900/50 p-2 rounded-2xl border border-slate-800">
+        <div className="flex w-full flex-wrap items-end gap-2 bg-slate-900/50 p-2 rounded-2xl border border-slate-800 sm:w-auto">
+          <label htmlFor="gsc-date-range" className="min-w-0 flex-1 text-xs font-semibold text-slate-300 sm:flex-none">
+            Periodo · ora italiana
+            <select id="gsc-date-range" value={range} onChange={event => setRange(event.target.value)}
+              className="mt-1 block min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm text-white">
+              {GSC_DATE_RANGES.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+            </select>
+          </label>
           <button onClick={fetchData} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold px-6 py-2 rounded-xl transition-all text-sm">
             {loading ? '...' : '⟳ Sync'}
           </button>
@@ -139,13 +163,15 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
       {error && <div className="bg-rose-900/20 border border-rose-500/50 text-rose-300 px-6 py-4 rounded-2xl text-sm font-bold">⚠️ {error}</div>}
 
       {expires && <p className="text-sm text-slate-300">Scadenza del token: {expires} (ora italiana)</p>}
-      {coverage && <p className="text-sm text-slate-300">
+      {loading && <p role="status" className="text-sm text-slate-300">Caricamento del periodo selezionato…</p>}
+      {coverage?.range === range && <p className="text-sm text-slate-300">
         Periodo: {coverage.current.startDate} – {coverage.current.endDate} · Precedente: {coverage.previous.startDate} – {coverage.previous.endDate}.
         Righe lette: {coverage.keywords} query e {coverage.pages} pagine. La tabella mostra fino a 150 righe.
       </p>}
-      <SeoOpportunities accessToken={accessToken} onAddToPiano={onAddToPiano} onSnapshot={onSeoSnapshot} onSessionExpired={expireSession} classifications={classifications} />
+      {coverage?.range === range && coverage.dataNote && <p className="text-xs text-slate-400">{coverage.dataNote}</p>}
+      <SeoOpportunities range={range} accessToken={accessToken} onAddToPiano={onAddToPiano} onSnapshot={onSeoSnapshot} onSessionExpired={expireSession} classifications={classifications} />
 
-      {keywords.length > 0 && (
+      {!loading && coverage?.range === range && (keywords.length > 0 || pages.length > 0 || trend.length > 0) && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
@@ -189,7 +215,7 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
                 </button>
               ))}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {[{ id: 'all', label: 'All' }, { id: 'low_ctr', label: '🎯 Low CTR' }].map(f => (
                 <button key={f.id} onClick={() => setAnalysisType(f.id)}
                   className={cn("px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all", analysisType === f.id ? "bg-white text-slate-900 border-white" : "text-slate-400 border-slate-800")}>
@@ -233,6 +259,9 @@ export default function GSCInsights({ setView, setPrefilledKeyword, onKeywordsLo
             </table>
           </div>
         </>
+      )}
+      {!loading && !error && coverage?.range === range && keywords.length === 0 && pages.length === 0 && trend.length === 0 && (
+        <p role="status" className="text-sm text-slate-300">Nessun dato disponibile per il periodo selezionato.</p>
       )}
     </div>
   );

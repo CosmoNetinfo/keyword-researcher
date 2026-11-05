@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { safeEditorialUrl } from "../utils/editorialRadar";
@@ -10,30 +10,41 @@ const FIELDS = { impressions: "Impressioni minime", position: "Posizione massima
   clicksLost: "Clic persi minimi", lossPercent: "Perdita minima (%)" };
 const BUTTON = "min-h-11 rounded-xl border border-indigo-400/50 px-3 text-sm font-semibold text-indigo-200 disabled:opacity-50";
 
-export default function SeoOpportunities({ accessToken, onAddToPiano, onSnapshot, onSessionExpired, classifications }) {
+export default function SeoOpportunities({ range, accessToken, onAddToPiano, onSnapshot, onSessionExpired, classifications }) {
   const [result, setResult] = useState(null);
   const [thresholds, setThresholds] = useState(SEO_DEFAULTS);
   const [structural, setStructural] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [errorState, setError] = useState(null);
+  const [loadingRange, setLoadingRange] = useState(null);
+  const requestRef = useRef(null);
+  const error = errorState?.range === range ? errorState.message : "";
+  const loading = loadingRange === range;
   const [pending, setPending] = useState("");
   const [added, setAdded] = useState(new Set());
-  const report = result && { ...result, rows: result.rows.map(row => ({
+  const report = result && result.range === range && { ...result, rows: result.rows.map(row => ({
     ...row, classification: classifications[encodeURIComponent(row.url)] || row.classification,
   })) };
 
+  useEffect(() => () => requestRef.current?.abort(), [range]);
+
   async function load(event) {
     event.preventDefault();
-    setLoading(true);
-    setError("");
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setLoadingRange(range);
+    setError(null);
     try {
       const response = await fetch("/api/gsc-service", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ action: "opportunities", thresholds, structuralTerms: structural.split(",") }),
+        body: JSON.stringify({ action: "opportunities", thresholds, structuralTerms: structural.split(","), range }),
+        signal: controller.signal,
       });
+      if (controller.signal.aborted || sessionStorage.getItem("gsc_access_token") !== accessToken) return;
+      if (response.status === 401) return onSessionExpired();
       const data = await response.json();
-      if (sessionStorage.getItem("gsc_access_token") !== accessToken) return;
+      if (controller.signal.aborted || sessionStorage.getItem("gsc_access_token") !== accessToken) return;
       if (isGscExpired(response, data)) return onSessionExpired();
       if (!response.ok) throw new Error(data.error || `Errore API (${response.status})`);
       setResult(data);
@@ -43,20 +54,20 @@ export default function SeoOpportunities({ accessToken, onAddToPiano, onSnapshot
         ...pair, queries: pair.queries.slice(0, 10),
       })), fetchedAt: new Date().toISOString() });
     } catch (error) {
-      setError(error.message);
+      if (!controller.signal.aborted) setError({ range, message: error.message });
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoadingRange(null);
     }
   }
 
   async function classify(url, value) {
-    setError("");
+    setError(null);
     try {
       await setDoc(doc(db, "seo_settings", auth.currentUser.uid), {
         classifications: { [encodeURIComponent(url)]: value || null },
       }, { merge: true });
     } catch (error) {
-      setError(error.message);
+      setError({ range, message: error.message });
     }
   }
 
@@ -76,6 +87,7 @@ export default function SeoOpportunities({ accessToken, onAddToPiano, onSnapshot
   return (
     <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
       <h3 className="font-bold text-white">Opportunità di aggiornamento</h3>
+      <p className="text-sm text-slate-300">L’analisi usa il periodo selezionato in alto e lo confronta con il periodo precedente della stessa durata.</p>
       <form onSubmit={load} className="space-y-3">
         <details className="space-y-3">
           <summary className="cursor-pointer font-semibold">Soglie e query strutturali</summary>
@@ -100,6 +112,7 @@ export default function SeoOpportunities({ accessToken, onAddToPiano, onSnapshot
             Corrente {report.current.startDate} – {report.current.endDate} · Precedente {report.previous.startDate} – {report.previous.endDate}.
             Righe lette: {report.counts.current} pagine correnti, {report.counts.previous} precedenti e {report.counts.queryPages} query/pagina.
           </p>
+          {report.dataNote && <p className="text-xs text-slate-400">{report.dataNote}</p>}
           <button type="button" onClick={() => downloadSeoMarkdown(report)} className={BUTTON}
             disabled={!report.rows.length && !report.cannibalization.length}>Esporta report Markdown</button>
           {SEO_SECTIONS.map(([label, filter, action]) => (

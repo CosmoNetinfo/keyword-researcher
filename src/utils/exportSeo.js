@@ -22,7 +22,7 @@ export function formatSeoMetrics(metrics) {
   return `${metrics.clicks} clic · ${metrics.impressions} impressioni · CTR ${(metrics.ctr * 100).toFixed(1)}% · posizione ${metrics.position.toFixed(1)}`;
 }
 
-export function buildSeoMarkdown({ current, previous, rows, cannibalization = [], counts = {} }) {
+export function buildSeoMarkdown({ current, previous, rows, cannibalization = [], counts = {}, dataNote }) {
   const lines = [
     "# Opportunità di aggiornamento", "", "## Riepilogo", "",
     `- Periodo corrente: ${current.startDate} – ${current.endDate}`,
@@ -61,7 +61,7 @@ export function buildSeoMarkdown({ current, previous, rows, cannibalization = []
   lines.push("## Note sui dati", "",
     `- Righe lette: ${counts.current ?? "—"} pagine correnti, ${counts.previous ?? "—"} precedenti, ${counts.queryPages ?? "—"} coppie query/pagina.`,
     "- I conteggi sono le righe originali, prima di raggruppare gli URL senza frammenti ed escludere archivi e paginazione.",
-    "- I periodi includono le date indicate e usano il fuso Pacifico.",
+    dataNote ? `- ${dataNote}` : "- I periodi includono le date indicate e usano il fuso Pacifico.",
     "- Search Console può omettere righe anche con paginazione. Un dato assente non è un valore misurato pari a zero.",
     "- Una pagina è classificata come news se recente o in una categoria di attualità, salvo override manuale.", "");
   return lines.join("\n");

@@ -1,12 +1,12 @@
 const PROPERTY = "https://www.cosmonet.info/";
 const PAGE_SIZE = 25_000;
 
-export async function readSearchRows(searchconsole, period, dimensions) {
+export async function readSearchRows(searchconsole, period, dimensions, dataState = "final") {
   const rows = [];
   for (let startRow = 0; ; startRow += PAGE_SIZE) {
     const { data } = await searchconsole.searchanalytics.query({
       siteUrl: PROPERTY,
-      requestBody: { ...period, dimensions, rowLimit: PAGE_SIZE, startRow, dataState: "final" },
+      requestBody: { ...period, dimensions, rowLimit: PAGE_SIZE, startRow, dataState },
     });
     const page = data.rows || [];
     rows.push(...page);
