@@ -5,6 +5,7 @@ export function opportunityReasons(row) {
   const reasons = [];
   if (row.missing && row.lostClicks) reasons.push("Pagina assente nelle righe del periodo corrente");
   else if (row.lostClicks) reasons.push(`${row.lostClicks} clic persi rispetto al periodo precedente`);
+  if (row.declineLabel) reasons.push(row.declineLabel);
   if (row.lowCtr) reasons.push("CTR basso");
   return reasons;
 }
@@ -59,6 +60,7 @@ export function buildSeoMarkdown({ current, previous, rows, cannibalization = []
 
   lines.push("## Note sui dati", "",
     `- Righe lette: ${counts.current ?? "—"} pagine correnti, ${counts.previous ?? "—"} precedenti, ${counts.queryPages ?? "—"} coppie query/pagina.`,
+    "- I conteggi sono le righe originali, prima di raggruppare gli URL senza frammenti ed escludere archivi e paginazione.",
     "- I periodi includono le date indicate e usano il fuso Pacifico.",
     "- Search Console può omettere righe anche con paginazione. Un dato assente non è un valore misurato pari a zero.",
     "- Una pagina è classificata come news se recente o in una categoria di attualità, salvo override manuale.", "");
