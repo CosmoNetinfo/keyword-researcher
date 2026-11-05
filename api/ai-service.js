@@ -1,5 +1,4 @@
 /* global process */
-import { GROQ_MODEL, readModelResponse } from "../server/ai-models.js";
 import { requireAppUser } from "../server/app-access.js";
 
 export default async function handler(req, res) {
@@ -7,7 +6,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { action, title, category, brief, prompt, width = 1024, height = 1024 } = req.body;
-  const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
   const serperKey = process.env.SERPER_API_KEY;
 
   try {
@@ -86,12 +85,13 @@ async function callGroq(key, prompt, temp, isJson = false) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       temperature: temp,
       ...(isJson ? { response_format: { type: "json_object" } } : {})
     })
   });
-  const data = await readModelResponse(res, GROQ_MODEL, "GROQ_MODEL");
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
   return data.choices[0].message.content;
 }
