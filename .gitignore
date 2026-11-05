@@ -33,3 +33,5 @@ dist-ssr
 
 # CSV / test data files
 *.csv
+
+build_error.txt

@@ -1,6 +1,7 @@
 /* global process */
 import { getFeedsByTopic, fetchFeeds } from './rss-feeds.js';
 
+import { GROQ_MODEL, GEMINI_MODEL, ANTHROPIC_MODEL, readModelResponse } from "../server/ai-models.js";
 import { requireAppUser } from "../server/app-access.js";
 
 export default async function handler(req, res) {
@@ -64,17 +65,20 @@ export default async function handler(req, res) {
     }
 
     // 3. Prompt logic
+    const now = new Date();
+    const date = new Intl.DateTimeFormat("it-IT", { dateStyle: "long", timeZone: "Europe/Rome" }).format(now);
+    const year = new Intl.DateTimeFormat("it-IT", { year: "numeric", timeZone: "Europe/Rome" }).format(now);
     const prompt = `Sei un Esperto SEO italiano. Analizza il sito web e la nicchia forniti.
 Sito: "${url}"
 Nicchia: "${finalTopic}"
 ${isQuickWin ? `\nOBIETTIVO QUICK WIN: Ottimizzare il posizionamento per la keyword "${targetKeyword}". L'utente è già in posizione 5-20, dobbiamo portarlo in TOP 3. Suggerisci articoli che approfondiscono questo specifico argomento o aggiornamenti di contenuti esistenti correlati.` : ""}
 ${customKeywords?.length > 0 ? `KEYWORD SPECIFICHE DA ANALIZZARE: ${customKeywords.join(", ")}` : ""}
 
-DATA ATTUALE: Marzo 2026.
-OBIETTIVO CRITICO: I contenuti suggeriti devono essere focalizzati sul 2026, sulle tendenze attuali e future. 
-${customKeywords?.length > 0 ? "IMPORTANTISSIMO: Analizza prioritariamente le KEYWORD SPECIFICHE fornite sopra, determinandone difficoltà, intento e volume stimato nel 2026." : ""}
+DATA ATTUALE: ${date}.
+OBIETTIVO CRITICO: I contenuti suggeriti devono essere focalizzati sull’anno ${year}, sulle tendenze attuali e future.
+${customKeywords?.length > 0 ? "IMPORTANTISSIMO: Analizza prioritariamente le KEYWORD SPECIFICHE fornite sopra, determinandone difficoltà, intento e volume stimato nell’anno corrente." : ""}
 EVITA ASSOLUTAMENTE LA RIPETIZIONE: Se hai già suggerito certi argomenti in precedenza (basati sulla nicchia), cerca angolazioni nuove, sotto-nicchie specifiche e trend emergenti. Massima varietà e originalità.
-NON suggerire articoli, guide o notizie relative al 2024 o 2025 (sono considerate obsolete).
+Per le novità usa fonti dell’anno corrente. Cita fonti precedenti se pertinenti per contesto o contenuti evergreen.
 
 Ho già i risultati di ricerca Google per gli articoli esistenti su questo sito. Riepilogo qui:
 ${googleData}
@@ -91,16 +95,16 @@ ${trendingContext}
 
 Richieste di volumi:
 - ${customKeywords?.length > 0 ? `${customKeywords.length} Keyword specifica/e fornite più altre` : "30"} Keyword in focus (coprendo diversi intenti e sotto-argomenti).
-- 20 Nuovi Articoli da produrre per il 2026 (diversificati: guide, news, tutorial, opinioni).
+- 20 Nuovi Articoli da produrre per il ${year} (diversificati: guide, news, tutorial, opinioni).
 - VINCOLO TOPIC: suggerisci SOLO argomenti realmente esistenti e verificabili. 
   Non inventare prodotti, distribuzioni, tool o software che non esistono o 
   non sono pertinenti alla nicchia. Ogni titolo suggerito deve riferirsi a 
-  qualcosa che esiste concretamente nel 2026.
+  qualcosa che esiste concretamente nel ${year}.
   In particolare: ogni software, tool o applicazione citata nel titolo 
   deve avere una versione nativa o ufficialmente supportata su Linux. 
   Non suggerire mai app mobile-only, Windows-only o SaaS web-only 
   spacciandole per strumenti Linux.
-- 10 Articoli da aggiornare alle ultime novità del 2026.`;
+- 10 Articoli da aggiornare alle ultime novità del ${year}.`;
 
     let content = "";
 
@@ -113,31 +117,29 @@ Richieste di volumi:
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: GROQ_MODEL,
           messages: [{ role: "user", content: prompt }],
           temperature: 0.4,
           response_format: { type: "json_object" }
         })
       });
-      const data = await groqRes.json();
-      if (data.error) throw new Error(data.error.message || data.error.type);
+      const data = await readModelResponse(groqRes, GROQ_MODEL, "GROQ_MODEL");
       content = data.choices[0].message.content;
 
     } else if (provider === "gemini") {
       const geminiApiKey = env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY;
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.4, responseMimeType: "application/json" }
           })
         }
       );
-      const data = await geminiRes.json();
-      if (data.error) throw new Error(data.error.message);
+      const data = await readModelResponse(geminiRes, GEMINI_MODEL, "GEMINI_MODEL");
       content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     } else if (provider === "claude") {
@@ -149,14 +151,12 @@ Richieste di volumi:
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "claude-3-5-sonnet-20241022",
+          model: ANTHROPIC_MODEL,
           max_tokens: 4000,
-          temperature: 0.2,
           messages: [{ role: "user", content: prompt + "\n\nProvide only the raw valid JSON output." }]
         })
       });
-      const data = await claudeRes.json();
-      if (data.error) throw new Error(data.error.message);
+      const data = await readModelResponse(claudeRes, ANTHROPIC_MODEL, "ANTHROPIC_MODEL");
       content = data.content?.[0]?.text || "";
     } else {
       throw new Error(`Provider sconosciuto: ${provider}`);
