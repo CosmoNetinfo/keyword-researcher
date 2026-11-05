@@ -1,5 +1,6 @@
+import { authenticatedFetch } from "./utils/authenticatedFetch";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import { 
   collection, 
   addDoc, 
@@ -206,6 +207,7 @@ export default function App() {
   const [view, setView] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (/^[a-zA-Z0-9]{20}$/.test(params.get("nota") || "")) return "archive";
+    if (new URLSearchParams(window.location.hash.slice(1)).has("access_token")) return "gsc";
     const section = params.get("vista");
     return Object.hasOwn(APP_SECTIONS, section) ? section : "new";
   });
@@ -218,6 +220,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("articles");
   const [analyses, setAnalyses] = useState([]);
   const [currentId, setCurrentId] = useState(null);
+  const openGsc = useCallback(() => setView("gsc"), []);
+  const [classifications, setClassifications] = useState({});
   const [pianoItems, setPianoItems] = useState([]);
   const [importedKeywords, setImportedKeywords] = useState([]);
   const [prefilledKeyword, setPrefilledKeyword] = useState("");
@@ -262,7 +266,7 @@ export default function App() {
     if (!posts) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/ai-service", {
+      const res = await authenticatedFetch("/api/ai-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "analyze-competitor", posts, domain })
@@ -301,6 +305,10 @@ export default function App() {
       return false;
     }).length;
   }, [pianoItems]);
+
+  useEffect(() => onSnapshot(doc(db, "seo_settings", auth.currentUser.uid), snapshot => {
+    setClassifications(snapshot.data()?.classifications || {});
+  }, error => console.warn("Classificazioni SEO:", error.code)), []);
 
   // Load piano articles to check for duplicates
   useEffect(() => {
@@ -562,7 +570,7 @@ export default function App() {
       await new Promise(r => setTimeout(r, 400));
       setPhaseIndex(1);
 
-      const response = await fetch("/api/analyze", {
+      const response = await authenticatedFetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -695,7 +703,7 @@ export default function App() {
             setCustomTopic(topic);
             runResearch(topic, id);
           }} 
-          gscKeywords={sharedGscKeywords}
+          gscKeywords={sharedGscKeywords} classifications={classifications} onGscExpired={openGsc}
         />
       )}
 
@@ -703,7 +711,7 @@ export default function App() {
         <GSCInsights 
           setView={setView} 
           setPrefilledKeyword={setPrefilledKeyword}
-          onKeywordsLoaded={setSharedGscKeywords} onSnapshot={setGscSnapshot} onSeoSnapshot={setSeoSnapshot}
+          classifications={classifications} onKeywordsLoaded={setSharedGscKeywords} onSnapshot={setGscSnapshot} onSeoSnapshot={setSeoSnapshot}
           onAddToPiano={addArticoloToPiano}
         />
       )}

@@ -1,3 +1,6 @@
+import { classifyPage } from "../utils/seoOpportunities";
+import { clearGscSession, isGscExpired, readGscSession } from "../utils/gscSession";
+import { authenticatedFetch } from "../utils/authenticatedFetch";
 import { useState, useEffect, startTransition, useMemo, useCallback } from "react";
 import { db } from "../firebase";
 import {
@@ -144,7 +147,7 @@ function StatusBtn({ status, onChange, className }) {
 
 // ─── Componente principale ────────────────────────────────────────────────────
 
-export default function PianoEditoriale({ onAnalyze, onViewResults, loading: globalLoading, gscKeywords = [] }) {
+export default function PianoEditoriale({ onAnalyze, onViewResults, loading: globalLoading, gscKeywords = [], onGscExpired, classifications = {} }) {
   const [articles, setArticles] = useState([]);
   const [filter, setFilter]     = useState({ year: "all", month: "all", cat: "all", status: "all", q: "", quickWin: false });
   const [page, setPage]         = useState(1);
@@ -231,8 +234,9 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
-  async function fetchGrowthIntelligence() {
-    const token = sessionStorage.getItem('gsc_access_token');
+  const fetchGrowthIntelligence = useCallback(async () => {
+    const { token, expired } = readGscSession();
+    if (expired) onGscExpired?.();
     if (!token) return;
     try {
       const res = await fetch("/api/gsc-service", {
@@ -241,17 +245,22 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
         body: JSON.stringify({ action: "growth", access_token: token })
       });
       const data = await res.json();
+      if (isGscExpired(res, data)) {
+        clearGscSession(true);
+        onGscExpired?.();
+        return;
+      }
       if (data.success) setGrowthAdvice(data);
     } catch (e) {
       console.warn("Growth Intel fetch failed:", e);
     }
-  }
+  }, [onGscExpired]);
 
   useEffect(() => {
     if (viewMode === "briefing") {
       fetchGrowthIntelligence();
     }
-  }, [viewMode]);
+  }, [viewMode, fetchGrowthIntelligence]);
 
   // FEAT 2: Shortcut Ricerca (Ctrl+K)
   useEffect(() => {
@@ -436,7 +445,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       if (wpSettings.url && wpSettings.user && wpSettings.pass) {
         try {
-          const resWP = await fetch("/api/wp-service", {
+          const resWP = await authenticatedFetch("/api/wp-service", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -546,7 +555,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleCopyBrief(article) {
     setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'brief', title: article.title, category: article.cat })
@@ -605,7 +614,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleGenerateImage(article) {
     setImageStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'image', prompt: `Pro-grade editorial illustration for a tech blog post titled "${article.title}". Style: clean, modern, digital art, vibrant colors, technology theme.` })
@@ -628,7 +637,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleGenerateSocial(article) {
     setSocialStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'social', title: article.title, brief: article.lastBrief })
@@ -645,12 +654,18 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     }
   }
 
+  function hasRankDrop(article, threshold) {
+    const classification = classifyPage({ date: article.scheduledDate, newsCategory: /^(news|notizie|attualita|novita)$/.test(article.cat) },
+      classifications[encodeURIComponent(article.existingUrl || "")], new Date().toISOString().slice(0, 10));
+    return classification === "evergreen" && article.lastPosition > article.prevPosition + threshold;
+  }
+
   // ── Recovery Bot ──────────────────────────────────────────────────────────
   async function handleRecovery(article) {
     if (!article.lastPosition || !article.prevPosition) return;
     setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -693,7 +708,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       // Recupero suggerimenti link interni se disponibili (sicuro)
       const suggestionsLinks = article.internalLinks || [];
       
-      const res = await fetch("/api/wp-service", {
+      const res = await authenticatedFetch("/api/wp-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -816,7 +831,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function testWPConnection() {
     setTestingWP(true);
     try {
-      const res = await fetch("/api/wp-service", {
+      const res = await authenticatedFetch("/api/wp-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1319,7 +1334,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
             <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
               <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center mb-4 font-black text-lg group-hover:scale-110 transition-transform">📉</div>
               <h3 className="text-md font-bold mb-1">Recovery</h3>
-              <p className="text-[10px] text-slate-500 mb-4">Ci sono {articles.filter(a => a.lastPosition > a.prevPosition + 3).length} articoli in calo di ranking.</p>
+              <p className="text-[10px] text-slate-500 mb-4">Ci sono {articles.filter(a => hasRankDrop(a, 3)).length} articoli in calo di ranking.</p>
               <button onClick={() => setViewMode('table')} className="text-rose-600 font-bold text-[10px] hover:underline">Avvia Recovery →</button>
             </div>
             {/* Growth Advice Card */}
@@ -1331,9 +1346,13 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 font-black text-lg">📈</div>
                 <h3 className="text-md font-bold mb-1">Push Topic</h3>
                 <p className="text-[10px] opacity-80 mb-4">
-                  {growthAdvice ? `Settore in crescita: ${growthAdvice.bestSectorToPush}` : "Disponibile previa sync GSC"}
+                  {growthAdvice ? "Confronto delle query per pagina" : "Disponibile previa sync GSC"}
                 </p>
-                {growthAdvice && <div className="text-[9px] font-black uppercase bg-white/20 inline-block px-2 py-1 rounded">Consigliato oggi</div>}
+                {growthAdvice && <p className="text-xs">
+                  {growthAdvice.current.startDate} – {growthAdvice.current.endDate} rispetto a {growthAdvice.previous.startDate} – {growthAdvice.previous.endDate}.
+                  Righe lette: {growthAdvice.counts.current} e {growthAdvice.counts.previous}.
+                </p>}
+                {growthAdvice && <div className="text-[9px] font-black uppercase bg-white/20 inline-block px-2 py-1 rounded">Dati Search Console</div>}
               </div>
             </div>
             {/* Github Radar Card */}
@@ -1360,10 +1379,10 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                 <div className="relative z-10">
                   <h2 className="text-3xl font-bold mb-2 font-inter flex items-center gap-3">
                     Bussola Operativa 💡
-                    {growthAdvice && <span className="text-[10px] bg-indigo-500 px-3 py-1 rounded-full uppercase tracking-widest font-black animate-pulse">ROI Alto</span>}
+                    {growthAdvice && <span className="text-[10px] bg-indigo-500 px-3 py-1 rounded-full uppercase tracking-widest font-black animate-pulse">Dati Search Console</span>}
                   </h2>
                   <p className="text-lg text-slate-300 max-w-2xl leading-relaxed mb-8">
-                    {growthAdvice ? growthAdvice.advice : "L'intelligenza artificiale sta analizzando i tuoi dati Search Console per suggerirti la mossa migliore..."}
+                    {growthAdvice ? (growthAdvice.topGrowth?.[0] ? "Query in crescita: " + growthAdvice.topGrowth[0].query : "Dati di crescita non disponibili") : "Collega Search Console per confrontare le query per pagina."}
                   </p>
                   <div className="flex gap-4">
                     <button onClick={() => setViewMode('table')} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold hover:bg-slate-100 transition-all flex items-center gap-2">
@@ -1373,7 +1392,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                       <div className="flex items-center gap-4 px-6 border-l border-white/10">
                         <div>
                           <div className="text-[10px] text-slate-500 uppercase font-black">Top Growth</div>
-                          <div className="text-xl font-bold truncate max-w-[150px]">{growthAdvice.topGrowth[0]?.query}</div>
+                          <div className="text-xl font-bold truncate max-w-[150px]">{growthAdvice.topGrowth[0]?.query || "Nessuna query"}</div>
                         </div>
                       </div>
                     )}
@@ -1436,7 +1455,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                       <div className="text-md font-black text-rose-600">Recovery</div>
                       <div className="text-[10px] text-rose-400 font-bold">Articoli in calo</div>
                     </div>
-                    <div className="text-3xl font-black text-rose-900">{articles.filter(a => a.lastPosition > a.prevPosition + 3).length}</div>
+                    <div className="text-3xl font-black text-rose-900">{articles.filter(a => hasRankDrop(a, 3)).length}</div>
                   </div>
                 </div>
               </div>
@@ -1751,7 +1770,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                               </div>
                             )}
                             {/* RANKING ALERT */}
-                            {a.status === "pubblicato" && a.lastPosition && a.prevPosition && a.lastPosition > a.prevPosition + 2 && (
+                            {a.status === "pubblicato" && a.lastPosition && a.prevPosition && hasRankDrop(a, 2) && (
                                <div className="relative group/rank">
                                  <ArrowUpDown size={14} className="text-rose-500 animate-pulse cursor-help" />
                                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover/rank:block z-50 w-48 bg-rose-600 text-white text-[10px] p-2 rounded-lg shadow-xl">
@@ -1875,7 +1894,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
                               <><FileText size={16} /> Copia Brief</>
                             )}
                           </button>
-                          {a.status === "pubblicato" && a.lastPosition && a.prevPosition && a.lastPosition > a.prevPosition + 2 && (
+                          {a.status === "pubblicato" && a.lastPosition && a.prevPosition && hasRankDrop(a, 2) && (
                             <button 
                               onClick={() => handleRecovery(a)} 
                               title="Avvia Recovery Bot"

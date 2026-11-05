@@ -1,11 +1,11 @@
 import React from 'react';
 import { TrendingUp, Users, FileText, CheckCircle2 } from 'lucide-react';
 
-const KPICard = ({ title, value, icon: Icon, color, trend }) => (
+const KPICard = ({ title, value, icon: MetricIcon, color, trend }) => (
   <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-500/10 hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between mb-4">
       <div className={`p-3 rounded-xl bg-${color}/10 text-${color}`}>
-        <Icon size={24} />
+        {React.createElement(MetricIcon, { size: 24 })}
       </div>
       {trend && (
         <span className="text-emerald-500 text-xs font-bold flex items-center gap-1">

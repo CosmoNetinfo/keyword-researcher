@@ -1,7 +1,10 @@
 /* global process */
 import { getFeedsByTopic, fetchFeeds } from './rss-feeds.js';
 
+import { requireAppUser } from "../server/app-access.js";
+
 export default async function handler(req, res) {
+  if (!(await requireAppUser(req, res))) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -68,7 +71,7 @@ ${isQuickWin ? `\nOBIETTIVO QUICK WIN: Ottimizzare il posizionamento per la keyw
 ${customKeywords?.length > 0 ? `KEYWORD SPECIFICHE DA ANALIZZARE: ${customKeywords.join(", ")}` : ""}
 
 DATA ATTUALE: Marzo 2026.
-OBIETTIVO CRITICO: I contenuti suggeriti devono essere focalizzati sul 2026, sulle tendenze attuali e future. 
+OBIETTIVO CRITICO: I contenuti suggeriti devono essere focalizzati sul 2026, sulle tendenze attuali e future.
 ${customKeywords?.length > 0 ? "IMPORTANTISSIMO: Analizza prioritariamente le KEYWORD SPECIFICHE fornite sopra, determinandone difficoltà, intento e volume stimato nel 2026." : ""}
 EVITA ASSOLUTAMENTE LA RIPETIZIONE: Se hai già suggerito certi argomenti in precedenza (basati sulla nicchia), cerca angolazioni nuove, sotto-nicchie specifiche e trend emergenti. Massima varietà e originalità.
 NON suggerire articoli, guide o notizie relative al 2024 o 2025 (sono considerate obsolete).
