@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { safeEditorialUrl } from "../utils/editorialRadar";
+import { downloadSeoMarkdown, opportunityReasons } from "../utils/exportSeo";
 
 export default function SeoOpportunities({ accessToken, onAddToPiano }) {
   const [result, setResult] = useState(null);
@@ -30,15 +31,12 @@ export default function SeoOpportunities({ accessToken, onAddToPiano }) {
   async function save(row) {
     setPending(row.url);
     try {
-      const reasons = [];
-      if (row.lostClicks) reasons.push(`${row.lostClicks} clic persi rispetto ai 28 giorni precedenti`);
-      if (row.lowCtr) reasons.push(`CTR ${(row.ctr * 100).toFixed(1)}% con ${row.impressions} impressioni`);
       const saved = await onAddToPiano({
         titolo: `Aggiorna ${new URL(row.url).pathname}`,
         link_fonte: row.url,
         tipo: "Aggiornamento",
         fonte: "Search Console",
-        note: reasons.join(" · "),
+        note: opportunityReasons(row).join(" · "),
       });
       if (saved) setAdded(current => new Set(current).add(row.url));
     } finally {
@@ -64,6 +62,12 @@ export default function SeoOpportunities({ accessToken, onAddToPiano }) {
             {result.current.startDate} – {result.current.endDate} rispetto a {result.previous.startDate} – {result.previous.endDate}
           </p>
           {result.rows.length === 0 && <p className="text-sm text-slate-300">Nessuna opportunità trovata nelle pagine analizzate.</p>}
+          {result.rows.some(row => safeEditorialUrl(row.url)) && (
+            <button type="button" onClick={() => downloadSeoMarkdown(result)}
+              className="min-h-11 rounded-xl border border-indigo-400/50 px-3 text-sm font-semibold text-indigo-200">
+              Scarica tutte (.md)
+            </button>
+          )}
           <ul className="space-y-2">
             {result.rows.map(row => {
               const url = safeEditorialUrl(row.url);
@@ -77,10 +81,17 @@ export default function SeoOpportunities({ accessToken, onAddToPiano }) {
                       {row.impressions} impressioni · CTR {(row.ctr * 100).toFixed(1)}% · Pos. {row.position.toFixed(1)}
                     </p>
                   </div>
-                  <button type="button" disabled={Boolean(pending) || added.has(row.url)} onClick={() => save(row)}
-                    className="min-h-11 rounded-xl border border-indigo-400/50 px-3 text-sm font-semibold text-indigo-200 disabled:opacity-50">
-                    {added.has(row.url) ? "Nel Piano" : "Aggiungi al Piano"}
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => downloadSeoMarkdown(result, row)}
+                      aria-label={`Scarica opportunità per ${new URL(url).pathname} (.md)`}
+                      className="min-h-11 rounded-xl border border-indigo-400/50 px-3 text-sm font-semibold text-indigo-200">
+                      Scarica .md
+                    </button>
+                    <button type="button" disabled={Boolean(pending) || added.has(row.url)} onClick={() => save(row)}
+                      className="min-h-11 rounded-xl border border-indigo-400/50 px-3 text-sm font-semibold text-indigo-200 disabled:opacity-50">
+                      {added.has(row.url) ? "Nel Piano" : "Aggiungi al Piano"}
+                    </button>
+                  </div>
                 </li>
               );
             })}
