@@ -1,11 +1,10 @@
 import { google } from 'googleapis';
 import { comparisonPeriods, findSeoOpportunities } from '../src/utils/seoOpportunities.js';
 
+import { appOriginAllowed } from "../server/app-access.js";
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (!appOriginAllowed(req, res)) return;
 
   const token = (req.body?.access_token) || (req.headers.authorization?.split(' ')[1]);
   if (!token) return res.status(401).json({ error: 'Missing access_token' });
@@ -100,7 +99,7 @@ export default async function handler(req, res) {
     res.status(400).json({ error: 'Azione non valida' });
 
   } catch (error) {
-    console.error("GSC Service Error:", error);
+    console.error("Errore Search Console:", error.code || error.name);
     res.status(500).json({ error: error.message });
   }
 }

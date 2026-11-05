@@ -1,5 +1,8 @@
 /* global process */
+import { requireAppUser } from "../server/app-access.js";
+
 export default async function handler(req, res) {
+  if (!(await requireAppUser(req, res))) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { action, title, category, brief, prompt, width = 1024, height = 1024 } = req.body;

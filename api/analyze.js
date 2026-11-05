@@ -1,7 +1,10 @@
 /* global process */
 import { getFeedsByTopic, fetchFeeds } from './rss-feeds.js';
 
+import { requireAppUser } from "../server/app-access.js";
+
 export default async function handler(req, res) {
+  if (!(await requireAppUser(req, res))) return;
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

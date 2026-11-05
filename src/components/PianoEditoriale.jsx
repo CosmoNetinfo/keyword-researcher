@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "../utils/authenticatedFetch";
 import { useState, useEffect, startTransition, useMemo, useCallback } from "react";
 import { db } from "../firebase";
 import {
@@ -436,7 +437,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
 
       if (wpSettings.url && wpSettings.user && wpSettings.pass) {
         try {
-          const resWP = await fetch("/api/wp-service", {
+          const resWP = await authenticatedFetch("/api/wp-service", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -546,7 +547,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleCopyBrief(article) {
     setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'brief', title: article.title, category: article.cat })
@@ -605,7 +606,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleGenerateImage(article) {
     setImageStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'image', prompt: `Pro-grade editorial illustration for a tech blog post titled "${article.title}". Style: clean, modern, digital art, vibrant colors, technology theme.` })
@@ -628,7 +629,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function handleGenerateSocial(article) {
     setSocialStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'social', title: article.title, brief: article.lastBrief })
@@ -650,7 +651,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
     if (!article.lastPosition || !article.prevPosition) return;
     setBriefStatus(prev => ({ ...prev, [article.id]: 'loading' }));
     try {
-      const res = await fetch('/api/ai-service', {
+      const res = await authenticatedFetch('/api/ai-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -693,7 +694,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
       // Recupero suggerimenti link interni se disponibili (sicuro)
       const suggestionsLinks = article.internalLinks || [];
       
-      const res = await fetch("/api/wp-service", {
+      const res = await authenticatedFetch("/api/wp-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -816,7 +817,7 @@ export default function PianoEditoriale({ onAnalyze, onViewResults, loading: glo
   async function testWPConnection() {
     setTestingWP(true);
     try {
-      const res = await fetch("/api/wp-service", {
+      const res = await authenticatedFetch("/api/wp-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

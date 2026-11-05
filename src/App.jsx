@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./utils/authenticatedFetch";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { db } from "./firebase";
 import { 
@@ -262,7 +263,7 @@ export default function App() {
     if (!posts) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/ai-service", {
+      const res = await authenticatedFetch("/api/ai-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "analyze-competitor", posts, domain })
@@ -562,7 +563,7 @@ export default function App() {
       await new Promise(r => setTimeout(r, 400));
       setPhaseIndex(1);
 
-      const response = await fetch("/api/analyze", {
+      const response = await authenticatedFetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
